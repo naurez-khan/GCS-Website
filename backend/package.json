@@ -12,6 +12,7 @@
     "check:db": "node scripts/check-db-schema.js",
     "check:api": "node scripts/check-live-api.js",
     "check:edits": "node scripts/check-edit-workflows.js",
+    "copy-to-neon": "node scripts/copy-to-neon.js",
     "test": "node --test"
   },
   "keywords": [],
