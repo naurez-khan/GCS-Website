@@ -785,17 +785,17 @@ button.excel-btn {
 .back-btn {
     margin-bottom: 22px;
     padding: 10px 15px;
-    border: 1px solid rgba(255, 255, 255, .42);
+    border: 1px solid var(--brand-dark);
     border-radius: 999px;
     color: #fff;
-    background: rgba(79, 3, 10, .62);
-    box-shadow: 0 8px 22px rgba(30, 0, 3, .2);
-    backdrop-filter: blur(10px);
+    background: var(--brand);
+    box-shadow: 0 9px 22px rgba(119, 4, 16, .28);
+    backdrop-filter: none;
 }
 
 .back-btn:hover {
     color: #fff;
-    background: rgba(164, 11, 25, .84);
+    background: var(--brand-bright);
     text-decoration: none;
 }
 
@@ -982,6 +982,21 @@ tbody tr:hover td {
         width: 46px;
         height: 46px;
         flex-basis: 46px;
+    }
+    .teacher-dashboard-page .topbar {
+        flex-wrap: wrap;
+    }
+    .teacher-dashboard-page .teacher-info {
+        width: 100%;
+        flex: 0 0 100%;
+        justify-content: flex-end;
+    }
+    .teacher-dashboard-page #teacherName {
+        width: 100%;
+        text-align: right;
+    }
+    .teacher-dashboard-page .change-password-btn {
+        margin-right: auto;
     }
     .portal-main,
     .container {
