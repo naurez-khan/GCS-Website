@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Results</title>
+    <link rel="icon" type="image/png" href="/assets/department-logo.png">
+    <link rel="stylesheet" href="/portal.css">
+    <link rel="stylesheet" href="/brand.css?v=20260815-10">
+</head>
+<body>
+    <header class="portal-bar">
+        <a class="brand-lockup" href="/">
+            <img class="brand-logo" src="/assets/department-logo.png" alt="Department of Mathematics crest">
+            <span class="brand-copy"><strong>Department of Mathematics</strong><small>Govt. Graduate College Civil Lines Sheikhupura</small></span>
+        </a>
+        <a href="/test-login.html">Teacher or admin login</a>
+    </header>
+    <main class="portal-main narrow">
+        <section class="panel hero-panel">
+            <p class="eyebrow">STUDENT RESULTS</p>
+            <h1>View your published result</h1>
+            <p class="muted">Enter the result code supplied by your teacher and your roll number.</p>
+            <form id="resultForm" class="lookup-form">
+                <label>Result code<input id="resultCode" maxlength="24" autocomplete="off" required></label>
+                <label>Roll number<input id="rollNumber" maxlength="50" autocomplete="off" required></label>
+                <button type="submit" class="primary">View result</button>
+            </form>
+            <div id="message" class="notice hidden" role="status"></div>
+        </section>
+        <section id="resultPanel" class="panel hidden" aria-live="polite"></section>
+    </main>
+    <footer class="site-footer">Department of Mathematics · Student Result Service</footer>
+    <script src="/results.js?v=20260815-1"></script>
+</body>
+</html>

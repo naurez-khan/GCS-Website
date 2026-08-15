@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Course</title>
+
+    <link rel="icon" type="image/png" href="/assets/department-logo.png">
+
+    <link
+        rel="stylesheet"
+        href="/course.css?v=20260815-2"
+    >
+    <link rel="stylesheet" href="/brand.css?v=20260815-10">
+
+</head>
+
+
+<body>
+
+    <!-- =========================
+         TOP BAR
+    ========================= -->
+
+    <header class="topbar">
+
+        <a class="logo brand-lockup" href="/teacher-dashboard.html">
+            <img class="brand-logo" src="/assets/department-logo.png" alt="Department of Mathematics crest">
+            <span class="brand-copy"><strong>Department of Mathematics</strong><small>Course Workspace</small></span>
+        </a>
+
+        <div class="teacher-info">
+
+            <span id="teacherName"></span>
+
+            <button
+                id="logoutBtn"
+                type="button"
+            >
+                Logout
+            </button>
+
+        </div>
+
+    </header>
+
+
+    <!-- =========================
+         MAIN
+    ========================= -->
+
+    <main class="container">
+
+        <a
+            href="/teacher-dashboard.html"
+            class="back-btn"
+        >
+            ← Back to Dashboard
+        </a>
+
+
+        <!-- =========================
+             COURSE HEADER
+        ========================= -->
+
+        <section
+            id="courseHeader"
+            class="course-header"
+        >
+
+            <p class="loading">
+                Loading course...
+            </p>
+
+        </section>
+
+
+        <!-- =========================
+             STUDENTS
+        ========================= -->
+
+        <section class="students-section">
+
+            <div class="section-title">
+
+                <div>
+
+                    <h2>
+                        Students
+                    </h2>
+
+                    <p id="studentCount">
+                        Loading...
+                    </p>
+
+                </div>
+
+
+                <div class="course-actions">
+
+                    <button
+                        id="editClassBtn"
+                        class="secondary-btn"
+                        type="button"
+                        disabled
+                    >
+                        Edit Class
+                    </button>
+
+                    <button
+                        id="importStudentsBtn"
+                        class="secondary-btn"
+                        type="button"
+                        disabled
+                    >
+                        Import Students
+                    </button>
+
+                    <button
+                        id="saveStudentNamesBtn"
+                        class="secondary-btn hidden"
+                        type="button"
+                    >
+                        Save Student Names
+                    </button>
+
+                    <button
+                        id="attendanceBtn"
+                        class="primary-btn"
+                        type="button"
+                    >
+                        Take Attendance
+                    </button>
+
+
+                    <button
+                        id="marksBtn"
+                        class="primary-btn"
+                        type="button"
+                    >
+                        Marks
+                    </button>
+
+                </div>
+
+            </div>
+
+
+            <div id="studentsContainer">
+
+                <p class="loading">
+                    Loading students...
+                </p>
+
+            </div>
+
+        </section>
+
+        <section id="classSettingsSection" class="settings-panel hidden">
+            <div class="section-title">
+                <div><h2>Edit Class Settings</h2><p>Update class information and assessment structure.</p></div>
+            </div>
+            <div id="classSettingsMessage" class="message"></div>
+            <div class="settings-grid">
+                <label>Course Name<input id="settingsCourseName" maxlength="150"></label>
+                <label>Course Code <small>(optional)</small><input id="settingsCourseCode" maxlength="50" placeholder="e.g. MATH-101"></label>
+                <label>Section<input id="settingsSection" maxlength="20"></label>
+                <label class="setting-check"><input id="settingsResultsEnabled" type="checkbox"> Publish student results</label>
+                <label>Student Result Code<input id="settingsResultCode" minlength="4" maxlength="24" pattern="[A-Za-z0-9-]+" placeholder="e.g. calculus-2026"></label>
+                <label class="setting-check"><input id="settingsAssignmentsEnabled" type="checkbox"> Assignments enabled</label>
+                <label>Assignment Count<input id="settingsAssignmentCount" type="number" min="1" max="100"></label>
+                <label>Assignment Maximum Marks<input id="settingsAssignmentMax" type="number" min="0.01" step="0.01"></label>
+                <label class="setting-check"><input id="settingsQuizzesEnabled" type="checkbox"> Quizzes enabled</label>
+                <label>Quiz Count<input id="settingsQuizCount" type="number" min="1" max="100"></label>
+                <label>Quiz Maximum Marks<input id="settingsQuizMax" type="number" min="0.01" step="0.01"></label>
+                <label class="setting-check"><input id="settingsMidtermEnabled" type="checkbox"> Midterm enabled</label>
+                <label>Midterm Maximum Marks<input id="settingsMidtermMax" type="number" min="0.01" step="0.01"></label>
+                <label class="setting-check"><input id="settingsFinalEnabled" type="checkbox"> Final exam enabled</label>
+                <label>Final Maximum Marks<input id="settingsFinalMax" type="number" min="0.01" step="0.01"></label>
+            </div>
+            <div class="panel-actions">
+                <button id="saveClassSettingsBtn" class="primary-btn" type="button">Save Settings</button>
+                <button id="cancelClassSettingsBtn" class="secondary-btn" type="button">Cancel</button>
+            </div>
+        </section>
+
+        <section id="studentImportSection" class="settings-panel hidden">
+            <div class="section-title">
+                <div><h2>Import Students</h2><p>Upload an Excel or CSV file containing Roll Number and Name columns.</p></div>
+            </div>
+            <input id="studentImportFile" class="file-input" type="file" accept=".xlsx,.xls,.csv">
+            <div id="studentImportPreview" class="import-preview"><p>Select a file to preview it.</p></div>
+            <div id="studentImportMessage" class="message"></div>
+            <div class="panel-actions">
+                <button id="saveStudentImportBtn" class="primary-btn" type="button" disabled>Import Students</button>
+                <button id="cancelStudentImportBtn" class="secondary-btn" type="button">Cancel</button>
+            </div>
+        </section>
+
+
+        <!-- =========================
+             ATTENDANCE
+        ========================= -->
+
+        <section
+            id="attendanceSection"
+            class="attendance-section hidden"
+        >
+
+            <div class="attendance-header">
+
+                <div>
+
+                    <h2>
+                        Take Attendance
+                    </h2>
+
+                    <p>
+                        Date:
+                        <strong id="attendanceDate"></strong>
+                    </p>
+
+                </div>
+
+            </div>
+
+
+            <div
+                id="attendanceMessage"
+                class="message"
+            ></div>
+
+
+            <div
+                id="attendanceList"
+                class="attendance-list"
+            ></div>
+
+
+            <div class="attendance-actions">
+
+                <button
+                    id="saveAttendanceBtn"
+                    class="primary-btn"
+                    type="button"
+                >
+                    Save Attendance
+                </button>
+
+
+                <button
+                    id="cancelAttendanceBtn"
+                    class="secondary-btn"
+                    type="button"
+                >
+                    Cancel
+                </button>
+
+            </div>
+
+        </section>
+
+
+        <!-- =========================
+             MARKS
+        ========================= -->
+
+        <section
+            id="marksSection"
+            class="marks-section hidden"
+        >
+
+            <div class="section-title">
+
+                <div>
+
+                    <h2>
+                        Course Marks
+                    </h2>
+
+                    <p>
+                        Enter marks for each assignment and quiz.
+                    </p>
+
+                </div>
+
+                <button
+                    id="downloadMarksExcelBtn"
+                    class="primary-btn excel-btn"
+                    type="button"
+                >
+                    <svg class="excel-icon" viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M4 3h10a2 2 0 0 1 2 2v2h4v14H8v-3H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z" fill="currentColor"/>
+                        <path d="M16 9v3h2V9h-2Zm0 5v3h2v-3h-2Zm-6-5 1.45 2.5L13 9h2l-2.45 4L15 17h-2l-1.55-2.55L10 17H8l2.4-4L8 9h2Z" fill="#217346"/>
+                    </svg>
+                    <span>Download Excel</span>
+                </button>
+
+            </div>
+
+
+            <div
+                id="marksMessage"
+                class="message"
+            ></div>
+
+
+            <div
+                id="marksLoading"
+                class="loading"
+            >
+                Loading marks...
+            </div>
+
+
+            <!-- =========================
+                 MARKS CONTAINER
+
+                 course.js will dynamically
+                 create columns here based
+                 on the number of assignments
+                 and quizzes selected when
+                 the course was created.
+            ========================= -->
+
+            <div
+                id="marksContainer"
+                class="marks-container"
+            ></div>
+
+
+            <div class="marks-actions">
+
+                <button
+                    id="saveMarksBtn"
+                    class="primary-btn"
+                    type="button"
+                >
+                    Save Marks
+                </button>
+
+
+                <button
+                    id="cancelMarksBtn"
+                    class="secondary-btn"
+                    type="button"
+                >
+                    Cancel
+                </button>
+
+            </div>
+
+        </section>
+
+
+        <!-- =========================
+             ATTENDANCE HISTORY
+        ========================= -->
+
+        <section
+            class="history-section"
+        >
+
+            <div class="section-title">
+
+                <div>
+
+                    <h2>
+                        Attendance History
+                    </h2>
+
+                </div>
+
+
+                <button
+                    id="editAttendanceBtn"
+                    class="secondary-btn"
+                    type="button"
+                >
+                    Edit Attendance
+                </button>
+
+                <label class="attendance-export-month">
+                    Export month
+                    <input id="attendanceExportMonth" type="month">
+                </label>
+
+                <button
+                    id="downloadExcelBtn"
+                    class="primary-btn excel-btn"
+                    type="button"
+                >
+                    <svg class="excel-icon" viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M4 3h10a2 2 0 0 1 2 2v2h4v14H8v-3H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z" fill="currentColor"/>
+                        <path d="M16 9v3h2V9h-2Zm0 5v3h2v-3h-2Zm-6-5 1.45 2.5L13 9h2l-2.45 4L15 17h-2l-1.55-2.55L10 17H8l2.4-4L8 9h2Z" fill="#217346"/>
+                    </svg>
+                    <span>Download Excel</span>
+                </button>
+
+            </div>
+
+            <div id="attendanceEditor" class="attendance-editor hidden">
+                <div class="attendance-editor-header">
+                    <label>Attendance Date<select id="attendanceEditDate"></select></label>
+                    <span id="attendanceEditHelp">Click a status to change it.</span>
+                </div>
+                <div id="attendanceEditMessage" class="message"></div>
+                <div id="attendanceEditList" class="attendance-list"></div>
+                <div class="panel-actions">
+                    <button id="saveAttendanceEditBtn" class="primary-btn" type="button">Save Corrections</button>
+                    <button id="cancelAttendanceEditBtn" class="secondary-btn" type="button">Cancel</button>
+                </div>
+                <details class="audit-panel">
+                    <summary>Attendance change history</summary>
+                    <div id="attendanceAuditList"><p class="loading">Loading history…</p></div>
+                </details>
+            </div>
+
+
+            <div
+                id="attendanceSummary"
+                class="attendance-summary"
+            ></div>
+
+
+            <div id="attendanceHistory">
+
+                <p class="loading">
+                    Loading attendance history...
+                </p>
+
+            </div>
+
+        </section>
+
+    </main>
+
+
+    <!-- =========================
+         EXCEL EXPORT LIBRARIES
+    ========================= -->
+
+    <script src="/vendor/xlsx.full.min.js"></script>
+    <script src="/vendor/exceljs.min.js"></script>
+    <script src="/attendance-register.js?v=20260815-2"></script>
+
+
+    <!-- =========================
+         COURSE JAVASCRIPT
+    ========================= -->
+
+    <script src="/course.js?v=20260815-6"></script>
+
+</body>
+
+</html>

@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Course Marks</title>
+
+    <link rel="icon" type="image/png" href="/assets/department-logo.png">
+
+    <link
+        rel="stylesheet"
+        href="/marks.css"
+    >
+    <link rel="stylesheet" href="/brand.css?v=20260815-10">
+
+</head>
+
+
+<body>
+
+    <!-- TOP BAR -->
+
+    <header class="topbar">
+
+        <a class="logo brand-lockup" href="/teacher-dashboard.html">
+            <img class="brand-logo" src="/assets/department-logo.png" alt="Department of Mathematics crest">
+            <span class="brand-copy"><strong>Department of Mathematics</strong><small>Assessment Workspace</small></span>
+        </a>
+
+        <div class="teacher-info">
+
+            <span id="teacherName"></span>
+
+            <button
+                id="logoutBtn"
+                type="button"
+            >
+                Logout
+            </button>
+
+        </div>
+
+    </header>
+
+
+    <!-- MAIN -->
+
+    <main class="container">
+
+        <a
+            id="backBtn"
+            href="#"
+            class="back-btn"
+        >
+            ← Back to Course
+        </a>
+
+
+        <!-- COURSE HEADER -->
+
+        <section
+            id="courseHeader"
+            class="course-header"
+        >
+
+            <p class="loading">
+                Loading course...
+            </p>
+
+        </section>
+
+
+        <!-- MARKS -->
+
+        <section class="marks-section">
+
+            <div class="section-title">
+
+                <div>
+
+                    <h2>
+                        Course Marks
+                    </h2>
+
+                    <p id="marksDescription">
+                        Loading marks...
+                    </p>
+
+                </div>
+
+
+                <button
+                    id="saveMarksBtn"
+                    class="primary-btn"
+                    type="button"
+                >
+                    Save Marks
+                </button>
+
+            </div>
+
+
+            <div
+                id="marksMessage"
+                class="message"
+            ></div>
+
+
+            <div id="marksTableContainer">
+
+                <p class="loading">
+                    Loading marks...
+                </p>
+
+            </div>
+
+        </section>
+
+    </main>
+
+
+    <!-- JAVASCRIPT -->
+
+    <script src="/marks.js"></script>
+
+</body>
+
+</html>

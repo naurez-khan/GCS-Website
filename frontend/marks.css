@@ -1,0 +1,572 @@
+/* =========================
+   MARKS PAGE
+========================= */
+
+* {
+    box-sizing: border-box;
+}
+
+
+body {
+    margin: 0;
+
+    font-family: Arial, sans-serif;
+
+    background: #f5f7fb;
+
+    color: #1f2937;
+}
+
+
+/* =========================
+   TOP BAR
+========================= */
+
+.topbar {
+    height: 70px;
+
+    background: white;
+
+    border-bottom: 1px solid #e5e7eb;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: space-between;
+
+    padding: 0 40px;
+}
+
+
+.logo {
+    font-size: 20px;
+
+    font-weight: 700;
+}
+
+
+.teacher-info {
+    display: flex;
+
+    align-items: center;
+
+    gap: 20px;
+}
+
+
+#teacherName {
+    font-weight: 600;
+}
+
+
+#logoutBtn {
+    border: none;
+
+    background: #ef4444;
+
+    color: white;
+
+    padding: 9px 16px;
+
+    border-radius: 6px;
+
+    cursor: pointer;
+
+    font-weight: 600;
+}
+
+
+#logoutBtn:hover {
+    background: #dc2626;
+}
+
+
+/* =========================
+   MAIN
+========================= */
+
+.container {
+    max-width: 1400px;
+
+    margin: 0 auto;
+
+    padding: 30px 20px;
+}
+
+
+/* =========================
+   BACK BUTTON
+========================= */
+
+.back-btn {
+    display: inline-block;
+
+    margin-bottom: 20px;
+
+    color: #2563eb;
+
+    text-decoration: none;
+
+    font-weight: 600;
+}
+
+
+.back-btn:hover {
+    text-decoration: underline;
+}
+
+
+/* =========================
+   COURSE HEADER
+========================= */
+
+.course-header {
+    background: white;
+
+    padding: 25px;
+
+    border-radius: 10px;
+
+    border: 1px solid #e5e7eb;
+
+    margin-bottom: 25px;
+}
+
+
+.course-header h1 {
+    margin: 0 0 15px;
+
+    font-size: 28px;
+}
+
+
+.course-details {
+    display: flex;
+
+    flex-wrap: wrap;
+
+    gap: 25px;
+
+    color: #6b7280;
+
+    font-size: 15px;
+}
+
+
+.course-details strong {
+    color: #1f2937;
+}
+
+
+/* =========================
+   MARKS SECTION
+========================= */
+
+.marks-section {
+    background: white;
+
+    border: 1px solid #e5e7eb;
+
+    border-radius: 10px;
+
+    padding: 25px;
+
+    margin-bottom: 25px;
+}
+
+
+/* =========================
+   SECTION TITLE
+========================= */
+
+.section-title {
+    display: flex;
+
+    align-items: center;
+
+    justify-content: space-between;
+
+    gap: 20px;
+
+    margin-bottom: 20px;
+}
+
+
+.section-title h2 {
+    margin: 0 0 5px;
+
+    font-size: 23px;
+}
+
+
+.section-title p {
+    margin: 0;
+
+    color: #6b7280;
+}
+
+
+/* =========================
+   BUTTON
+========================= */
+
+.primary-btn {
+    border: none;
+
+    background: #2563eb;
+
+    color: white;
+
+    padding: 11px 18px;
+
+    border-radius: 7px;
+
+    cursor: pointer;
+
+    font-weight: 600;
+
+    font-size: 14px;
+}
+
+
+.primary-btn:hover {
+    background: #1d4ed8;
+}
+
+
+.primary-btn:disabled {
+    background: #93c5fd;
+
+    cursor: not-allowed;
+}
+
+
+/* =========================
+   MARKS TABLE
+========================= */
+
+.marks-table-wrapper {
+    width: 100%;
+
+    overflow-x: auto;
+
+    border: 1px solid #e5e7eb;
+
+    border-radius: 8px;
+}
+
+
+.marks-table {
+    width: 100%;
+
+    min-width: max-content;
+
+    border-collapse: collapse;
+}
+
+
+.marks-table th,
+.marks-table td {
+    padding: 12px;
+
+    border-right: 1px solid #e5e7eb;
+
+    border-bottom: 1px solid #e5e7eb;
+
+    text-align: center;
+
+    white-space: nowrap;
+}
+
+
+.marks-table th:last-child,
+.marks-table td:last-child {
+    border-right: none;
+}
+
+
+.marks-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+
+/* =========================
+   STUDENT COLUMNS
+========================= */
+
+.marks-table th.student-column {
+    text-align: left;
+
+    min-width: 130px;
+}
+
+
+.marks-table th.name-column {
+    text-align: left;
+
+    min-width: 180px;
+}
+
+
+/* =========================
+   ASSIGNMENT HEADER
+========================= */
+
+.assignment-header {
+    background: #eff6ff;
+
+    color: #1e40af;
+}
+
+
+.quiz-header {
+    background: #f5f3ff;
+
+    color: #5b21b6;
+}
+
+
+.assessment-name {
+    display: block;
+
+    font-weight: 700;
+
+    margin-bottom: 4px;
+}
+
+
+.max-marks {
+    display: block;
+
+    font-size: 12px;
+
+    font-weight: 500;
+
+    color: #6b7280;
+}
+
+
+/* =========================
+   MARK INPUT
+========================= */
+
+.marks-input {
+    width: 75px;
+
+    padding: 8px 7px;
+
+    border: 1px solid #d1d5db;
+
+    border-radius: 6px;
+
+    text-align: center;
+
+    font-size: 14px;
+
+    outline: none;
+}
+
+
+.marks-input:focus {
+    border-color: #2563eb;
+
+    box-shadow:
+        0 0 0 2px rgba(37, 99, 235, 0.1);
+}
+
+
+.marks-input.invalid {
+    border-color: #dc2626;
+
+    background: #fef2f2;
+}
+
+
+/* =========================
+   STUDENT ROW
+========================= */
+
+.student-roll {
+    font-weight: 700;
+
+    text-align: left !important;
+}
+
+
+.student-name {
+    text-align: left !important;
+
+    color: #374151;
+}
+
+
+.marks-table tbody tr:hover {
+    background: #f9fafb;
+}
+
+
+/* =========================
+   TOTAL
+========================= */
+
+.total-header {
+    background: #f3f4f6;
+
+    font-weight: 700;
+}
+
+
+.total-cell {
+    font-weight: 700;
+
+    background: #f9fafb;
+}
+
+
+/* =========================
+   MESSAGES
+========================= */
+
+.message {
+    padding: 12px;
+
+    border-radius: 7px;
+
+    margin-bottom: 15px;
+
+    display: none;
+}
+
+
+.message.success {
+    display: block;
+
+    background: #dcfce7;
+
+    color: #166534;
+
+    border: 1px solid #bbf7d0;
+}
+
+
+.message.error {
+    display: block;
+
+    background: #fee2e2;
+
+    color: #991b1b;
+
+    border: 1px solid #fecaca;
+}
+
+
+/* =========================
+   LOADING
+========================= */
+
+.loading {
+    color: #6b7280;
+
+    padding: 15px;
+}
+
+
+/* =========================
+   ERROR
+========================= */
+
+.error {
+    color: #dc2626;
+
+    background: #fee2e2;
+
+    padding: 15px;
+
+    border-radius: 7px;
+
+    border: 1px solid #fecaca;
+}
+
+
+/* =========================
+   MOBILE
+========================= */
+
+@media (max-width: 700px) {
+
+    .topbar {
+        height: auto;
+
+        min-height: 65px;
+
+        padding: 12px 15px;
+
+        gap: 15px;
+    }
+
+
+    .logo {
+        font-size: 16px;
+    }
+
+
+    .teacher-info {
+        gap: 10px;
+    }
+
+
+    #teacherName {
+        font-size: 14px;
+    }
+
+
+    #logoutBtn {
+        padding: 8px 12px;
+    }
+
+
+    .container {
+        padding: 20px 15px;
+    }
+
+
+    .course-header {
+        padding: 20px;
+    }
+
+
+    .course-header h1 {
+        font-size: 24px;
+    }
+
+
+    .course-details {
+        flex-direction: column;
+
+        gap: 10px;
+    }
+
+
+    .marks-section {
+        padding: 18px;
+    }
+
+
+    .section-title {
+        align-items: flex-start;
+
+        flex-direction: column;
+    }
+
+
+    .section-title .primary-btn {
+        width: 100%;
+    }
+
+
+    .marks-table-wrapper {
+        border-radius: 6px;
+    }
+
+}

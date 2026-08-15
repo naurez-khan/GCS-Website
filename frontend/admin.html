@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Department Administration</title>
+    <link rel="icon" type="image/png" href="/assets/department-logo.png">
+    <link rel="stylesheet" href="/portal.css?v=20260815-2">
+    <link rel="stylesheet" href="/brand.css?v=20260815-12">
+</head>
+<body>
+    <header class="portal-bar">
+        <a class="brand-lockup" href="/admin.html">
+            <img class="brand-logo" src="/assets/department-logo.png" alt="Department of Mathematics crest">
+            <span class="brand-copy"><strong>Department of Mathematics</strong><small>Administration Portal</small></span>
+        </a>
+        <div class="bar-actions">
+            <span id="adminName"></span>
+            <button id="logoutBtn" class="danger">Logout</button>
+        </div>
+    </header>
+
+    <main class="portal-main two-column">
+        <section class="panel">
+            <h1>Add a teacher</h1>
+            <p class="muted">Create an account that can manage classes, attendance, and marks.</p>
+            <form id="teacherForm" autocomplete="off">
+                <label>Name<input id="name" maxlength="100" autocomplete="off" required></label>
+                <label>Email<input id="email" type="email" maxlength="150" autocomplete="off" required></label>
+                <label>Temporary password<input id="password" type="password" minlength="8" autocomplete="new-password" required></label>
+                <button type="submit" class="primary">Create teacher</button>
+            </form>
+            <div id="message" class="notice hidden" role="status"></div>
+        </section>
+
+        <section class="panel">
+            <div class="panel-heading">
+                <div><h2>Teachers</h2><p class="muted">Current department accounts</p></div>
+                <div class="teacher-list-actions">
+                    <button id="refreshBtn">Refresh</button>
+                    <button id="removeTeacherBtn" class="danger">Remove Teacher</button>
+                    <button id="restoreTeacherBtn">Restore Teacher</button>
+                </div>
+            </div>
+            <div id="teacherAccountPanel" class="account-manager hidden">
+                <h3 id="teacherAccountTitle">Remove Teacher</h3>
+                <p id="teacherAccountHelp" class="muted">Choose which teacher should lose access.</p>
+                <label>
+                    Teacher
+                    <select id="teacherAccountSelect"></select>
+                </label>
+                <div class="account-manager-actions">
+                    <button id="confirmTeacherAccountBtn" class="danger" type="button">Remove Teacher</button>
+                    <button id="cancelTeacherAccountBtn" type="button">Cancel</button>
+                </div>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th>Name</th><th>Email</th><th>Status</th><th>Created</th></tr></thead>
+                    <tbody id="teacherRows"><tr><td colspan="4">Loading…</td></tr></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="panel">
+            <h2>Add an administrator</h2>
+            <p class="muted">Create another account with full administration access.</p>
+            <form id="adminForm" autocomplete="off">
+                <label>Name<input id="newAdminName" maxlength="100" autocomplete="off" required></label>
+                <label>Email<input id="newAdminEmail" type="email" maxlength="150" autocomplete="off" required></label>
+                <label>Temporary password<input id="newAdminPassword" type="password" minlength="8" autocomplete="new-password" required></label>
+                <button type="submit" class="primary">Create administrator</button>
+            </form>
+            <div id="adminMessage" class="notice hidden" role="status"></div>
+        </section>
+
+        <section class="panel">
+            <div class="panel-heading">
+                <div><h2>Administrators</h2><p class="muted">Accounts with full portal access</p></div>
+            </div>
+            <div class="admin-list-actions">
+                <button id="removeAdminBtn" class="danger">Remove Administrator</button>
+                <button id="restoreAdminBtn">Restore Administrator</button>
+            </div>
+            <div id="adminAccountPanel" class="account-manager hidden">
+                <h3 id="adminAccountTitle">Remove Administrator</h3>
+                <p id="adminAccountHelp" class="muted">Choose which administrator should lose access.</p>
+                <label>
+                    Administrator
+                    <select id="adminAccountSelect"></select>
+                </label>
+                <div class="account-manager-actions">
+                    <button id="confirmAdminAccountBtn" class="danger" type="button">Remove Administrator</button>
+                    <button id="cancelAdminAccountBtn" type="button">Cancel</button>
+                </div>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th>Name</th><th>Email</th><th>Status</th><th>Created</th></tr></thead>
+                    <tbody id="adminRows"><tr><td colspan="4">Loading…</td></tr></tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+    <script src="/admin.js?v=20260815-2"></script>
+</body>
+</html>

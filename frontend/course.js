@@ -1,0 +1,3695 @@
+const params = new URLSearchParams(
+    window.location.search
+);
+
+const courseId = params.get("id");
+
+
+// =========================
+// ELEMENTS
+// =========================
+
+const teacherName =
+    document.getElementById("teacherName");
+
+const courseHeader =
+    document.getElementById("courseHeader");
+
+const studentCount =
+    document.getElementById("studentCount");
+
+const studentsContainer =
+    document.getElementById("studentsContainer");
+
+const saveStudentNamesBtn =
+    document.getElementById("saveStudentNamesBtn");
+
+const attendanceBtn =
+    document.getElementById("attendanceBtn");
+
+const attendanceSection =
+    document.getElementById("attendanceSection");
+
+const attendanceDate =
+    document.getElementById("attendanceDate");
+
+const attendanceList =
+    document.getElementById("attendanceList");
+
+const attendanceMessage =
+    document.getElementById("attendanceMessage");
+
+const saveAttendanceBtn =
+    document.getElementById("saveAttendanceBtn");
+
+const cancelAttendanceBtn =
+    document.getElementById("cancelAttendanceBtn");
+
+const logoutBtn =
+    document.getElementById("logoutBtn");
+
+
+// =========================
+// MARKS ELEMENTS
+// =========================
+
+const marksBtn =
+    document.getElementById("marksBtn");
+
+const marksSection =
+    document.getElementById("marksSection");
+
+const marksContainer =
+    document.getElementById("marksContainer");
+
+const marksMessage =
+    document.getElementById("marksMessage");
+
+const saveMarksBtn =
+    document.getElementById("saveMarksBtn");
+
+const cancelMarksBtn =
+    document.getElementById("cancelMarksBtn");
+
+
+// =========================
+// ATTENDANCE HISTORY
+// =========================
+
+const attendanceSummary =
+    document.getElementById("attendanceSummary");
+
+const editClassBtn = document.getElementById("editClassBtn");
+const importStudentsBtn = document.getElementById("importStudentsBtn");
+const classSettingsSection = document.getElementById("classSettingsSection");
+const studentImportSection = document.getElementById("studentImportSection");
+const editAttendanceBtn = document.getElementById("editAttendanceBtn");
+const attendanceEditor = document.getElementById("attendanceEditor");
+
+
+// =========================
+// EXCEL DOWNLOAD
+// =========================
+
+const downloadExcelBtn =
+    document.getElementById("downloadExcelBtn");
+
+const downloadMarksExcelBtn =
+    document.getElementById("downloadMarksExcelBtn");
+
+const attendanceExportMonth =
+    document.getElementById("attendanceExportMonth");
+
+
+// =========================
+// GLOBAL DATA
+// =========================
+
+let students = [];
+
+let currentCourse = null;
+
+let courseAssignments = [];
+
+let courseQuizzes = [];
+
+let assignmentMarks = [];
+
+let quizMarks = [];
+
+let currentAttendanceRecords = [];
+
+let pendingStudentImport = [];
+
+
+// =========================
+// TEACHER
+// =========================
+
+function loadTeacher() {
+
+    const teacher =
+        JSON.parse(
+            localStorage.getItem("teacher")
+        );
+
+
+    if (!teacher) {
+
+        window.location.href =
+            "/test-login.html";
+
+        return;
+    }
+
+
+    if (teacherName) {
+
+        teacherName.textContent =
+            teacher.name;
+
+    }
+
+}
+
+
+// =========================
+// LOAD COURSE + STUDENTS
+// =========================
+
+async function loadCourse() {
+
+    if (!courseId) {
+
+        courseHeader.innerHTML = `
+            <p class="error">
+                Course ID is missing.
+            </p>
+        `;
+
+        return;
+    }
+
+
+    try {
+
+        const response =
+            await fetch(
+                `/api/courses/${courseId}/students`,
+                {
+                    method: "GET",
+                    credentials: "include"
+                }
+            );
+
+
+        const data =
+            await response.json();
+
+
+        console.log(
+            "Course response:",
+            data
+        );
+
+
+        if (!data.success) {
+
+            courseHeader.innerHTML = `
+                <p class="error">
+                    ${escapeHtml(data.message || "Could not load course.")}
+                </p>
+            `;
+
+            return;
+        }
+
+
+        currentCourse =
+            data.course;
+
+
+        displayCourse(
+            currentCourse
+        );
+
+
+        students =
+            data.students || [];
+
+
+        displayStudents(
+            students
+        );
+
+        if (editClassBtn) editClassBtn.disabled = false;
+        if (importStudentsBtn) importStudentsBtn.disabled = false;
+
+
+        applyAttendanceSetting(
+            currentCourse
+        );
+
+
+        applyMarksSetting(
+            currentCourse
+        );
+
+
+        if (
+            currentCourse.attendance_enabled !== false
+        ) {
+
+            loadAttendanceHistory();
+
+        }
+
+    } catch (error) {
+
+        console.error(
+            "Load course error:",
+            error
+        );
+
+
+        courseHeader.innerHTML = `
+            <p class="error">
+                Could not connect to server.
+            </p>
+        `;
+
+    }
+
+}
+
+
+// =========================
+// DISPLAY COURSE
+// =========================
+
+function displayCourse(course) {
+
+    const courseName =
+        course.name || "Course";
+
+
+    let detailsHTML = "";
+
+    if (course.course_code) {
+        detailsHTML += `
+            <span>
+                <strong>Course Code:</strong>
+                ${escapeHtml(course.course_code)}
+            </span>
+        `;
+    }
+
+
+    if (
+        course.program_enabled !== false
+    ) {
+
+        detailsHTML += `
+
+            <span>
+
+                <strong>
+                    Program:
+                </strong>
+
+                ${escapeHtml(course.program || "N/A")}
+
+            </span>
+
+        `;
+
+    }
+
+
+    if (
+        course.semester_enabled !== false
+    ) {
+
+        detailsHTML += `
+
+            <span>
+
+                <strong>
+                    Semester:
+                </strong>
+
+                ${escapeHtml(course.semester || "N/A")}
+
+            </span>
+
+        `;
+
+    }
+
+
+    if (
+        course.section_enabled !== false
+    ) {
+
+        detailsHTML += `
+
+            <span>
+
+                <strong>
+                    Section:
+                </strong>
+
+                ${escapeHtml(course.section || "N/A")}
+
+            </span>
+
+        `;
+
+    }
+
+
+    detailsHTML += `
+
+        <span>
+
+            <strong>
+                Roll Numbers:
+            </strong>
+
+            ${escapeHtml(formatRollNumberSummary(course))}
+
+        </span>
+
+    `;
+
+    if (course.results_enabled && course.result_code) {
+        detailsHTML += `
+            <span>
+                <strong>Student result code:</strong>
+                ${escapeHtml(course.result_code)}
+            </span>
+        `;
+    }
+
+
+    courseHeader.innerHTML = `
+
+        <h1>
+            ${escapeHtml(courseName)}
+        </h1>
+
+        <div class="course-details">
+
+            ${detailsHTML}
+
+        </div>
+
+    `;
+
+}
+
+
+// =========================
+// ATTENDANCE ON/OFF
+// =========================
+
+function applyAttendanceSetting(course) {
+
+    const attendanceEnabled =
+        course.attendance_enabled !== false;
+
+
+    if (attendanceBtn) {
+
+        attendanceBtn.style.display =
+            attendanceEnabled
+                ? ""
+                : "none";
+
+    }
+
+
+    if (!attendanceEnabled) {
+
+        if (attendanceSection) {
+
+            attendanceSection.classList.add(
+                "hidden"
+            );
+
+        }
+
+    }
+
+
+    const historySection =
+        document.querySelector(
+            ".history-section"
+        );
+
+
+    if (historySection) {
+
+        historySection.style.display =
+            attendanceEnabled
+                ? ""
+                : "none";
+
+    }
+
+}
+
+
+// =========================
+// MARKS ON/OFF
+// =========================
+
+function applyMarksSetting(course) {
+
+    const marksEnabled =
+        course.assignments_enabled === true ||
+        course.quizzes_enabled === true ||
+        course.midterm_enabled === true ||
+        course.final_enabled === true;
+
+
+    if (marksBtn) {
+
+        marksBtn.style.display =
+            marksEnabled
+                ? ""
+                : "none";
+
+    }
+
+
+    if (!marksEnabled && marksSection) {
+
+        marksSection.classList.add(
+            "hidden"
+        );
+
+    }
+
+}
+
+
+// =========================
+// DISPLAY STUDENTS
+// =========================
+
+function displayStudents(students) {
+
+    studentCount.textContent =
+        `${students.length} students`;
+
+
+    if (students.length === 0) {
+
+        studentsContainer.innerHTML = `
+            <p>
+                No students found.
+            </p>
+        `;
+
+        return;
+    }
+
+
+    const showStudentName =
+        currentCourse &&
+        currentCourse.student_name_enabled === true;
+
+    if (saveStudentNamesBtn) {
+        saveStudentNamesBtn.classList.toggle("hidden", !showStudentName);
+    }
+
+
+    const showProgram =
+        !currentCourse ||
+        currentCourse.program_enabled !== false;
+
+
+    const showSemester =
+        !currentCourse ||
+        currentCourse.semester_enabled !== false;
+
+
+    let html = `
+
+        <div class="student-table-wrapper">
+        <table class="student-table">
+
+            <thead>
+
+                <tr>
+
+                    <th>
+                        Roll Number
+                    </th>
+
+    `;
+
+
+    if (showStudentName) {
+
+        html += `
+                    <th>
+                        Name
+                    </th>
+        `;
+
+    }
+
+
+    if (showProgram) {
+
+        html += `
+                    <th>
+                        Program
+                    </th>
+        `;
+
+    }
+
+
+    if (showSemester) {
+
+        html += `
+                    <th>
+                        Semester
+                    </th>
+        `;
+
+    }
+
+
+    html += `
+
+                </tr>
+
+            </thead>
+
+            <tbody>
+
+    `;
+
+
+    students.forEach(student => {
+
+        html += `
+
+            <tr>
+
+                <td>
+                    ${escapeHtml(student.roll_number)}
+                </td>
+
+        `;
+
+
+        if (showStudentName) {
+
+            html += `
+
+                <td>
+                    <input
+                        class="student-name-input"
+                        data-student-id="${student.id}"
+                        maxlength="150"
+                        value="${escapeHtml(student.name || "")}"
+                        placeholder="Enter student name"
+                    >
+                </td>
+
+            `;
+
+        }
+
+
+        if (showProgram) {
+
+            html += `
+
+                <td>
+                    ${escapeHtml(student.program || "-")}
+                </td>
+
+            `;
+
+        }
+
+
+        if (showSemester) {
+
+            html += `
+
+                <td>
+                    ${escapeHtml(student.semester || "-")}
+                </td>
+
+            `;
+
+        }
+
+
+        html += `
+
+            </tr>
+
+        `;
+
+    });
+
+
+    html += `
+
+            </tbody>
+
+        </table>
+        </div>
+
+    `;
+
+
+    studentsContainer.innerHTML =
+        html;
+
+}
+
+function formatRollNumberSummary(course) {
+    const rollNumbers = [...new Set(
+        (Array.isArray(course.roll_numbers) ? course.roll_numbers : [])
+            .map(Number)
+            .filter(Number.isInteger)
+    )].sort((first, second) => first - second);
+
+    if (!rollNumbers.length) {
+        return `${course.roll_start ?? ""} - ${course.roll_end ?? ""}`;
+    }
+
+    const ranges = [];
+    let start = rollNumbers[0];
+    let end = rollNumbers[0];
+
+    for (let index = 1; index <= rollNumbers.length; index += 1) {
+        const current = rollNumbers[index];
+        if (current === end + 1) {
+            end = current;
+            continue;
+        }
+        ranges.push(start === end ? String(start) : `${start}–${end}`);
+        start = current;
+        end = current;
+    }
+
+    return ranges.join(", ");
+}
+
+if (saveStudentNamesBtn) {
+    saveStudentNamesBtn.addEventListener("click", async () => {
+        const inputs = [...document.querySelectorAll(".student-name-input")];
+        saveStudentNamesBtn.disabled = true;
+        saveStudentNamesBtn.textContent = "Saving…";
+        try {
+            for (const input of inputs) {
+                const response = await fetch(`/api/courses/${courseId}/students/${input.dataset.studentId}`, {
+                    method: "PUT",
+                    credentials: "include",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ name: input.value })
+                });
+                const data = await response.json();
+                if (!response.ok || !data.success) throw new Error(data.message || "Could not save student names");
+                const student = students.find(item => String(item.id) === input.dataset.studentId);
+                if (student) student.name = data.student.name;
+            }
+            alert("Student names saved successfully.");
+        } catch (error) {
+            alert(error.message);
+        } finally {
+            saveStudentNamesBtn.disabled = false;
+            saveStudentNamesBtn.textContent = "Save Student Names";
+        }
+    });
+}
+
+
+// =========================
+// OPEN ATTENDANCE
+// =========================
+
+if (attendanceBtn) {
+
+    attendanceBtn.addEventListener(
+        "click",
+        () => {
+
+            if (
+                currentCourse &&
+                currentCourse.attendance_enabled === false
+            ) {
+
+                return;
+
+            }
+
+
+            attendanceSection.classList.remove(
+                "hidden"
+            );
+
+
+            const today =
+                getTodayDate();
+
+
+            attendanceDate.textContent =
+                today;
+
+
+            renderAttendanceList();
+
+
+            attendanceSection.scrollIntoView({
+                behavior: "smooth"
+            });
+
+        }
+    );
+
+}
+
+
+// =========================
+// ATTENDANCE LIST
+// =========================
+
+function renderAttendanceList() {
+
+    attendanceList.innerHTML = "";
+
+
+    students.forEach(student => {
+
+        const row =
+            document.createElement("div");
+
+        row.className =
+            "attendance-row";
+
+
+        const showStudentName =
+            currentCourse &&
+            currentCourse.student_name_enabled === true;
+
+
+        const studentDisplay =
+            showStudentName
+                ? (student.name || "Not added")
+                : `Student ${student.roll_number}`;
+
+
+        row.innerHTML = `
+
+            <div class="roll-number">
+                ${escapeHtml(student.roll_number)}
+            </div>
+
+            <div class="student-name">
+                ${escapeHtml(studentDisplay)}
+            </div>
+
+            <div>
+
+                <button
+                    type="button"
+                    class="attendance-status-btn present"
+                    data-student-id="${student.id}"
+                    data-status="present"
+                >
+                    Present
+                </button>
+
+            </div>
+
+        `;
+
+
+        const button =
+            row.querySelector(
+                ".attendance-status-btn"
+            );
+
+
+        button.addEventListener(
+            "click",
+            () => {
+
+                const isPresent =
+                    button.dataset.status === "present";
+
+
+                if (isPresent) {
+
+                    button.dataset.status =
+                        "absent";
+
+                    button.textContent =
+                        "Absent";
+
+                    button.classList.remove(
+                        "present"
+                    );
+
+                    button.classList.add(
+                        "absent"
+                    );
+
+                } else {
+
+                    button.dataset.status =
+                        "present";
+
+                    button.textContent =
+                        "Present";
+
+                    button.classList.remove(
+                        "absent"
+                    );
+
+                    button.classList.add(
+                        "present"
+                    );
+
+                }
+
+            }
+        );
+
+
+        attendanceList.appendChild(row);
+
+    });
+
+}
+
+
+// =========================
+// SAVE ATTENDANCE
+// =========================
+
+if (saveAttendanceBtn) {
+
+    saveAttendanceBtn.addEventListener(
+        "click",
+        saveAttendance
+    );
+
+}
+
+
+async function saveAttendance() {
+
+    const buttons =
+        document.querySelectorAll(
+            ".attendance-status-btn"
+        );
+
+
+    if (buttons.length === 0) {
+
+        showAttendanceMessage(
+            "No students found.",
+            "error"
+        );
+
+        return;
+    }
+
+
+    const attendance =
+        Array.from(buttons).map(button => {
+
+            return {
+
+                student_id:
+                    Number(
+                        button.dataset.studentId
+                    ),
+
+                status:
+                    button.dataset.status
+
+            };
+
+        });
+
+
+    const absentStudentIds =
+        attendance
+            .filter(
+                student =>
+                    student.status === "absent"
+            )
+            .map(
+                student =>
+                    student.student_id
+            );
+
+
+    const payload = {
+
+        courseId:
+            Number(courseId),
+
+        date:
+            getTodayDate(),
+
+        absentStudentIds:
+            absentStudentIds
+
+    };
+
+
+    saveAttendanceBtn.disabled =
+        true;
+
+    saveAttendanceBtn.textContent =
+        "Saving...";
+
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/attendance/mark",
+                {
+
+                    method: "POST",
+
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
+
+                    credentials: "include",
+
+                    body:
+                        JSON.stringify(
+                            payload
+                        )
+
+                }
+            );
+
+
+        const responseText =
+            await response.text();
+
+
+        let data;
+
+
+        try {
+
+            data =
+                JSON.parse(
+                    responseText
+                );
+
+        } catch (error) {
+
+            showAttendanceMessage(
+                `Server returned HTTP ${response.status}.`,
+                "error"
+            );
+
+            return;
+
+        }
+
+
+        if (!data.success) {
+
+            showAttendanceMessage(
+                data.message ||
+                "Failed to save attendance.",
+                "error"
+            );
+
+            return;
+
+        }
+
+
+        showAttendanceMessage(
+            `Attendance marked successfully! Present: ${data.presentStudents}, Absent: ${data.absentStudents}`,
+            "success"
+        );
+
+
+        loadAttendanceHistory();
+
+
+    } catch (error) {
+
+        console.error(
+            "Attendance error:",
+            error
+        );
+
+
+        showAttendanceMessage(
+            "Could not connect to the server.",
+            "error"
+        );
+
+    } finally {
+
+        saveAttendanceBtn.disabled =
+            false;
+
+        saveAttendanceBtn.textContent =
+            "Save Attendance";
+
+    }
+
+}
+
+
+// =========================
+// CANCEL ATTENDANCE
+// =========================
+
+if (cancelAttendanceBtn) {
+
+    cancelAttendanceBtn.addEventListener(
+        "click",
+        () => {
+
+            attendanceSection.classList.add(
+                "hidden"
+            );
+
+            attendanceMessage.className =
+                "message";
+
+            attendanceMessage.textContent =
+                "";
+
+        }
+    );
+
+}
+
+
+// =========================
+// ATTENDANCE MESSAGE
+// =========================
+
+function showAttendanceMessage(
+    text,
+    type
+) {
+
+    if (!attendanceMessage) {
+        return;
+    }
+
+
+    attendanceMessage.textContent =
+        text;
+
+    attendanceMessage.className =
+        `message ${type}`;
+
+}
+
+
+// =========================
+// MARKS BUTTON
+// =========================
+
+if (marksBtn) {
+
+    marksBtn.addEventListener(
+        "click",
+        async () => {
+
+            if (!currentCourse) {
+                return;
+            }
+
+
+            marksSection.classList.remove(
+                "hidden"
+            );
+
+
+            marksSection.scrollIntoView({
+                behavior: "smooth"
+            });
+
+
+            await loadCourseMarks();
+
+        }
+    );
+
+}
+
+
+// =========================
+// LOAD MARKS
+// =========================
+
+async function loadCourseMarks() {
+
+    if (!marksContainer) {
+        return;
+    }
+
+
+    const marksLoadingEl =
+        document.getElementById(
+            "marksLoading"
+        );
+
+
+    if (marksLoadingEl) {
+
+        marksLoadingEl.style.display =
+            "none";
+
+    }
+
+
+    marksContainer.innerHTML = `
+        <p class="loading">
+            Loading marks...
+        </p>
+    `;
+
+
+    try {
+
+        const response =
+            await fetch(
+                `/api/courses/${courseId}/marks?refresh=${Date.now()}`,
+                {
+                    method: "GET",
+                    credentials: "include",
+                    cache: "no-store"
+                }
+            );
+
+
+        const data =
+            await response.json();
+
+
+        if (!response.ok || !data.success) {
+
+            marksContainer.innerHTML = `
+                <p class="error">
+                    ${escapeHtml(
+                        data.message ||
+                        "Could not load marks."
+                    )}
+                </p>
+            `;
+
+            return;
+
+        }
+
+
+        currentCourse = {
+            ...(currentCourse || {}),
+            ...(data.course || {})
+        };
+
+        courseAssignments =
+            data.assignments || [];
+
+        courseQuizzes =
+            data.quizzes || [];
+
+        assignmentMarks =
+            data.assignmentMarks || [];
+
+        quizMarks =
+            data.quizMarks || [];
+
+        students =
+            data.students || students;
+
+
+        renderMarksTable();
+
+
+    } catch (error) {
+
+        console.error(
+            "Load marks error:",
+            error
+        );
+
+
+        marksContainer.innerHTML = `
+            <p class="error">
+                Could not connect to server.
+            </p>
+        `;
+
+    }
+
+}
+
+
+// =========================
+// RENDER MARKS TABLE
+// =========================
+
+function renderMarksTable() {
+
+    if (!marksContainer) {
+        return;
+    }
+
+
+    if (students.length === 0) {
+
+        marksContainer.innerHTML = `
+            <p>
+                No students found.
+            </p>
+        `;
+
+        return;
+    }
+
+
+    let html = `
+
+        <div class="marks-table-wrapper">
+
+            <table class="marks-table">
+
+                <thead>
+
+                    <tr>
+
+                        <th>
+                            Roll Number
+                        </th>
+
+    `;
+
+
+    if (
+        currentCourse &&
+        currentCourse.student_name_enabled === true
+    ) {
+
+        html += `
+                        <th>
+                            Student
+                        </th>
+        `;
+
+    }
+
+
+    courseAssignments.forEach(
+        assignment => {
+
+            html += `
+
+                        <th>
+                            ${escapeHtml(
+                                assignment.name
+                            )}
+                            <small>
+                                / ${assignment.max_marks}
+                            </small>
+                        </th>
+
+            `;
+
+        }
+    );
+
+
+    courseQuizzes.forEach(
+        quiz => {
+
+            html += `
+
+                        <th>
+                            ${escapeHtml(
+                                quiz.name
+                            )}
+                            <small>
+                                / ${quiz.max_marks}
+                            </small>
+                        </th>
+
+            `;
+
+        }
+    );
+
+
+    if (
+        currentCourse &&
+        currentCourse.midterm_enabled === true
+    ) {
+
+        html += `
+
+                        <th>
+                            Midterm
+                        </th>
+
+        `;
+
+    }
+
+
+    if (
+        currentCourse &&
+        currentCourse.final_enabled === true
+    ) {
+
+        html += `
+
+                        <th>
+                            Final Exam
+                        </th>
+
+        `;
+
+    }
+
+
+    html += `
+
+                        <th class="total-header">
+                            Total
+                        </th>
+
+                    </tr>
+
+                </thead>
+
+                <tbody>
+
+    `;
+
+
+    students.forEach(student => {
+
+        html += `
+
+            <tr>
+
+                <td>
+                    ${escapeHtml(
+                        String(
+                            student.roll_number
+                        )
+                    )}
+                </td>
+
+        `;
+
+
+        if (
+            currentCourse &&
+            currentCourse.student_name_enabled === true
+        ) {
+
+            html += `
+
+                <td>
+                    ${escapeHtml(
+                        student.name ||
+                        "Not added"
+                    )}
+                </td>
+
+            `;
+
+        }
+
+
+        courseAssignments.forEach(
+            assignment => {
+
+                const existing =
+                    findAssignmentMark(
+                        assignment.id,
+                        student.id
+                    );
+
+
+                html += `
+
+                    <td>
+
+                        <input
+                            type="number"
+                            class="mark-input assignment-mark"
+                            data-assignment-id="${assignment.id}"
+                            data-student-id="${student.id}"
+                            data-max-marks="${assignment.max_marks}"
+                            min="0"
+                            max="${assignment.max_marks}"
+                            step="0.01"
+                            value="${
+                                existing === null
+                                    ? ""
+                                    : existing
+                            }"
+                        >
+
+                    </td>
+
+                `;
+
+            }
+        );
+
+
+        courseQuizzes.forEach(
+            quiz => {
+
+                const existing =
+                    findQuizMark(
+                        quiz.id,
+                        student.id
+                    );
+
+
+                html += `
+
+                    <td>
+
+                        <input
+                            type="number"
+                            class="mark-input quiz-mark"
+                            data-quiz-id="${quiz.id}"
+                            data-student-id="${student.id}"
+                            data-max-marks="${quiz.max_marks}"
+                            min="0"
+                            max="${quiz.max_marks}"
+                            step="0.01"
+                            value="${
+                                existing === null
+                                    ? ""
+                                    : existing
+                            }"
+                        >
+
+                    </td>
+
+                `;
+
+            }
+        );
+
+
+        if (
+            currentCourse &&
+            currentCourse.midterm_enabled === true
+        ) {
+
+            html += `
+
+                <td>
+
+                    <input
+                        type="number"
+                        class="mark-input midterm-mark"
+                        data-student-id="${student.id}"
+                        min="0"
+                        max="${currentCourse.midterm_max_marks}"
+                        step="0.01"
+                        value="${
+                            student.midterm_marks !== null &&
+                            student.midterm_marks !== undefined
+                                ? student.midterm_marks
+                                : ""
+                        }"
+                    >
+
+                </td>
+
+            `;
+
+        }
+
+
+        if (
+            currentCourse &&
+            currentCourse.final_enabled === true
+        ) {
+
+            html += `
+
+                <td>
+
+                    <input
+                        type="number"
+                        class="mark-input final-mark"
+                        data-student-id="${student.id}"
+                        min="0"
+                        max="${currentCourse.final_max_marks}"
+                        step="0.01"
+                        value="${
+                            student.final_marks !== null &&
+                            student.final_marks !== undefined
+                                ? student.final_marks
+                                : ""
+                        }"
+                    >
+
+                </td>
+
+            `;
+
+        }
+
+
+        html += `
+
+                <td
+                    class="total-cell"
+                    data-total-student="${student.id}"
+                >
+                    0
+                </td>
+
+            </tr>
+        `;
+
+    });
+
+
+    html += `
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+    `;
+
+
+    marksContainer.innerHTML =
+        html;
+
+
+    attachMarkValidation();
+
+    updateAllTotals();
+
+}
+
+
+// =========================
+// FIND ASSIGNMENT MARK
+// =========================
+
+function findAssignmentMark(
+    assignmentId,
+    studentId
+) {
+
+    const record =
+        assignmentMarks.find(
+            item =>
+                Number(item.assignment_id) ===
+                    Number(assignmentId) &&
+                Number(item.student_id) ===
+                    Number(studentId)
+        );
+
+
+    return record
+        ? record.marks
+        : null;
+
+}
+
+
+// =========================
+// FIND QUIZ MARK
+// =========================
+
+function findQuizMark(
+    quizId,
+    studentId
+) {
+
+    const record =
+        quizMarks.find(
+            item =>
+                Number(item.quiz_id) ===
+                    Number(quizId) &&
+                Number(item.student_id) ===
+                    Number(studentId)
+        );
+
+
+    return record
+        ? record.marks
+        : null;
+
+}
+
+
+// =========================
+// MARK VALIDATION
+// =========================
+
+function attachMarkValidation() {
+
+    const inputs =
+        document.querySelectorAll(
+            ".mark-input"
+        );
+
+
+    inputs.forEach(input => {
+
+        input.addEventListener(
+            "input",
+            () => {
+
+                const max =
+                    Number(
+                        input.dataset.maxMarks
+                    );
+
+
+                const value =
+                    Number(input.value);
+
+
+                if (
+                    input.value !== "" &&
+                    (
+                        Number.isNaN(value) ||
+                        value < 0 ||
+                        value > max
+                    )
+                ) {
+
+                    input.classList.add(
+                        "invalid"
+                    );
+
+                } else {
+
+                    input.classList.remove(
+                        "invalid"
+                    );
+
+                }
+
+
+                updateStudentTotal(
+                    input.dataset.studentId
+                );
+
+            }
+        );
+
+    });
+
+}
+
+
+// =========================
+// UPDATE STUDENT TOTAL
+// =========================
+
+function updateStudentTotal(studentId) {
+
+    const inputs =
+        document.querySelectorAll(
+            `.mark-input[data-student-id="${studentId}"]`
+        );
+
+
+    let total = 0;
+
+
+    inputs.forEach(input => {
+
+        const value =
+            Number(input.value);
+
+
+        if (
+            input.value.trim() !== "" &&
+            Number.isFinite(value)
+        ) {
+
+            total += value;
+
+        }
+
+    });
+
+
+    const totalCell =
+        document.querySelector(
+            `[data-total-student="${studentId}"]`
+        );
+
+
+    if (totalCell) {
+
+        totalCell.textContent =
+            formatTotal(total);
+
+    }
+
+}
+
+
+// =========================
+// UPDATE ALL TOTALS
+// =========================
+
+function updateAllTotals() {
+
+    students.forEach(student => {
+
+        updateStudentTotal(
+            student.id
+        );
+
+    });
+
+}
+
+
+// =========================
+// FORMAT TOTAL
+// =========================
+
+function formatTotal(number) {
+
+    if (Number.isInteger(number)) {
+
+        return String(number);
+
+    }
+
+
+    return number.toFixed(2);
+
+}
+
+
+// =========================
+// SAVE MARKS
+// =========================
+
+if (saveMarksBtn) {
+
+    saveMarksBtn.addEventListener(
+        "click",
+        saveCourseMarks
+    );
+
+}
+
+
+async function saveCourseMarks() {
+
+    const inputs =
+        document.querySelectorAll(
+            ".mark-input"
+        );
+
+
+    const assignmentPayload = [];
+
+    const quizPayload = [];
+
+    const midtermPayload = [];
+
+    const finalPayload = [];
+
+
+    for (const input of inputs) {
+
+        if (input.value === "") {
+            continue;
+        }
+
+
+        const marks =
+            Number(input.value);
+
+
+        const maxMarks =
+            Number(
+                input.dataset.maxMarks
+            );
+
+
+        if (
+            Number.isNaN(marks) ||
+            marks < 0 ||
+            marks > maxMarks
+        ) {
+
+            showMarksMessage(
+                "Please enter valid marks. Marks cannot exceed the maximum.",
+                "error"
+            );
+
+            input.focus();
+
+            return;
+        }
+
+
+        const studentId =
+            Number(
+                input.dataset.studentId
+            );
+
+
+        if (input.classList.contains(
+            "assignment-mark"
+        )) {
+
+            assignmentPayload.push({
+
+                assignment_id:
+                    Number(
+                        input.dataset.assignmentId
+                    ),
+
+                student_id:
+                    studentId,
+
+                marks:
+                    marks
+
+            });
+
+        }
+
+
+        if (input.classList.contains(
+            "quiz-mark"
+        )) {
+
+            quizPayload.push({
+
+                quiz_id:
+                    Number(
+                        input.dataset.quizId
+                    ),
+
+                student_id:
+                    studentId,
+
+                marks:
+                    marks
+
+            });
+
+        }
+
+
+        if (input.classList.contains(
+            "midterm-mark"
+        )) {
+
+            midtermPayload.push({
+
+                student_id:
+                    studentId,
+
+                marks:
+                    marks
+
+            });
+
+        }
+
+
+        if (input.classList.contains(
+            "final-mark"
+        )) {
+
+            finalPayload.push({
+
+                student_id:
+                    studentId,
+
+                marks:
+                    marks
+
+            });
+
+        }
+
+    }
+
+
+    saveMarksBtn.disabled =
+        true;
+
+    saveMarksBtn.textContent =
+        "Saving...";
+
+
+    try {
+
+        const response =
+            await fetch(
+                `/api/courses/${courseId}/marks`,
+                {
+
+                    method: "PUT",
+
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
+
+                    credentials: "include",
+
+                    body:
+                        JSON.stringify({
+
+                            assignmentMarks:
+                                assignmentPayload,
+
+                            quizMarks:
+                                quizPayload,
+
+                            midtermMarks:
+                                midtermPayload,
+
+                            finalMarks:
+                                finalPayload
+
+                        })
+
+                }
+            );
+
+
+        const data =
+            await response.json();
+
+
+        if (!response.ok || !data.success) {
+
+            showMarksMessage(
+                data.message ||
+                "Could not save marks.",
+                "error"
+            );
+
+            return;
+
+        }
+
+
+        showMarksMessage(
+            "Marks saved successfully.",
+            "success"
+        );
+
+
+        await loadCourseMarks();
+
+
+    } catch (error) {
+
+        console.error(
+            "Save marks error:",
+            error
+        );
+
+
+        showMarksMessage(
+            "Could not connect to server.",
+            "error"
+        );
+
+    } finally {
+
+        saveMarksBtn.disabled =
+            false;
+
+        saveMarksBtn.textContent =
+            "Save Marks";
+
+    }
+
+}
+
+
+// =========================
+// MARKS MESSAGE
+// =========================
+
+function showMarksMessage(
+    text,
+    type
+) {
+
+    if (!marksMessage) {
+        return;
+    }
+
+
+    marksMessage.textContent =
+        text;
+
+    marksMessage.className =
+        `message ${type}`;
+
+}
+
+
+// =========================
+// CANCEL MARKS
+// =========================
+
+if (cancelMarksBtn) {
+
+    cancelMarksBtn.addEventListener(
+        "click",
+        () => {
+
+            marksSection.classList.add(
+                "hidden"
+            );
+
+
+            if (marksMessage) {
+
+                marksMessage.className =
+                    "message";
+
+                marksMessage.textContent =
+                    "";
+
+            }
+
+        }
+    );
+
+}
+
+
+// =========================
+// ATTENDANCE HISTORY
+// =========================
+
+async function loadAttendanceHistory() {
+
+    if (!attendanceSummary) {
+        return;
+    }
+
+
+    if (
+        currentCourse &&
+        currentCourse.attendance_enabled === false
+    ) {
+
+        return;
+
+    }
+
+
+    attendanceSummary.innerHTML = `
+        <p class="loading">
+            Loading attendance history...
+        </p>
+    `;
+
+
+    try {
+
+        const response =
+            await fetch(
+                `/api/attendance/course/${courseId}`,
+                {
+                    method: "GET",
+                    credentials: "include"
+                }
+            );
+
+
+        const data =
+            await response.json();
+
+
+        if (!response.ok || !data.success) {
+
+            attendanceSummary.innerHTML = `
+                <p class="error">
+                    ${escapeHtml(
+                        data.message ||
+                        "Could not load attendance history."
+                    )}
+                </p>
+            `;
+
+            currentAttendanceRecords = [];
+
+            return;
+        }
+
+
+        currentAttendanceRecords =
+            data.attendance || [];
+
+        syncAttendanceExportMonth();
+
+
+        displayAttendanceSummary(
+            data.attendance || []
+        );
+
+
+    } catch (error) {
+
+        console.error(
+            "Attendance history error:",
+            error
+        );
+
+
+        attendanceSummary.innerHTML = `
+            <p class="error">
+                Could not connect to server.
+            </p>
+        `;
+
+        currentAttendanceRecords = [];
+
+    }
+
+}
+
+
+// =========================
+// DISPLAY ATTENDANCE SUMMARY
+// =========================
+
+function displayAttendanceSummary(
+    attendance
+) {
+
+    if (!attendanceSummary) {
+        return;
+    }
+
+
+    if (attendance.length === 0) {
+
+        attendanceSummary.innerHTML = `
+            <p>
+                No attendance records found.
+            </p>
+        `;
+
+        return;
+
+    }
+
+
+    const studentStats = {};
+
+
+    attendance.forEach(record => {
+
+        const key =
+            record.roll_number;
+
+
+        if (!studentStats[key]) {
+
+            studentStats[key] = {
+
+                roll_number:
+                    record.roll_number,
+
+                name:
+                    record.student_name,
+
+                present: 0,
+
+                total: 0,
+
+                records: []
+
+            };
+
+        }
+
+
+        studentStats[key].total += 1;
+
+
+        if (record.status === "present") {
+
+            studentStats[key].present += 1;
+
+        }
+
+
+        studentStats[key].records.push({
+
+            date:
+                record.attendance_date,
+
+            status:
+                record.status
+
+        });
+
+    });
+
+
+    const rows =
+        Object.values(studentStats)
+            .sort(
+                (a, b) =>
+                    String(a.roll_number)
+                        .localeCompare(
+                            String(b.roll_number),
+                            undefined,
+                            {
+                                numeric: true
+                            }
+                        )
+            );
+
+
+    const showStudentName =
+        currentCourse &&
+        currentCourse.student_name_enabled === true;
+
+
+    const columnCount =
+        showStudentName
+            ? 6
+            : 5;
+
+
+    let html = `
+
+        <div class="summary-table-wrapper">
+
+            <table class="summary-table">
+
+                <thead>
+
+                    <tr>
+
+                        <th>
+                            Roll Number
+                        </th>
+
+    `;
+
+
+    if (showStudentName) {
+
+        html += `
+
+                        <th>
+                            Student
+                        </th>
+
+        `;
+
+    }
+
+
+    html += `
+
+                        <th>
+                            Present
+                        </th>
+
+                        <th>
+                            Total Days
+                        </th>
+
+                        <th>
+                            Percentage
+                        </th>
+
+                        <th></th>
+
+                    </tr>
+
+                </thead>
+
+                <tbody>
+
+    `;
+
+
+    rows.forEach((student, index) => {
+
+        const percentage =
+            student.total > 0
+                ? (
+                    (student.present / student.total) * 100
+                  ).toFixed(1)
+                : "0.0";
+
+
+        const percentClass =
+            Number(percentage) >= 75
+                ? "good"
+                : Number(percentage) >= 50
+                    ? "warning"
+                    : "low";
+
+
+        const detailsId =
+            `summary-details-${index}`;
+
+
+        const sortedRecords =
+            student.records
+                .slice()
+                .sort(
+                    (a, b) =>
+                        b.date.localeCompare(a.date)
+                );
+
+
+        html += `
+
+            <tr
+                class="summary-row"
+                data-target="${detailsId}"
+            >
+
+                <td>
+                    ${escapeHtml(
+                        String(
+                            student.roll_number
+                        )
+                    )}
+                </td>
+
+        `;
+
+
+        if (showStudentName) {
+
+            html += `
+
+                <td>
+                    ${escapeHtml(
+                        student.name ||
+                        "Not added"
+                    )}
+                </td>
+
+            `;
+
+        }
+
+
+        html += `
+
+                <td>
+                    ${student.present}
+                </td>
+
+                <td>
+                    ${student.total}
+                </td>
+
+                <td>
+
+                    <span
+                        class="attendance-percentage ${percentClass}"
+                    >
+                        ${percentage}%
+                    </span>
+
+                </td>
+
+                <td class="summary-arrow">
+                    →
+                </td>
+
+            </tr>
+
+            <tr
+                id="${detailsId}"
+                class="summary-details-row hidden"
+            >
+
+                <td colspan="${columnCount}">
+
+                    <table class="student-log-table">
+
+                        <thead>
+
+                            <tr>
+
+                                <th>
+                                    Date
+                                </th>
+
+                                <th>
+                                    Status
+                                </th>
+
+                            </tr>
+
+                        </thead>
+
+                        <tbody>
+
+                            ${
+                                sortedRecords
+                                    .map(entry => `
+                                        <tr>
+
+                                            <td>
+                                                ${formatDate(entry.date)}
+                                            </td>
+
+                                            <td>
+
+                                                <span
+                                                    class="attendance-status ${
+                                                        entry.status === "present"
+                                                            ? "present"
+                                                            : "absent"
+                                                    }"
+                                                >
+                                                    ${
+                                                        entry.status === "present"
+                                                            ? "Present"
+                                                            : "Absent"
+                                                    }
+                                                </span>
+
+                                            </td>
+
+                                        </tr>
+                                    `)
+                                    .join("")
+                            }
+
+                        </tbody>
+
+                    </table>
+
+                </td>
+
+            </tr>
+
+        `;
+
+    });
+
+
+    html += `
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+    `;
+
+
+    attendanceSummary.innerHTML =
+        html;
+
+
+    const summaryRows =
+        document.querySelectorAll(
+            ".summary-row"
+        );
+
+
+    summaryRows.forEach(row => {
+
+        row.addEventListener(
+            "click",
+            () => {
+
+                const targetId =
+                    row.dataset.target;
+
+
+                const details =
+                    document.getElementById(
+                        targetId
+                    );
+
+
+                details.classList.toggle(
+                    "hidden"
+                );
+
+
+                const arrowCell =
+                    row.querySelector(
+                        ".summary-arrow"
+                    );
+
+
+                if (arrowCell) {
+
+                    arrowCell.textContent =
+                        details.classList.contains(
+                            "hidden"
+                        )
+                            ? "→"
+                            : "↓";
+
+                }
+
+            }
+        );
+
+    });
+
+}
+
+
+// =========================
+// DOWNLOAD ATTENDANCE EXCEL
+// =========================
+
+if (downloadExcelBtn) {
+
+    downloadExcelBtn.addEventListener(
+        "click",
+        downloadMonthlyAttendanceRegister
+    );
+
+}
+
+
+// =========================
+// DOWNLOAD MARKS EXCEL
+// =========================
+
+if (downloadMarksExcelBtn) {
+
+    downloadMarksExcelBtn.addEventListener(
+        "click",
+        downloadMarksExcel
+    );
+
+}
+
+
+function downloadMarksExcel() {
+
+    if (typeof XLSX === "undefined") {
+
+        alert(
+            "Excel export library failed to load. Check your internet connection."
+        );
+
+        return;
+
+    }
+
+    if (!students.length) {
+
+        alert(
+            "No students found for this course."
+        );
+
+        return;
+
+    }
+
+    if (
+        !courseAssignments.length &&
+        !courseQuizzes.length &&
+        !(currentCourse && currentCourse.midterm_enabled) &&
+        !(currentCourse && currentCourse.final_enabled)
+    ) {
+
+        alert(
+            "No marks have been set up for this course yet."
+        );
+
+        return;
+
+    }
+
+    const showStudentName =
+        currentCourse &&
+        currentCourse.student_name_enabled === true;
+
+    const showMidterm =
+        currentCourse &&
+        currentCourse.midterm_enabled === true;
+
+    const showFinal =
+        currentCourse &&
+        currentCourse.final_enabled === true;
+
+    // =========================
+    // HEADER ROW
+    // =========================
+
+    const header = ["Roll Number"];
+
+    if (showStudentName) {
+
+        header.push("Student Name");
+
+    }
+
+    courseAssignments.forEach(assignment => {
+
+        header.push(
+            `${assignment.name || "Assignment"} (/${assignment.max_marks})`
+        );
+
+    });
+
+    courseQuizzes.forEach(quiz => {
+
+        header.push(
+            `${quiz.name || "Quiz"} (/${quiz.max_marks})`
+        );
+
+    });
+
+    if (showMidterm) {
+
+        header.push("Midterm");
+
+    }
+
+    if (showFinal) {
+
+        header.push("Final Exam");
+
+    }
+
+    header.push("Total");
+
+    const rows = [header];
+
+    // =========================
+    // DATA ROWS
+    // =========================
+
+    students
+        .slice()
+        .sort((a, b) =>
+            String(a.roll_number).localeCompare(
+                String(b.roll_number),
+                undefined,
+                { numeric: true }
+            )
+        )
+        .forEach(student => {
+
+            const row = [student.roll_number];
+
+            if (showStudentName) {
+
+                row.push(
+                    student.name || "Not added"
+                );
+
+            }
+
+            let total = 0;
+
+            courseAssignments.forEach(assignment => {
+
+                const marks =
+                    findAssignmentMark(
+                        assignment.id,
+                        student.id
+                    );
+
+                row.push(
+                    marks === null ? "" : marks
+                );
+
+                if (marks !== null) {
+
+                    total += Number(marks);
+
+                }
+
+            });
+
+            courseQuizzes.forEach(quiz => {
+
+                const marks =
+                    findQuizMark(
+                        quiz.id,
+                        student.id
+                    );
+
+                row.push(
+                    marks === null ? "" : marks
+                );
+
+                if (marks !== null) {
+
+                    total += Number(marks);
+
+                }
+
+            });
+
+            if (showMidterm) {
+
+                const marks =
+                    student.midterm_marks;
+
+                row.push(
+                    marks === null || marks === undefined
+                        ? ""
+                        : marks
+                );
+
+                if (marks !== null && marks !== undefined) {
+
+                    total += Number(marks);
+
+                }
+
+            }
+
+            if (showFinal) {
+
+                const marks =
+                    student.final_marks;
+
+                row.push(
+                    marks === null || marks === undefined
+                        ? ""
+                        : marks
+                );
+
+                if (marks !== null && marks !== undefined) {
+
+                    total += Number(marks);
+
+                }
+
+            }
+
+            row.push(
+                formatTotal(total)
+            );
+
+            rows.push(row);
+
+        });
+
+    // =========================
+    // BUILD WORKBOOK
+    // =========================
+
+    const worksheet =
+        XLSX.utils.aoa_to_sheet(rows);
+
+    worksheet["!cols"] =
+        header.map(() => ({ wch: 16 }));
+
+    const workbook =
+        XLSX.utils.book_new();
+
+    XLSX.utils.book_append_sheet(
+        workbook,
+        worksheet,
+        "Marks"
+    );
+
+    const courseName =
+        (currentCourse && currentCourse.name) ||
+        "Course";
+
+    XLSX.writeFile(
+        workbook,
+        `${courseName.replace(/[^a-z0-9]/gi, "_")}_Marks.xlsx`
+    );
+
+}
+
+
+function downloadAttendanceExcel() {
+
+    if (typeof XLSX === "undefined") {
+
+        alert(
+            "Excel export library failed to load. Check your internet connection."
+        );
+
+        return;
+
+    }
+
+
+    if (!students.length) {
+
+        alert(
+            "No students found for this course."
+        );
+
+        return;
+
+    }
+
+
+    if (!currentAttendanceRecords.length) {
+
+        alert(
+            "No attendance records to export yet."
+        );
+
+        return;
+
+    }
+
+
+    // =========================
+    // UNIQUE SORTED DATES
+    // =========================
+
+    const dates =
+        Array.from(
+            new Set(
+                currentAttendanceRecords.map(
+                    record => record.attendance_date
+                )
+            )
+        ).sort();
+
+
+    // =========================
+    // studentId -> { date: status }
+    // =========================
+
+    const byStudent = {};
+
+
+    currentAttendanceRecords.forEach(record => {
+
+        if (!byStudent[record.student_id]) {
+
+            byStudent[record.student_id] = {};
+
+        }
+
+
+        byStudent[record.student_id][record.attendance_date] =
+            record.status;
+
+    });
+
+
+    const showStudentName =
+        currentCourse &&
+        currentCourse.student_name_enabled === true;
+
+
+    // =========================
+    // HEADER ROW
+    // =========================
+
+    const header = ["Roll Number"];
+
+
+    if (showStudentName) {
+
+        header.push("Student Name");
+
+    }
+
+
+    dates.forEach(date => {
+
+        header.push(
+            formatDate(date)
+        );
+
+    });
+
+
+    header.push(
+        "Total Present",
+        "Total Absent",
+        "Percentage"
+    );
+
+
+    const rows = [header];
+
+
+    // =========================
+    // DATA ROWS
+    // =========================
+
+    students
+        .slice()
+        .sort((a, b) =>
+            String(a.roll_number).localeCompare(
+                String(b.roll_number),
+                undefined,
+                { numeric: true }
+            )
+        )
+        .forEach(student => {
+
+            const row = [student.roll_number];
+
+
+            if (showStudentName) {
+
+                row.push(
+                    student.name || "Not added"
+                );
+
+            }
+
+
+            let present = 0;
+
+            let absent = 0;
+
+
+            dates.forEach(date => {
+
+                const status =
+                    byStudent[student.id]
+                        ? byStudent[student.id][date]
+                        : undefined;
+
+
+                if (status === "present") {
+
+                    row.push("P");
+
+                    present++;
+
+                } else if (status === "absent") {
+
+                    row.push("A");
+
+                    absent++;
+
+                } else {
+
+                    row.push("-");
+
+                }
+
+            });
+
+
+            const total =
+                present + absent;
+
+            const percentage =
+                total > 0
+                    ? (
+                        (present / total) * 100
+                      ).toFixed(1) + "%"
+                    : "0.0%";
+
+
+            row.push(
+                present,
+                absent,
+                percentage
+            );
+
+
+            rows.push(row);
+
+        });
+
+
+    // =========================
+    // BUILD WORKBOOK
+    // =========================
+
+    const worksheet =
+        XLSX.utils.aoa_to_sheet(rows);
+
+
+    worksheet["!cols"] =
+        header.map(() => ({ wch: 14 }));
+
+
+    const workbook =
+        XLSX.utils.book_new();
+
+
+    XLSX.utils.book_append_sheet(
+        workbook,
+        worksheet,
+        "Attendance"
+    );
+
+
+    const courseName =
+        (currentCourse && currentCourse.name) ||
+        "Course";
+
+
+    XLSX.writeFile(
+        workbook,
+        `${courseName.replace(/[^a-z0-9]/gi, "_")}_Attendance.xlsx`
+    );
+
+}
+
+
+// =========================
+// FORMAT DATE
+// =========================
+
+function formatDate(dateString) {
+
+    const date =
+        new Date(
+            `${dateString}T00:00:00`
+        );
+
+
+    if (
+        Number.isNaN(
+            date.getTime()
+        )
+    ) {
+
+        return dateString;
+
+    }
+
+
+    return date.toLocaleDateString(
+        undefined,
+        {
+            year: "numeric",
+            month: "long",
+            day: "numeric"
+        }
+    );
+
+}
+
+
+// =========================
+// TODAY
+// =========================
+
+function getTodayDate() {
+
+    const now =
+        new Date();
+
+
+    const year =
+        now.getFullYear();
+
+
+    const month =
+        String(
+            now.getMonth() + 1
+        ).padStart(2, "0");
+
+
+    const day =
+        String(
+            now.getDate()
+        ).padStart(2, "0");
+
+
+    return `${year}-${month}-${day}`;
+
+}
+
+
+// =========================
+// HTML ESCAPE
+// =========================
+
+function escapeHtml(value) {
+
+    return String(value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+
+}
+
+function syncAttendanceExportMonth() {
+    if (!attendanceExportMonth) return;
+    const months = [...new Set(currentAttendanceRecords
+        .map(record => attendanceDateKey(record.attendance_date).slice(0, 7))
+        .filter(month => /^\d{4}-\d{2}$/.test(month)))]
+        .sort();
+    if (!attendanceExportMonth.value) {
+        const today = new Date();
+        attendanceExportMonth.value = months.at(-1) || `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
+    }
+}
+
+function attendanceRegisterCellValue(value) {
+    if (!value || typeof value !== "object" || Array.isArray(value) || value instanceof Date) {
+        return value ?? "";
+    }
+    if (value.f) return { formula: value.f, result: value.v };
+    return value.v ?? "";
+}
+
+function applyAttendanceRegisterStyles(worksheet, spec) {
+    const border = {
+        top: { style: "thin", color: { argb: "FF000000" } },
+        bottom: { style: "thin", color: { argb: "FF000000" } },
+        left: { style: "thin", color: { argb: "FF000000" } },
+        right: { style: "thin", color: { argb: "FF000000" } }
+    };
+    const baseFont = { name: "Arial Narrow", size: 8, color: { argb: "FF000000" } };
+    const centered = { horizontal: "center", vertical: "middle", wrapText: true };
+
+    for (let row = 5; row <= spec.ranges.dataEnd + 1; row += 1) {
+        for (let col = 1; col <= spec.ranges.lastColumn + 1; col += 1) {
+            const cell = worksheet.getCell(row, col);
+            cell.font = row <= 6 ? { name: "Arial Narrow", size: 8, bold: true, color: { argb: "FF000000" } } : baseFont;
+            cell.alignment = centered;
+            cell.border = border;
+        }
+    }
+
+    for (let row = spec.ranges.dataStart + 1; row <= spec.ranges.dataEnd + 1; row += 1) {
+        worksheet.getRow(row).height = 21;
+        const name = spec.studentNames[row - spec.ranges.dataStart - 1];
+        if (name) worksheet.getCell(row, 1).note = `Student: ${name}`;
+    }
+
+    const [year, month] = spec.selectedMonth.split("-").map(Number);
+    for (let day = 1; day <= 31; day += 1) {
+        const column = spec.ranges.dailyStart + day;
+        const isInvalid = day > spec.daysInMonth;
+        const isSunday = !isInvalid && new Date(year, month - 1, day).getDay() === 0;
+        if (!isInvalid && !isSunday) continue;
+        for (let row = 6; row <= spec.ranges.dataEnd + 1; row += 1) {
+            const cell = worksheet.getCell(row, column);
+            cell.fill = {
+                type: "pattern",
+                pattern: "solid",
+                fgColor: { argb: isInvalid ? "FFE7E7E7" : "FFF2F2F2" }
+            };
+            cell.font = {
+                name: "Arial Narrow",
+                size: 8,
+                bold: row === 6,
+                color: { argb: isInvalid ? "FF777777" : "FF000000" }
+            };
+        }
+    }
+
+    for (let row = 1; row <= 4; row += 1) {
+        for (let col = 1; col <= spec.ranges.lastColumn + 1; col += 1) {
+            worksheet.getCell(row, col).font = { name: "Arial Narrow", size: row === 1 ? 10 : 9, bold: row === 1 };
+            worksheet.getCell(row, col).alignment = { horizontal: "left", vertical: "middle", wrapText: true };
+        }
+    }
+    worksheet.getCell(1, 40).font = { name: "Arial Narrow", size: 11, bold: true };
+    worksheet.getCell(1, 40).alignment = centered;
+    for (let row = 2; row <= 4; row += 1) {
+        for (let col = 40; col <= 45; col += 1) worksheet.getCell(row, col).alignment = centered;
+    }
+    worksheet.getCell(spec.ranges.signatureRow + 1, 39).font = { name: "Arial Narrow", size: 10 };
+    worksheet.getCell(spec.ranges.signatureRow + 1, 39).alignment = { horizontal: "right", vertical: "middle" };
+}
+
+async function loadAttendanceRegisterLogo() {
+    try {
+        const response = await fetch("/assets/department-logo.png");
+        if (!response.ok) return null;
+        const blob = await response.blob();
+        return await new Promise(resolve => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = () => resolve(null);
+            reader.readAsDataURL(blob);
+        });
+    } catch (error) {
+        console.warn("Attendance register logo could not be loaded:", error);
+        return null;
+    }
+}
+
+async function downloadMonthlyAttendanceRegister() {
+    if (typeof ExcelJS === "undefined") {
+        alert("The printable Excel export failed to load. Refresh the page and try again.");
+        return;
+    }
+    if (typeof AttendanceRegister === "undefined") {
+        alert("Attendance register export failed to load. Refresh the page and try again.");
+        return;
+    }
+    if (!students.length) {
+        alert("No students found for this course.");
+        return;
+    }
+    if (!currentAttendanceRecords.length) {
+        alert("No attendance records to export yet.");
+        return;
+    }
+
+    syncAttendanceExportMonth();
+    const originalButtonText = downloadExcelBtn?.textContent;
+    if (downloadExcelBtn) {
+        downloadExcelBtn.disabled = true;
+        downloadExcelBtn.textContent = "Preparing Excel…";
+    }
+
+    try {
+        const spec = AttendanceRegister.buildMonthlyAttendanceRegister({
+            students,
+            records: currentAttendanceRecords,
+            course: currentCourse,
+            teacherName: teacherName?.textContent || "",
+            selectedMonth: attendanceExportMonth?.value
+        });
+        const workbook = new ExcelJS.Workbook();
+        workbook.creator = "Department of Mathematics Attendance Portal";
+        workbook.created = new Date();
+        workbook.calcProperties.fullCalcOnLoad = true;
+        workbook.calcProperties.forceFullCalc = true;
+
+        const worksheet = workbook.addWorksheet("Monthly Register", {
+            views: [{ state: "frozen", xSplit: 1, ySplit: 6, topLeftCell: "B7", showGridLines: false }],
+            pageSetup: {
+                paperSize: 9,
+                orientation: "landscape",
+                fitToPage: true,
+                fitToWidth: 1,
+                fitToHeight: 1,
+                horizontalCentered: true,
+                verticalCentered: false,
+                printTitlesRow: "1:6",
+                margins: { left: 0.15, right: 0.15, top: 0.2, bottom: 0.2, header: 0.05, footer: 0.05 }
+            }
+        });
+        worksheet.pageSetup.printArea = `A1:${AttendanceRegister.columnName(spec.ranges.lastColumn)}${spec.ranges.signatureRow + 1}`;
+
+        spec.rows.forEach(row => {
+            const rowValues = Array.from(
+                { length: spec.ranges.lastColumn + 1 },
+                (_, index) => attendanceRegisterCellValue(row[index])
+            );
+            const excelRow = worksheet.addRow(rowValues);
+            row.forEach((value, index) => {
+                if (value && typeof value === "object" && value.z) excelRow.getCell(index + 1).numFmt = value.z;
+            });
+        });
+        spec.merges.forEach(merge => worksheet.mergeCells(
+            merge.s.r + 1,
+            merge.s.c + 1,
+            merge.e.r + 1,
+            merge.e.c + 1
+        ));
+        spec.columns.forEach((column, index) => {
+            worksheet.getColumn(index + 1).width = column.wch;
+        });
+        spec.rowHeights.forEach((row, index) => {
+            worksheet.getRow(index + 1).height = row.hpt;
+        });
+        applyAttendanceRegisterStyles(worksheet, spec);
+
+        const logoData = await loadAttendanceRegisterLogo();
+        if (logoData) {
+            const logoId = workbook.addImage({ base64: logoData, extension: "png" });
+            worksheet.addImage(logoId, {
+                tl: { col: 26.2, row: 0.05 },
+                ext: { width: 64, height: 64 },
+                editAs: "oneCell"
+            });
+        }
+
+        const rawWorksheet = workbook.addWorksheet("_Attendance Data", {
+            state: "veryHidden",
+            views: [{ showGridLines: false }]
+        });
+        spec.rawRows.forEach(row => rawWorksheet.addRow(row));
+        [11, 13, 24, 13, 11, 10].forEach((width, index) => {
+            rawWorksheet.getColumn(index + 1).width = width;
+        });
+        rawWorksheet.autoFilter = {
+            from: "A1",
+            to: `F${Math.max(1, spec.rawRows.length)}`
+        };
+        rawWorksheet.getRow(1).font = { name: "Arial", size: 10, bold: true, color: { argb: "FFFFFFFF" } };
+        rawWorksheet.getRow(1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFB80F18" } };
+        rawWorksheet.getColumn(4).numFmt = "yyyy-mm-dd";
+
+        const buffer = await workbook.xlsx.writeBuffer();
+        const blob = new Blob([buffer], {
+            type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = spec.filename;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (error) {
+        console.error("Attendance register export error:", error);
+        alert(error.message || "Could not create the attendance register.");
+    } finally {
+        if (downloadExcelBtn) {
+            downloadExcelBtn.disabled = false;
+            downloadExcelBtn.textContent = originalButtonText;
+        }
+    }
+}
+
+// =========================
+// CLASS SETTINGS
+// =========================
+
+function setPanelMessage(elementId, text, type) {
+    const element = document.getElementById(elementId);
+    if (!element) return;
+    element.textContent = text;
+    element.className = text ? `message ${type}` : "message";
+}
+
+function syncSettingsInputs() {
+    const pairs = [
+        ["settingsAssignmentsEnabled", ["settingsAssignmentCount", "settingsAssignmentMax"]],
+        ["settingsQuizzesEnabled", ["settingsQuizCount", "settingsQuizMax"]],
+        ["settingsMidtermEnabled", ["settingsMidtermMax"]],
+        ["settingsFinalEnabled", ["settingsFinalMax"]]
+    ];
+    pairs.forEach(([toggleId, inputIds]) => {
+        const enabled = document.getElementById(toggleId).checked;
+        inputIds.forEach(id => { document.getElementById(id).disabled = !enabled; });
+    });
+}
+
+async function openClassSettings() {
+    if (!currentCourse) {
+        alert("Please wait for the class to finish loading.");
+        return;
+    }
+    const originalEditLabel = editClassBtn.textContent;
+    editClassBtn.disabled = true;
+    editClassBtn.textContent = "Loading Settings…";
+    classSettingsSection.classList.add("hidden");
+    studentImportSection.classList.add("hidden");
+    setPanelMessage("classSettingsMessage", "", "");
+    document.getElementById("settingsCourseName").value = currentCourse.name || "";
+    document.getElementById("settingsCourseCode").value = currentCourse.course_code || "";
+    document.getElementById("settingsSection").value = currentCourse.section || "";
+    document.getElementById("settingsResultsEnabled").checked = currentCourse.results_enabled === true;
+    document.getElementById("settingsResultCode").value = currentCourse.result_code || "";
+    document.getElementById("settingsAssignmentsEnabled").checked = currentCourse.assignments_enabled === true;
+    document.getElementById("settingsQuizzesEnabled").checked = currentCourse.quizzes_enabled === true;
+    document.getElementById("settingsMidtermEnabled").checked = currentCourse.midterm_enabled === true;
+    document.getElementById("settingsFinalEnabled").checked = currentCourse.final_enabled === true;
+    document.getElementById("settingsAssignmentCount").value = currentCourse.assignment_count || 1;
+    document.getElementById("settingsQuizCount").value = currentCourse.quiz_count || 1;
+    document.getElementById("settingsMidtermMax").value = currentCourse.midterm_max_marks || 30;
+    document.getElementById("settingsFinalMax").value = currentCourse.final_max_marks || 50;
+
+    let assessmentLoadError = "";
+    try {
+        const [assignmentResponse, quizResponse] = await Promise.all([
+            fetch(`/api/courses/${courseId}/assignments`, { credentials: "include" }),
+            fetch(`/api/courses/${courseId}/quizzes`, { credentials: "include" })
+        ]);
+        const [assignmentData, quizData] = await Promise.all([assignmentResponse.json(), quizResponse.json()]);
+        document.getElementById("settingsAssignmentMax").value = assignmentData.assignments?.[0]?.max_marks || 10;
+        document.getElementById("settingsQuizMax").value = quizData.quizzes?.[0]?.max_marks || 10;
+    } catch (error) {
+        assessmentLoadError = "Could not load all assessment settings.";
+    } finally {
+        syncSettingsInputs();
+        classSettingsSection.classList.remove("hidden");
+        if (assessmentLoadError) {
+            setPanelMessage("classSettingsMessage", assessmentLoadError, "error");
+        }
+        classSettingsSection.scrollIntoView({ behavior: "smooth" });
+        editClassBtn.disabled = false;
+        editClassBtn.textContent = originalEditLabel;
+    }
+}
+
+if (editClassBtn) editClassBtn.addEventListener("click", openClassSettings);
+document.getElementById("cancelClassSettingsBtn")?.addEventListener("click", () => classSettingsSection.classList.add("hidden"));
+["settingsAssignmentsEnabled", "settingsQuizzesEnabled", "settingsMidtermEnabled", "settingsFinalEnabled"]
+    .forEach(id => document.getElementById(id)?.addEventListener("change", syncSettingsInputs));
+
+document.getElementById("saveClassSettingsBtn")?.addEventListener("click", async () => {
+    const button = document.getElementById("saveClassSettingsBtn");
+    const value = id => document.getElementById(id).value;
+    const checked = id => document.getElementById(id).checked;
+    const payload = {
+        name: value("settingsCourseName"),
+        course_code: value("settingsCourseCode").trim(),
+        section: value("settingsSection"),
+        results_enabled: checked("settingsResultsEnabled"),
+        result_code: value("settingsResultCode").trim().toLowerCase(),
+        assignments_enabled: checked("settingsAssignmentsEnabled"),
+        assignment_count: Number(value("settingsAssignmentCount")),
+        assignment_max_marks: Number(value("settingsAssignmentMax")),
+        quizzes_enabled: checked("settingsQuizzesEnabled"),
+        quiz_count: Number(value("settingsQuizCount")),
+        quiz_max_marks: Number(value("settingsQuizMax")),
+        midterm_enabled: checked("settingsMidtermEnabled"),
+        midterm_max_marks: Number(value("settingsMidtermMax")),
+        final_enabled: checked("settingsFinalEnabled"),
+        final_max_marks: Number(value("settingsFinalMax"))
+    };
+    button.disabled = true;
+    try {
+        const response = await fetch(`/api/courses/${courseId}/settings`, {
+            method: "PUT", credentials: "include", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+        });
+        const data = await response.json();
+        if (!response.ok || !data.success) throw new Error(data.message || "Could not update class settings");
+        currentCourse = data.course;
+        setPanelMessage("classSettingsMessage", data.message, "success");
+        await loadCourse();
+
+        // Always rebuild the marks table after the assessment structure changes.
+        // This also prepares the new columns while the Marks section is hidden.
+        await loadCourseMarks();
+    } catch (error) {
+        setPanelMessage("classSettingsMessage", error.message, "error");
+    } finally {
+        button.disabled = false;
+    }
+});
+
+// =========================
+// STUDENT IMPORT
+// =========================
+
+if (importStudentsBtn) importStudentsBtn.addEventListener("click", () => {
+    studentImportSection.classList.remove("hidden");
+    classSettingsSection.classList.add("hidden");
+    studentImportSection.scrollIntoView({ behavior: "smooth" });
+});
+document.getElementById("cancelStudentImportBtn")?.addEventListener("click", () => studentImportSection.classList.add("hidden"));
+
+document.getElementById("studentImportFile")?.addEventListener("change", async event => {
+    const preview = document.getElementById("studentImportPreview");
+    const saveButton = document.getElementById("saveStudentImportBtn");
+    pendingStudentImport = [];
+    saveButton.disabled = true;
+    setPanelMessage("studentImportMessage", "", "");
+    const file = event.target.files[0];
+    if (!file) return;
+    if (typeof XLSX === "undefined") {
+        setPanelMessage("studentImportMessage", "Excel reader failed to load. Check your internet connection.", "error");
+        return;
+    }
+    try {
+        const workbook = XLSX.read(await file.arrayBuffer(), { type: "array" });
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const table = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
+        if (table.length < 2) throw new Error("The file must contain a header row and at least one student");
+        const headers = table[0].map(header => String(header).toLowerCase().replace(/[^a-z0-9]/g, ""));
+        const rollIndex = headers.findIndex(header => ["rollnumber", "rollno", "roll", "studentid"].includes(header));
+        const nameIndex = headers.findIndex(header => ["name", "studentname", "fullname"].includes(header));
+        if (rollIndex < 0 || nameIndex < 0) throw new Error('Use columns named "Roll Number" and "Name"');
+        pendingStudentImport = table.slice(1)
+            .map(row => ({ roll_number: String(row[rollIndex] ?? "").trim(), name: String(row[nameIndex] ?? "").trim() }))
+            .filter(row => row.roll_number || row.name);
+        if (!pendingStudentImport.length) throw new Error("No student rows were found");
+        preview.innerHTML = `<p><strong>${pendingStudentImport.length} rows ready</strong></p><div class="summary-table-wrapper"><table class="summary-table"><thead><tr><th>Roll Number</th><th>Name</th></tr></thead><tbody>${pendingStudentImport.slice(0, 8).map(row => `<tr><td>${escapeHtml(row.roll_number)}</td><td>${escapeHtml(row.name)}</td></tr>`).join("")}</tbody></table></div>${pendingStudentImport.length > 8 ? `<p>…and ${pendingStudentImport.length - 8} more</p>` : ""}`;
+        saveButton.disabled = false;
+    } catch (error) {
+        preview.innerHTML = "<p>Could not preview this file.</p>";
+        setPanelMessage("studentImportMessage", error.message, "error");
+    }
+});
+
+document.getElementById("saveStudentImportBtn")?.addEventListener("click", async () => {
+    const button = document.getElementById("saveStudentImportBtn");
+    button.disabled = true;
+    try {
+        const response = await fetch(`/api/courses/${courseId}/students/import`, {
+            method: "POST", credentials: "include", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ students: pendingStudentImport })
+        });
+        const data = await response.json();
+        if (!response.ok || !data.success) throw new Error(data.message || "Student import failed");
+        setPanelMessage("studentImportMessage", data.message, "success");
+        await loadCourse();
+    } catch (error) {
+        setPanelMessage("studentImportMessage", error.message, "error");
+    } finally {
+        button.disabled = pendingStudentImport.length === 0;
+    }
+});
+
+// =========================
+// ATTENDANCE CORRECTIONS
+// =========================
+
+function attendanceDateKey(value) { return String(value || "").slice(0, 10); }
+
+function renderAttendanceEditor() {
+    const date = document.getElementById("attendanceEditDate").value;
+    const records = currentAttendanceRecords.filter(record => attendanceDateKey(record.attendance_date) === date);
+    document.getElementById("attendanceEditList").innerHTML = records.map(record => `
+        <div class="attendance-row">
+            <div class="roll-number">${escapeHtml(record.roll_number)}</div>
+            <div class="student-name">${escapeHtml(record.student_name || `Student ${record.roll_number}`)}</div>
+            <button type="button" class="attendance-status-btn edit-attendance-status ${record.status}" data-student-id="${record.student_id}" data-status="${record.status}">${record.status === "present" ? "Present" : "Absent"}</button>
+        </div>`).join("");
+    document.querySelectorAll(".edit-attendance-status").forEach(button => button.addEventListener("click", () => {
+        const next = button.dataset.status === "present" ? "absent" : "present";
+        button.dataset.status = next;
+        button.textContent = next === "present" ? "Present" : "Absent";
+        button.classList.toggle("present", next === "present");
+        button.classList.toggle("absent", next === "absent");
+    }));
+}
+
+async function loadAttendanceAudit() {
+    const container = document.getElementById("attendanceAuditList");
+    try {
+        const response = await fetch(`/api/attendance/course/${courseId}/audit/log`, { credentials: "include" });
+        const data = await response.json();
+        if (!response.ok || !data.success) throw new Error(data.message || "Could not load change history");
+        container.innerHTML = data.audit.length ? `<div class="summary-table-wrapper"><table class="summary-table"><thead><tr><th>When</th><th>Date</th><th>Student</th><th>Change</th><th>Changed By</th></tr></thead><tbody>${data.audit.map(entry => `<tr><td>${escapeHtml(new Date(entry.changed_at).toLocaleString())}</td><td>${escapeHtml(attendanceDateKey(entry.attendance_date))}</td><td>${escapeHtml(entry.student_name || `Roll ${entry.roll_number}`)}</td><td>${escapeHtml(entry.old_status)} → ${escapeHtml(entry.new_status)}</td><td>${escapeHtml(entry.changed_by_name)}</td></tr>`).join("")}</tbody></table></div>` : "<p>No attendance corrections have been made.</p>";
+    } catch (error) {
+        container.innerHTML = `<p class="error">${escapeHtml(error.message)}</p>`;
+    }
+}
+
+if (editAttendanceBtn) editAttendanceBtn.addEventListener("click", async () => {
+    if (!currentAttendanceRecords.length) await loadAttendanceHistory();
+    const dates = [...new Set(currentAttendanceRecords.map(record => attendanceDateKey(record.attendance_date)))].sort().reverse();
+    if (!dates.length) {
+        alert("No saved attendance is available to edit.");
+        return;
+    }
+    const select = document.getElementById("attendanceEditDate");
+    select.innerHTML = dates.map(date => `<option value="${date}">${formatDate(date)}</option>`).join("");
+    attendanceEditor.classList.remove("hidden");
+    renderAttendanceEditor();
+    loadAttendanceAudit();
+    attendanceEditor.scrollIntoView({ behavior: "smooth" });
+});
+document.getElementById("attendanceEditDate")?.addEventListener("change", renderAttendanceEditor);
+document.getElementById("cancelAttendanceEditBtn")?.addEventListener("click", () => attendanceEditor.classList.add("hidden"));
+
+document.getElementById("saveAttendanceEditBtn")?.addEventListener("click", async () => {
+    const button = document.getElementById("saveAttendanceEditBtn");
+    const date = document.getElementById("attendanceEditDate").value;
+    const absentStudentIds = [...document.querySelectorAll(".edit-attendance-status")]
+        .filter(item => item.dataset.status === "absent").map(item => Number(item.dataset.studentId));
+    button.disabled = true;
+    try {
+        const response = await fetch(`/api/attendance/course/${courseId}/${date}`, {
+            method: "PUT", credentials: "include", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ absentStudentIds })
+        });
+        const data = await response.json();
+        if (!response.ok || !data.success) throw new Error(data.message || "Could not update attendance");
+        setPanelMessage("attendanceEditMessage", `${data.message} (${data.changed} changes)`, "success");
+        await loadAttendanceHistory();
+        renderAttendanceEditor();
+        await loadAttendanceAudit();
+    } catch (error) {
+        setPanelMessage("attendanceEditMessage", error.message, "error");
+    } finally {
+        button.disabled = false;
+    }
+});
+
+
+// =========================
+// LOGOUT
+// =========================
+
+if (logoutBtn) {
+
+    logoutBtn.addEventListener(
+        "click",
+        async () => {
+
+            try {
+
+                await fetch(
+                    "/api/auth/logout",
+                    {
+                        method: "POST",
+                        credentials: "include"
+                    }
+                );
+
+            } catch (error) {
+
+                console.error(error);
+
+            }
+
+
+            localStorage.removeItem(
+                "teacher"
+            );
+
+
+            window.location.href =
+                "/test-login.html";
+
+        }
+    );
+
+}
+
+
+// =========================
+// START
+// =========================
+
+loadTeacher();
+
+loadCourse();

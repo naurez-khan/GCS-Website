@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Teacher Dashboard</title>
+
+    <link rel="icon" type="image/png" href="/assets/department-logo.png">
+
+    <link
+        rel="stylesheet"
+        href="teacher-dashboard.css?v=20260815-2"
+    >
+    <link rel="stylesheet" href="/brand.css?v=20260815-11">
+
+</head>
+
+
+<body>
+
+    <!-- TOP BAR -->
+
+    <header class="topbar">
+
+        <a class="logo brand-lockup" href="/teacher-dashboard.html">
+            <img class="brand-logo" src="/assets/department-logo.png" alt="Department of Mathematics crest">
+            <span class="brand-copy"><strong>Department of Mathematics</strong><small>Teacher Workspace</small></span>
+        </a>
+
+
+        <div class="teacher-info">
+
+            <span id="teacherName">
+                Teacher
+            </span>
+
+            <button id="changePasswordBtn" class="change-password-btn" type="button">
+                Change Password
+            </button>
+
+            <button id="returnAdminBtn" class="return-admin-btn" type="button" hidden>
+                Return to Admin
+            </button>
+
+            <button id="logoutBtn">
+                Logout
+            </button>
+
+        </div>
+
+    </header>
+
+
+
+    <!-- MAIN CONTENT -->
+
+    <main class="container">
+
+
+        <!-- WELCOME -->
+
+        <section class="welcome">
+
+            <h1>
+                Welcome,
+                <span id="welcomeName">
+                    Teacher
+                </span>
+            </h1>
+
+            <p>
+                Manage your classes, attendance and marks.
+            </p>
+
+            <p id="adminViewNotice" class="admin-view-notice" hidden></p>
+
+        </section>
+
+        <section id="passwordPanel" class="password-panel" hidden>
+            <div class="password-panel-heading">
+                <div>
+                    <h2>Change Password</h2>
+                    <p>Use a strong password with at least eight characters.</p>
+                </div>
+            </div>
+            <form id="changePasswordForm" class="password-form">
+                <label>Current password<input id="currentPassword" type="password" maxlength="200" autocomplete="current-password" required></label>
+                <label>New password<input id="newPassword" type="password" minlength="8" maxlength="128" autocomplete="new-password" required></label>
+                <label>Confirm new password<input id="confirmPassword" type="password" minlength="8" maxlength="128" autocomplete="new-password" required></label>
+                <div class="password-actions">
+                    <button class="primary-btn" type="submit">Save Password</button>
+                    <button id="cancelPasswordBtn" class="secondary-btn" type="button">Cancel</button>
+                </div>
+            </form>
+            <div id="passwordMessage" class="form-message" role="status" hidden></div>
+        </section>
+
+
+
+        <!-- MY CLASSES -->
+
+        <section class="courses-section">
+
+
+            <div class="section-header">
+
+                <h2>
+                    My Classes
+                </h2>
+
+
+                <div class="header-actions">
+
+                    <button id="addCourseBtn">
+                        + Add Class
+                    </button>
+
+
+                    <button id="deleteCourseBtn" class="delete-btn">
+                        Delete Class
+                    </button>
+
+                </div>
+
+            </div>
+
+
+
+            <!-- COURSES WILL APPEAR HERE -->
+
+            <div id="coursesContainer">
+
+                <p class="loading">
+                    Loading your classes...
+                </p>
+
+            </div>
+
+
+        </section>
+
+
+    </main>
+
+
+
+    <!-- JAVASCRIPT -->
+
+    <script src="teacher-dashboard.js?v=20260815-3"></script>
+
+</body>
+
+</html>
