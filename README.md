@@ -35,6 +35,21 @@ A small Express/PostgreSQL portal for managing mathematics classes, attendance, 
 
 The frontend is served by Express, so no separate frontend server is required. If a separate origin is used during development, put its exact URL in `CORS_ORIGIN`. Multiple origins can be comma-separated.
 
+## Deploy to Vercel with Neon
+
+1. Push the repository to GitHub and import it at [vercel.com/new](https://vercel.com/new).
+2. Leave **Root Directory** set to the repository root and leave the detected framework/build settings unchanged.
+3. Add these environment variables for Production, Preview, and Development:
+
+   - `DATABASE_URL`: the pooled Neon connection string, including `sslmode=require`
+   - `JWT_SECRET`: a random secret containing at least 32 characters
+   - `NODE_ENV`: `production`
+
+4. Deploy. Vercel serves the frontend and runs the Express API from the same address.
+5. Open `/api/db-test` on the deployed address to verify the Neon connection, then open `/test-login.html`.
+
+Keep the database password only in Neon/Vercel environment variables. Never commit it to GitHub.
+
 ## User flows
 
 - Admins are sent to `/admin.html`, where they can add and view teachers.
