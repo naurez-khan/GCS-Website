@@ -21,6 +21,10 @@ const createCourse = async (req, res) => {
             rollStart,
             rollEnd,
             rollRanges,
+            roll_numbers,
+            roll_entry_mode,
+            class_type,
+            intermediate_year,
 
             course_name_enabled,
             roll_number_enabled,
@@ -60,11 +64,12 @@ const createCourse = async (req, res) => {
 
         }
 
+        const hasExplicitRollNumbers = Array.isArray(roll_numbers) && roll_numbers.length > 0;
         const requestedRollRanges = Array.isArray(rollRanges) && rollRanges.length
             ? rollRanges
-            : [{ start: rollStart, end: rollEnd }];
+            : (hasExplicitRollNumbers ? [] : [{ start: rollStart, end: rollEnd, step: 1 }]);
 
-        if (!requestedRollRanges.length || requestedRollRanges.length > 50) {
+        if (!hasExplicitRollNumbers && (!requestedRollRanges.length || requestedRollRanges.length > 50)) {
 
             return res.status(400).json({
                 success: false,
@@ -93,20 +98,23 @@ const createCourse = async (req, res) => {
         );
         const normalizedRollRanges = requestedRollRanges.map(range => ({
             start: parseRollLimit(range?.start),
-            end: parseRollLimit(range?.end)
+            end: parseRollLimit(range?.end),
+            step: range?.step === undefined ? 1 : parseRollLimit(range.step)
         }));
 
         if (normalizedRollRanges.some(range =>
             !Number.isInteger(range.start) ||
             !Number.isInteger(range.end) ||
+            !Number.isInteger(range.step) ||
             range.start < 0 ||
             range.end < 0 ||
+            range.step < 1 ||
             range.start > range.end
         )) {
 
             return res.status(400).json({
                 success: false,
-                message: "Each roll number range must have valid whole-number limits"
+                message: "Each roll number range must have valid limits and a positive sequence difference"
             });
 
         }
@@ -115,37 +123,36 @@ const createCourse = async (req, res) => {
             first.start - second.start || first.end - second.end
         );
 
-        for (let index = 1; index < normalizedRollRanges.length; index += 1) {
-            if (normalizedRollRanges[index].start <= normalizedRollRanges[index - 1].end) {
-                return res.status(400).json({
-                    success: false,
-                    message: "Roll number ranges cannot overlap or contain duplicate numbers"
-                });
-            }
-        }
+        const generatedRollNumbers = normalizedRollRanges.flatMap(range => {
+            const values = [];
+            for (let roll = range.start; roll <= range.end; roll += range.step) values.push(roll);
+            return values;
+        });
+        const rollNumbers = hasExplicitRollNumbers
+            ? roll_numbers.map(parseRollLimit)
+            : generatedRollNumbers;
+        const studentCount = rollNumbers.length;
 
-        const studentCount = normalizedRollRanges.reduce(
-            (total, range) => total + range.end - range.start + 1,
-            0
-        );
-
-        if (studentCount < 1 || studentCount > 500) {
+        if (studentCount < 1 || studentCount > 500 || rollNumbers.some(roll => !Number.isInteger(roll) || roll < 0)) {
             return res.status(400).json({
                 success: false,
-                message: "Roll number ranges must contain between 1 and 500 students in total"
+                message: "Provide between 1 and 500 whole, non-negative roll numbers"
             });
         }
 
-        const rollNumbers = normalizedRollRanges.flatMap(range =>
-            Array.from(
-                { length: range.end - range.start + 1 },
-                (_, index) => range.start + index
-            )
-        );
-
         const rollNumberSet = new Set(rollNumbers);
-        const start = normalizedRollRanges[0].start;
-        const end = normalizedRollRanges[normalizedRollRanges.length - 1].end;
+        if (rollNumberSet.size !== rollNumbers.length) {
+            return res.status(400).json({ success: false, message: "Roll numbers must be unique" });
+        }
+        const start = Math.min(...rollNumbers);
+        const end = Math.max(...rollNumbers);
+
+        const classType = String(class_type || "bachelors").trim().toLowerCase();
+        const intermediateYear = classType === "intermediate" ? String(intermediate_year || "").trim() : null;
+        const rollEntryMode = ["range", "manual", "excel"].includes(roll_entry_mode) ? roll_entry_mode : "range";
+        if (!["bachelors", "intermediate"].includes(classType) || (classType === "intermediate" && !["1st_year", "2nd_year"].includes(intermediateYear))) {
+            return res.status(400).json({ success: false, message: "Choose a valid class level and Intermediate year" });
+        }
 
         // =========================
         // FEATURE SETTINGS
@@ -181,7 +188,7 @@ const createCourse = async (req, res) => {
             }
 
             for (const student of student_names) {
-                const rollNumber = Number.parseInt(student.roll_number, 10);
+                const rollNumber = Number(student.roll_number);
                 const studentName = String(student.name || "").trim();
 
                 if (
@@ -364,7 +371,10 @@ const createCourse = async (req, res) => {
 
                     midterm_max_marks,
                     final_max_marks,
-                    result_code
+                    result_code,
+                    class_type,
+                    intermediate_year,
+                    roll_entry_mode
                 )
 
                 VALUES
@@ -372,7 +382,7 @@ const createCourse = async (req, res) => {
                     $1, $2, $3, $4, $5, $6, $7, $8,
                     $9, $10, $11, $12, $13, $14,
                     $15, $16, $17, $18, $19, $20, $21, $22,
-                    $23, $24, $25
+                    $23, $24, $25, $26, $27, $28
                 )
 
                 RETURNING *
@@ -405,7 +415,10 @@ const createCourse = async (req, res) => {
 
                     midtermMaxMarks,
                     finalMaxMarks,
-                    resultCode
+                    resultCode,
+                    classType,
+                    intermediateYear,
+                    rollEntryMode
                 ]
             );
 
@@ -542,6 +555,9 @@ const getMyCourses = async (req, res) => {
                     id,
                     name,
                     course_code,
+                    class_type,
+                    intermediate_year,
+                    roll_entry_mode,
                     program,
                     semester,
                     section,
@@ -645,6 +661,9 @@ const getCourseStudents = async (
                     id,
                     name,
                     course_code,
+                    class_type,
+                    intermediate_year,
+                    roll_entry_mode,
                     program,
                     semester,
                     section,
@@ -1230,6 +1249,9 @@ const getCourseMarks = async (
                     id,
                     name,
                     course_code,
+                    class_type,
+                    intermediate_year,
+                    roll_entry_mode,
                     program,
                     semester,
                     section,
@@ -2181,6 +2203,12 @@ const updateCourseSettings = async (req, res) => {
         const cleanName = String(req.body.name || "").trim();
         const cleanCourseCode = String(req.body.course_code || "").trim() || null;
         const cleanSection = String(req.body.section || "").trim() || null;
+        const classType = String(req.body.class_type || "bachelors").trim().toLowerCase();
+        const intermediateYear = classType === "intermediate" ? String(req.body.intermediate_year || "").trim() : null;
+        const cleanProgram = classType === "intermediate" ? "Intermediate" : (String(req.body.program || "").trim() || null);
+        const cleanSemester = classType === "intermediate"
+            ? (intermediateYear === "2nd_year" ? "2nd Year" : "1st Year")
+            : (String(req.body.semester || "").trim() || null);
         const assignmentsEnabled = req.body.assignments_enabled === true;
         const quizzesEnabled = req.body.quizzes_enabled === true;
         const midtermEnabled = req.body.midterm_enabled === true;
@@ -2194,8 +2222,11 @@ const updateCourseSettings = async (req, res) => {
         const midtermMax = midtermEnabled ? Number(req.body.midterm_max_marks) : null;
         const finalMax = finalEnabled ? Number(req.body.final_max_marks) : null;
 
-        if (!cleanName || cleanName.length > 150 || (cleanCourseCode && cleanCourseCode.length > 50) || (cleanSection && cleanSection.length > 20)) {
+        if (!cleanName || cleanName.length > 150 || (cleanCourseCode && cleanCourseCode.length > 50) || (cleanSection && cleanSection.length > 20) || (cleanProgram && cleanProgram.length > 100) || (cleanSemester && cleanSemester.length > 50)) {
             return res.status(400).json({ success: false, message: "Enter a valid course name, course code, and section" });
+        }
+        if (!["bachelors", "intermediate"].includes(classType) || (classType === "intermediate" && !["1st_year", "2nd_year"].includes(intermediateYear))) {
+            return res.status(400).json({ success: false, message: "Choose a valid class level and Intermediate year" });
         }
         if (!/^[a-z0-9-]{4,24}$/.test(resultCode)) {
             return res.status(400).json({ success: false, message: "Result code must be 4-24 letters, numbers, or hyphens" });
@@ -2222,6 +2253,9 @@ const updateCourseSettings = async (req, res) => {
             await client.query("ROLLBACK");
             return res.status(404).json({ success: false, message: "Course not found or access denied" });
         }
+        const existingCourse = courseResult.rows[0];
+        const programEnabledForUpdate = classType === "intermediate" ? true : existingCourse.program_enabled;
+        const semesterEnabledForUpdate = classType === "intermediate" ? true : existingCourse.semester_enabled;
 
         const reconcile = async ({ table, marksTable, foreignKey, numberColumn, enabled, count, maxMarks, label }) => {
             const existing = await client.query(
@@ -2283,10 +2317,18 @@ const updateCourseSettings = async (req, res) => {
             `UPDATE courses SET name=$1, course_code=$2, section=$3, assignments_enabled=$4, assignment_count=$5,
                     quizzes_enabled=$6, quiz_count=$7, midterm_enabled=$8, final_enabled=$9,
                     results_enabled=$10, midterm_max_marks=$11, final_max_marks=$12, result_code=$13,
+                    class_type=$14, intermediate_year=$15, program=$16, semester=$17,
+                    program_enabled=$18, semester_enabled=$19,
                     updated_at=CURRENT_TIMESTAMP
-             WHERE id=$14 RETURNING *`,
+             WHERE id=$20 RETURNING *`,
             [cleanName, cleanCourseCode, cleanSection, assignmentsEnabled, assignmentCount, quizzesEnabled, quizCount,
-             midtermEnabled, finalEnabled, resultsEnabled, midtermMax, finalMax, resultCode, courseId]
+             midtermEnabled, finalEnabled, resultsEnabled, midtermMax, finalMax, resultCode,
+             classType, intermediateYear, cleanProgram, cleanSemester,
+             programEnabledForUpdate, semesterEnabledForUpdate, courseId]
+        );
+        await client.query(
+            "UPDATE students SET program=$1, semester=$2, updated_at=CURRENT_TIMESTAMP WHERE course_id=$3",
+            [cleanProgram, cleanSemester, courseId]
         );
         await client.query("COMMIT");
         res.json({ success: true, message: "Class settings updated successfully", course: updated.rows[0] });

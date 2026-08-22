@@ -284,6 +284,10 @@ function displayCourse(course) {
         `;
     }
 
+    detailsHTML += `
+        <span><strong>Class Level:</strong> ${course.class_type === "intermediate" ? "Intermediate" : "Bachelors"}</span>
+    `;
+
 
     if (
         course.program_enabled !== false
@@ -315,7 +319,7 @@ function displayCourse(course) {
             <span>
 
                 <strong>
-                    Semester:
+                    ${course.class_type === "intermediate" ? "Class / Year" : "Semester"}:
                 </strong>
 
                 ${escapeHtml(course.semester || "N/A")}
@@ -3406,6 +3410,10 @@ function syncSettingsInputs() {
         const enabled = document.getElementById(toggleId).checked;
         inputIds.forEach(id => { document.getElementById(id).disabled = !enabled; });
     });
+    const intermediate = document.getElementById("settingsClassType").value === "intermediate";
+    document.getElementById("settingsIntermediateYearLabel").hidden = !intermediate;
+    document.getElementById("settingsProgramLabel").hidden = intermediate;
+    document.getElementById("settingsSemesterLabel").hidden = intermediate;
 }
 
 async function openClassSettings() {
@@ -3421,6 +3429,10 @@ async function openClassSettings() {
     setPanelMessage("classSettingsMessage", "", "");
     document.getElementById("settingsCourseName").value = currentCourse.name || "";
     document.getElementById("settingsCourseCode").value = currentCourse.course_code || "";
+    document.getElementById("settingsClassType").value = currentCourse.class_type || "bachelors";
+    document.getElementById("settingsIntermediateYear").value = currentCourse.intermediate_year || "1st_year";
+    document.getElementById("settingsProgram").value = currentCourse.program || "";
+    document.getElementById("settingsSemester").value = currentCourse.semester || "";
     document.getElementById("settingsSection").value = currentCourse.section || "";
     document.getElementById("settingsResultsEnabled").checked = currentCourse.results_enabled === true;
     document.getElementById("settingsResultCode").value = currentCourse.result_code || "";
@@ -3460,6 +3472,7 @@ if (editClassBtn) editClassBtn.addEventListener("click", openClassSettings);
 document.getElementById("cancelClassSettingsBtn")?.addEventListener("click", () => classSettingsSection.classList.add("hidden"));
 ["settingsAssignmentsEnabled", "settingsQuizzesEnabled", "settingsMidtermEnabled", "settingsFinalEnabled"]
     .forEach(id => document.getElementById(id)?.addEventListener("change", syncSettingsInputs));
+document.getElementById("settingsClassType")?.addEventListener("change", syncSettingsInputs);
 
 document.getElementById("saveClassSettingsBtn")?.addEventListener("click", async () => {
     const button = document.getElementById("saveClassSettingsBtn");
@@ -3468,6 +3481,10 @@ document.getElementById("saveClassSettingsBtn")?.addEventListener("click", async
     const payload = {
         name: value("settingsCourseName"),
         course_code: value("settingsCourseCode").trim(),
+        class_type: value("settingsClassType"),
+        intermediate_year: value("settingsIntermediateYear"),
+        program: value("settingsProgram").trim(),
+        semester: value("settingsSemester").trim(),
         section: value("settingsSection"),
         results_enabled: checked("settingsResultsEnabled"),
         result_code: value("settingsResultCode").trim().toLowerCase(),

@@ -574,7 +574,8 @@ body {
 }
 
 
-.conditional-field input {
+.conditional-field input,
+.conditional-field select {
     width: 100%;
 
     padding: 11px 12px;
@@ -616,6 +617,79 @@ body {
     font-size: 12px;
 }
 
+.class-level-panel {
+    margin: 12px 0 18px;
+    padding: 16px;
+    border: 1px solid rgba(162, 12, 22, 0.18);
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.58);
+}
+
+.class-level-panel[hidden],
+.roll-entry-panel[hidden] {
+    display: none !important;
+}
+
+.panel-kicker {
+    margin-bottom: 8px;
+    color: #8f111a;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+}
+
+.class-type-field select,
+.class-level-panel select {
+    width: 100%;
+    min-height: 46px;
+    padding: 10px 12px;
+    border: 1px solid #d8c5c7;
+    border-radius: 9px;
+    background: #fff;
+    color: #322629;
+    font: inherit;
+}
+
+.roll-mode-tabs {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    margin-bottom: 14px;
+}
+
+.roll-mode-tabs label {
+    margin: 0;
+    cursor: pointer;
+}
+
+.roll-mode-tabs input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.roll-mode-tabs span {
+    display: grid;
+    min-height: 44px;
+    place-items: center;
+    padding: 9px;
+    border: 1px solid #d8b7ba;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, .78);
+    color: #7f1017;
+    font-size: 13px;
+    font-weight: 800;
+    text-align: center;
+}
+
+.roll-mode-tabs input:checked + span {
+    border-color: #9c0c15;
+    background: #a70d18;
+    color: #fff;
+    box-shadow: 0 7px 18px rgba(143, 17, 26, .18);
+}
+
 .course-card .course-code {
     margin: -4px 0 13px;
     color: #8f111a;
@@ -632,7 +706,7 @@ body {
 
 .roll-range-row {
     display: grid;
-    grid-template-columns: auto minmax(0, 1fr) minmax(0, 1fr) auto;
+    grid-template-columns: auto repeat(3, minmax(0, 1fr)) auto;
     align-items: end;
     gap: 10px;
     padding: 14px;
@@ -697,6 +771,68 @@ body {
 .roll-range-actions small {
     margin: 0;
 }
+
+.manual-count-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+    gap: 10px;
+    margin-bottom: 14px;
+}
+
+.manual-count-row input {
+    max-width: none;
+    margin: 0;
+}
+
+.manual-roll-grid {
+    display: grid;
+    gap: 10px;
+    max-height: 430px;
+    overflow: auto;
+}
+
+.manual-roll-row {
+    display: grid;
+    grid-template-columns: 34px repeat(2, minmax(0, 1fr));
+    align-items: end;
+    gap: 10px;
+    padding: 12px;
+    border: 1px solid #ead7d9;
+    border-radius: 10px;
+    background: rgba(255,255,255,.72);
+}
+
+.manual-roll-row strong {
+    align-self: center;
+    color: #8f111a;
+}
+
+.manual-roll-row label,
+.manual-roll-row input {
+    margin: 0;
+}
+
+.excel-upload-panel {
+    padding: 16px;
+    border: 1px dashed #a70d18;
+    border-radius: 12px;
+    background: rgba(255,255,255,.65);
+}
+
+.roster-preview {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 8px;
+    margin-top: 12px;
+    padding: 12px;
+    border-radius: 9px;
+    background: rgba(201, 154, 48, .13);
+    color: #5b4a4d;
+}
+
+.import-error { color: #a20c16; font-weight: 700; }
 
 
 /* =========================
@@ -928,6 +1064,19 @@ input[type="number"]::-webkit-outer-spin-button {
 
     .add-roll-range-btn {
         width: 100%;
+    }
+
+    .roll-mode-tabs {
+        grid-template-columns: 1fr;
+    }
+
+    .manual-count-row,
+    .manual-roll-row {
+        grid-template-columns: 1fr;
+    }
+
+    .manual-roll-row strong {
+        align-self: auto;
     }
 
 }

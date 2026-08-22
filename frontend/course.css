@@ -349,6 +349,7 @@ body {
 }
 
 .settings-grid input,
+.settings-grid select,
 .attendance-editor-header select,
 .file-input {
     width: 100%;
@@ -360,6 +361,7 @@ body {
 }
 
 .settings-grid input:focus,
+.settings-grid select:focus,
 .attendance-editor-header select:focus,
 .file-input:focus {
     outline: 2px solid rgba(37, 99, 235, 0.15);

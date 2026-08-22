@@ -35,6 +35,9 @@ const pool = require("../config/db");
         await pool.end();
     }
 })().catch(error => {
-    console.error(`Migration failed: ${error.message}`);
+    const nestedMessages = Array.isArray(error.errors)
+        ? error.errors.map(item => item?.message).filter(Boolean).join("; ")
+        : "";
+    console.error(`Migration failed: ${error.message || nestedMessages || error.code || "Unknown database error"}`);
     process.exitCode = 1;
 });

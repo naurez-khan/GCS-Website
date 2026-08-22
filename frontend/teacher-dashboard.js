@@ -40,6 +40,7 @@ const deleteCourseBtn =
 // =========================
 
 let loadedCourses = [];
+let importedCreationRoster = [];
 
 
 // =========================
@@ -182,6 +183,13 @@ function displayCourses(courses) {
 
         const infoItems = [];
 
+        infoItems.push(`
+            <div>
+                <strong>Class Level:</strong>
+                ${course.class_type === "intermediate" ? "Intermediate" : "Bachelors"}
+            </div>
+        `);
+
 
         // =========================
         // PROGRAM
@@ -207,7 +215,7 @@ function displayCourses(courses) {
 
             infoItems.push(`
                 <div>
-                    <strong>Semester:</strong>
+                    <strong>${course.class_type === "intermediate" ? "Class / Year" : "Semester"}:</strong>
                     ${escapeHtml(semester)}
                 </div>
             `);
@@ -902,84 +910,45 @@ function showAddCourseForm() {
             </div>
 
 
-            <!-- PROGRAM -->
-
-            ${createSwitch(
-                "program_enabled",
-                "Program",
-                true
-            )}
-
-
-            <div
-                id="programField"
-                class="conditional-field"
-            >
-
-                <label>
-                    Program
-                </label>
-
-                <input
-                    type="text"
-                    id="program"
-                    placeholder="e.g. BS Mathematics"
-                >
-
+            <div class="class-type-field conditional-field">
+                <label for="classType">Class Level</label>
+                <select id="classType">
+                    <option value="bachelors">Bachelors</option>
+                    <option value="intermediate">Intermediate</option>
+                </select>
+                <small>Choose the academic level before entering class details.</small>
             </div>
 
-
-            <!-- SEMESTER -->
-
-            ${createSwitch(
-                "semester_enabled",
-                "Semester",
-                true
-            )}
-
-
-            <div
-                id="semesterField"
-                class="conditional-field"
-            >
-
-                <label>
-                    Semester
-                </label>
-
-                <input
-                    type="text"
-                    id="semester"
-                    placeholder="e.g. 3rd"
-                >
-
+            <div id="bachelorsPanel" class="class-level-panel">
+                <div class="panel-kicker">Bachelors class details</div>
+                ${createSwitch("program_enabled", "Program", true)}
+                <div id="programField" class="conditional-field">
+                    <label>Program</label>
+                    <input type="text" id="program" placeholder="e.g. BS Mathematics">
+                </div>
+                ${createSwitch("semester_enabled", "Semester", true)}
+                <div id="semesterField" class="conditional-field">
+                    <label>Semester</label>
+                    <input type="text" id="semester" placeholder="e.g. 3rd">
+                </div>
+                ${createSwitch("section_enabled", "Section", true)}
+                <div id="sectionField" class="conditional-field">
+                    <label>Section</label>
+                    <input type="text" id="section" placeholder="e.g. A">
+                </div>
             </div>
 
-
-            <!-- SECTION -->
-
-            ${createSwitch(
-                "section_enabled",
-                "Section",
-                true
-            )}
-
-
-            <div
-                id="sectionField"
-                class="conditional-field"
-            >
-
-                <label>
-                    Section
-                </label>
-
-                <input
-                    type="text"
-                    id="section"
-                    placeholder="e.g. A"
-                >
-
+            <div id="intermediatePanel" class="class-level-panel" hidden>
+                <div class="panel-kicker">Intermediate class details</div>
+                <div class="conditional-field">
+                    <label for="intermediateYear">Class / Year</label>
+                    <select id="intermediateYear">
+                        <option value="1st_year">1st Year</option>
+                        <option value="2nd_year">2nd Year</option>
+                    </select>
+                    <label for="intermediateSection">Section</label>
+                    <input type="text" id="intermediateSection" maxlength="20" placeholder="e.g. A">
+                </div>
             </div>
 
 
@@ -990,7 +959,7 @@ function showAddCourseForm() {
                 <div>
 
                     <span>
-                        Roll Number Range
+                        Student Roll Numbers
                     </span>
 
                     <small>
@@ -1011,6 +980,13 @@ function showAddCourseForm() {
                 class="conditional-field"
             >
 
+                <div class="roll-mode-tabs" role="radiogroup" aria-label="Roll number entry method">
+                    <label><input type="radio" name="rollEntryMode" value="range" checked><span>Add Range</span></label>
+                    <label><input type="radio" name="rollEntryMode" value="manual"><span>Add Manually</span></label>
+                    <label><input type="radio" name="rollEntryMode" value="excel"><span>Upload Excel</span></label>
+                </div>
+
+                <div id="rollRangePanel" class="roll-entry-panel">
                 <div id="rollRanges" class="roll-ranges">
                     <div class="roll-range-row">
                         <strong class="roll-range-label">Range 1</strong>
@@ -1039,6 +1015,11 @@ function showAddCourseForm() {
                             >
                         </label>
 
+                        <label>
+                            <span>Sequence Difference</span>
+                            <input type="number" class="roll-step" min="1" step="1" value="1" placeholder="e.g. 4">
+                        </label>
+
                         <button type="button" class="remove-roll-range" hidden>
                             Remove
                         </button>
@@ -1049,7 +1030,26 @@ function showAddCourseForm() {
                     <button type="button" id="addRollRangeBtn" class="add-roll-range-btn">
                         + Add another range
                     </button>
-                    <small>Add separate groups such as 101–110 and 201–210.</small>
+                    <small>Use difference 4 to create 100, 104, 108 and so on.</small>
+                </div>
+                </div>
+
+                <div id="rollManualPanel" class="roll-entry-panel" hidden>
+                    <label for="manualStudentCount">Number of Students</label>
+                    <div class="manual-count-row">
+                        <input id="manualStudentCount" type="number" min="1" max="500" step="1" placeholder="e.g. 30">
+                        <button type="button" id="buildManualRollsBtn" class="add-roll-range-btn">Create Roll Fields</button>
+                    </div>
+                    <div id="manualRollInputs" class="manual-roll-grid">
+                        <p class="student-names-hint">Enter the number of students first.</p>
+                    </div>
+                </div>
+
+                <div id="rollExcelPanel" class="roll-entry-panel excel-upload-panel" hidden>
+                    <label for="creationRosterFile">Excel or CSV File</label>
+                    <input id="creationRosterFile" type="file" accept=".xlsx,.xls,.csv">
+                    <small>First column: Roll Number. When Student Name is on, second column: Student Name.</small>
+                    <div id="creationRosterPreview" class="roster-preview">No file selected.</div>
                 </div>
 
             </div>
@@ -1314,9 +1314,8 @@ function showAddCourseForm() {
 
 
     setupCourseSwitches();
-
-    setupRollRangeFields();
-
+    setupClassTypeFields();
+    setupRollEntryFields();
     setupStudentNameFields();
 
 
@@ -1442,12 +1441,53 @@ function setupStudentNameFields() {
 
     const update = () => {
         const field = document.getElementById("studentNamesField");
-        field.style.display = toggle.checked ? "block" : "none";
-        if (toggle.checked) renderStudentNameInputs();
+        const mode = getRollEntryMode();
+        field.style.display = toggle.checked && mode === "range" ? "block" : "none";
+        if (mode === "range" && toggle.checked) renderStudentNameInputs();
+        if (mode === "manual") renderManualRollInputs();
+        if (mode === "excel") renderCreationRosterPreview();
     };
 
     toggle.addEventListener("change", update);
     update();
+}
+
+function setupClassTypeFields() {
+    const select = document.getElementById("classType");
+    const update = () => {
+        const intermediate = select.value === "intermediate";
+        document.getElementById("bachelorsPanel").hidden = intermediate;
+        document.getElementById("intermediatePanel").hidden = !intermediate;
+    };
+    select.addEventListener("change", update);
+    update();
+}
+
+function getRollEntryMode() {
+    return document.querySelector('input[name="rollEntryMode"]:checked')?.value || "range";
+}
+
+function setupRollEntryFields() {
+    setupRollRangeFields();
+    const updatePanels = () => {
+        const mode = getRollEntryMode();
+        document.getElementById("rollRangePanel").hidden = mode !== "range";
+        document.getElementById("rollManualPanel").hidden = mode !== "manual";
+        document.getElementById("rollExcelPanel").hidden = mode !== "excel";
+        const namesField = document.getElementById("studentNamesField");
+        namesField.style.display = mode === "range" && document.getElementById("student_name_enabled").checked
+            ? "block"
+            : "none";
+        if (mode === "range") renderStudentNameInputs();
+        if (mode === "manual") renderManualRollInputs();
+        if (mode === "excel") renderCreationRosterPreview();
+    };
+    document.querySelectorAll('input[name="rollEntryMode"]').forEach(input =>
+        input.addEventListener("change", updatePanels)
+    );
+    document.getElementById("buildManualRollsBtn").addEventListener("click", renderManualRollInputs);
+    document.getElementById("creationRosterFile").addEventListener("change", importCreationRoster);
+    updatePanels();
 }
 
 function setupRollRangeFields() {
@@ -1479,6 +1519,10 @@ function setupRollRangeFields() {
             <label>
                 <span>End</span>
                 <input type="number" class="roll-end" min="0" step="1" placeholder="e.g. 210">
+            </label>
+            <label>
+                <span>Sequence Difference</span>
+                <input type="number" class="roll-step" min="1" step="1" value="1" placeholder="e.g. 4">
             </label>
             <button type="button" class="remove-roll-range">Remove</button>
         `;
@@ -1516,47 +1560,148 @@ function readRollRanges() {
     for (let index = 0; index < rows.length; index += 1) {
         const startValue = rows[index].querySelector(".roll-start").value.trim();
         const endValue = rows[index].querySelector(".roll-end").value.trim();
+        const stepValue = rows[index].querySelector(".roll-step").value.trim();
 
-        if (!startValue || !endValue) {
-            return { error: `Enter both limits for range ${index + 1}.` };
+        if (!startValue || !endValue || !stepValue) {
+            return { error: `Enter start, end, and sequence difference for range ${index + 1}.` };
         }
 
         const start = Number(startValue);
         const end = Number(endValue);
+        const step = Number(stepValue);
 
-        if (!Number.isInteger(start) || !Number.isInteger(end) || start < 0 || end < 0) {
-            return { error: `Range ${index + 1} must use whole, non-negative roll numbers.` };
+        if (!Number.isInteger(start) || !Number.isInteger(end) || !Number.isInteger(step) || start < 0 || end < 0 || step < 1) {
+            return { error: `Range ${index + 1} must use whole roll numbers and a positive sequence difference.` };
         }
 
         if (start > end) {
             return { error: `Range ${index + 1} start cannot be greater than its end.` };
         }
 
-        ranges.push({ start, end });
+        ranges.push({ start, end, step });
     }
 
     ranges.sort((first, second) => first.start - second.start || first.end - second.end);
 
-    for (let index = 1; index < ranges.length; index += 1) {
-        if (ranges[index].start <= ranges[index - 1].end) {
-            return { error: "Roll number ranges cannot overlap or contain duplicate numbers." };
-        }
-    }
-
-    const studentCount = ranges.reduce(
-        (total, range) => total + range.end - range.start + 1,
-        0
-    );
+    const rollNumbers = ranges.flatMap(range => {
+        const values = [];
+        for (let roll = range.start; roll <= range.end; roll += range.step) values.push(roll);
+        return values;
+    });
+    const studentCount = rollNumbers.length;
 
     if (studentCount > 500) {
         return { error: "A class can contain at most 500 students across all ranges." };
     }
 
-    const rollNumbers = ranges.flatMap(range =>
-        Array.from({ length: range.end - range.start + 1 }, (_, index) => range.start + index)
-    );
+    if (new Set(rollNumbers).size !== rollNumbers.length) {
+        return { error: "The ranges create duplicate roll numbers. Adjust a range or its sequence difference." };
+    }
 
     return { ranges, rollNumbers, error: null };
+}
+
+function renderManualRollInputs() {
+    const container = document.getElementById("manualRollInputs");
+    const rawCount = Number(document.getElementById("manualStudentCount").value);
+    const saved = [...container.querySelectorAll(".manual-roll-row")].map(row => ({
+        roll: row.querySelector(".manual-roll-number")?.value || "",
+        name: row.querySelector(".manual-student-name")?.value || ""
+    }));
+    if (!Number.isInteger(rawCount) || rawCount < 1 || rawCount > 500) {
+        container.innerHTML = '<p class="student-names-hint">Enter a student count from 1 to 500.</p>';
+        return;
+    }
+    const namesEnabled = document.getElementById("student_name_enabled").checked;
+    container.innerHTML = Array.from({ length: rawCount }, (_, index) => `
+        <div class="manual-roll-row">
+            <strong>${index + 1}</strong>
+            <label><span>Roll Number</span><input class="manual-roll-number" type="number" min="0" step="1" value="${escapeHtml(saved[index]?.roll || "")}" placeholder="e.g. ${100 + index}"></label>
+            ${namesEnabled ? `<label><span>Student Name</span><input class="manual-student-name" maxlength="150" value="${escapeHtml(saved[index]?.name || "")}" placeholder="Student name"></label>` : ""}
+        </div>
+    `).join("");
+}
+
+async function importCreationRoster(event) {
+    const file = event.target.files?.[0];
+    importedCreationRoster = [];
+    if (!file) return renderCreationRosterPreview();
+    try {
+        if (typeof XLSX === "undefined") throw new Error("Excel reader did not load. Refresh and try again.");
+        const workbook = XLSX.read(await file.arrayBuffer(), { type: "array" });
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" })
+            .filter(row => row.some(cell => String(cell).trim()));
+        if (!rows.length) throw new Error("The selected file is empty.");
+        const first = rows[0].map(cell => String(cell).trim().toLowerCase());
+        const hasHeader = first.some(value => value.includes("roll"));
+        const dataRows = hasHeader ? rows.slice(1) : rows;
+        importedCreationRoster = dataRows.map(row => ({
+            roll_number: String(row[0] ?? "").trim(),
+            name: String(row[1] ?? "").trim()
+        })).filter(row => row.roll_number || row.name);
+        renderCreationRosterPreview();
+    } catch (error) {
+        document.getElementById("creationRosterPreview").innerHTML = `<span class="import-error">${escapeHtml(error.message)}</span>`;
+    }
+}
+
+function validateImportedCreationRoster() {
+    if (!importedCreationRoster.length) return { error: "Choose an Excel or CSV file containing student roll numbers." };
+    if (importedCreationRoster.length > 500) return { error: "A class can contain at most 500 students." };
+    const namesEnabled = document.getElementById("student_name_enabled").checked;
+    const rollNumbers = [];
+    const studentNames = [];
+    const seen = new Set();
+    for (let index = 0; index < importedCreationRoster.length; index += 1) {
+        const row = importedCreationRoster[index];
+        const roll = Number(row.roll_number);
+        if (!Number.isInteger(roll) || roll < 0 || seen.has(roll)) return { error: `Excel row ${index + 1} needs a unique, whole roll number.` };
+        if (namesEnabled && !row.name) return { error: `Excel row ${index + 1} needs a student name because Student Name is on.` };
+        seen.add(roll);
+        rollNumbers.push(roll);
+        if (namesEnabled) studentNames.push({ roll_number: String(roll), name: row.name });
+    }
+    return { rollNumbers, studentNames, ranges: [], error: null };
+}
+
+function renderCreationRosterPreview() {
+    const preview = document.getElementById("creationRosterPreview");
+    if (!importedCreationRoster.length) {
+        preview.textContent = "No file selected.";
+        return;
+    }
+    const namesEnabled = document.getElementById("student_name_enabled").checked;
+    preview.innerHTML = `<strong>${importedCreationRoster.length} students found</strong><span>${namesEnabled ? "Roll numbers and names will be imported." : "Only roll numbers will be imported."}</span>`;
+}
+
+function readManualRoster() {
+    const rows = [...document.querySelectorAll(".manual-roll-row")];
+    const expected = Number(document.getElementById("manualStudentCount").value);
+    if (!Number.isInteger(expected) || expected < 1 || expected > 500 || rows.length !== expected) {
+        return { error: "Enter the number of students, then select Create Roll Fields." };
+    }
+    const namesEnabled = document.getElementById("student_name_enabled").checked;
+    const rollNumbers = [];
+    const studentNames = [];
+    const seen = new Set();
+    for (let index = 0; index < rows.length; index += 1) {
+        const roll = Number(rows[index].querySelector(".manual-roll-number").value);
+        const name = rows[index].querySelector(".manual-student-name")?.value.trim() || "";
+        if (!Number.isInteger(roll) || roll < 0 || seen.has(roll)) return { error: `Student ${index + 1} needs a unique, whole roll number.` };
+        if (namesEnabled && !name) return { error: `Enter the name for roll ${roll}.` };
+        seen.add(roll);
+        rollNumbers.push(roll);
+        if (namesEnabled) studentNames.push({ roll_number: String(roll), name });
+    }
+    return { rollNumbers, studentNames, ranges: [], error: null };
+}
+
+function readCreationRoster() {
+    const mode = getRollEntryMode();
+    if (mode === "manual") return { ...readManualRoster(), mode };
+    if (mode === "excel") return { ...validateImportedCreationRoster(), mode };
+    return { ...readRollRanges(), studentNames: null, mode };
 }
 
 function renderStudentNameInputs() {
@@ -1677,14 +1822,11 @@ async function createCourse() {
     // SETTINGS
     // =========================
 
-    const programEnabled =
-        checked("program_enabled");
-
-    const semesterEnabled =
-        checked("semester_enabled");
-
-    const sectionEnabled =
-        checked("section_enabled");
+    const classType = document.getElementById("classType").value;
+    const isIntermediate = classType === "intermediate";
+    const programEnabled = isIntermediate ? true : checked("program_enabled");
+    const semesterEnabled = isIntermediate ? true : checked("semester_enabled");
+    const sectionEnabled = isIntermediate ? true : checked("section_enabled");
 
     const studentNameEnabled =
         checked("student_name_enabled");
@@ -1726,25 +1868,16 @@ async function createCourse() {
             .trim();
 
 
-    const program =
-        document
-            .getElementById("program")
-            .value
-            .trim();
-
-
-    const semester =
-        document
-            .getElementById("semester")
-            .value
-            .trim();
-
-
-    const section =
-        document
-            .getElementById("section")
-            .value
-            .trim();
+    const intermediateYear = document.getElementById("intermediateYear").value;
+    const program = isIntermediate
+        ? "Intermediate"
+        : document.getElementById("program").value.trim();
+    const semester = isIntermediate
+        ? (intermediateYear === "2nd_year" ? "2nd Year" : "1st Year")
+        : document.getElementById("semester").value.trim();
+    const section = isIntermediate
+        ? document.getElementById("intermediateSection").value.trim()
+        : document.getElementById("section").value.trim();
 
 
     const assignmentCount =
@@ -1800,7 +1933,7 @@ async function createCourse() {
     // REQUIRED ROLL RANGE
     // =========================
 
-    const rollRangeResult = readRollRanges();
+    const rollRangeResult = readCreationRoster();
 
     if (rollRangeResult.error) {
         message.textContent = rollRangeResult.error;
@@ -1814,9 +1947,9 @@ async function createCourse() {
         return;
     }
 
-    const { ranges: rollRanges, rollNumbers } = rollRangeResult;
-    const startNumber = rollRanges[0].start;
-    const endNumber = rollRanges[rollRanges.length - 1].end;
+    const { ranges: rollRanges, rollNumbers, mode: rollEntryMode } = rollRangeResult;
+    const startNumber = Math.min(...rollNumbers);
+    const endNumber = Math.max(...rollNumbers);
 
 
     // =========================
@@ -1840,9 +1973,11 @@ async function createCourse() {
         return;
     }
 
-    const studentNames = [];
+    const studentNames = Array.isArray(rollRangeResult.studentNames)
+        ? [...rollRangeResult.studentNames]
+        : [];
 
-    if (studentNameEnabled) {
+    if (studentNameEnabled && rollEntryMode === "range") {
         const nameInputs = [...document.querySelectorAll(".student-name-entry")];
 
         if (nameInputs.length !== rollNumbers.length) {
@@ -1942,6 +2077,18 @@ async function createCourse() {
 
         rollRanges:
             rollRanges,
+
+        roll_numbers:
+            rollNumbers,
+
+        roll_entry_mode:
+            rollEntryMode,
+
+        class_type:
+            classType,
+
+        intermediate_year:
+            isIntermediate ? intermediateYear : null,
 
 
         // OPTIONAL INFORMATION

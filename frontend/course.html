@@ -171,6 +171,10 @@
             <div class="settings-grid">
                 <label>Course Name<input id="settingsCourseName" maxlength="150"></label>
                 <label>Course Code <small>(optional)</small><input id="settingsCourseCode" maxlength="50" placeholder="e.g. MATH-101"></label>
+                <label>Class Level<select id="settingsClassType"><option value="bachelors">Bachelors</option><option value="intermediate">Intermediate</option></select></label>
+                <label id="settingsIntermediateYearLabel">Class / Year<select id="settingsIntermediateYear"><option value="1st_year">1st Year</option><option value="2nd_year">2nd Year</option></select></label>
+                <label id="settingsProgramLabel">Program<input id="settingsProgram" maxlength="100" placeholder="e.g. BS Mathematics"></label>
+                <label id="settingsSemesterLabel">Semester<input id="settingsSemester" maxlength="50" placeholder="e.g. 3rd"></label>
                 <label>Section<input id="settingsSection" maxlength="20"></label>
                 <label class="setting-check"><input id="settingsResultsEnabled" type="checkbox"> Publish student results</label>
                 <label>Student Result Code<input id="settingsResultCode" minlength="4" maxlength="24" pattern="[A-Za-z0-9-]+" placeholder="e.g. calculus-2026"></label>
@@ -456,7 +460,7 @@
          COURSE JAVASCRIPT
     ========================= -->
 
-    <script src="/course.js?v=20260815-6"></script>
+    <script src="/course.js?v=20260822-1"></script>
 
 </body>
 
