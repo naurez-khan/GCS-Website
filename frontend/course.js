@@ -112,10 +112,12 @@ let currentCourse = null;
 let courseAssignments = [];
 
 let courseQuizzes = [];
+let courseMonthlyTests = [];
 
 let assignmentMarks = [];
 
 let quizMarks = [];
+let monthlyTestMarks = [];
 
 let currentAttendanceRecords = [];
 
@@ -286,6 +288,7 @@ function displayCourse(course) {
 
     detailsHTML += `
         <span><strong>Class Level:</strong> ${course.class_type === "intermediate" ? "Intermediate" : "Bachelors"}</span>
+        <span><strong>Shift:</strong> ${course.class_shift === "evening" ? "Evening" : "Morning"}</span>
     `;
 
 
@@ -451,8 +454,10 @@ function applyAttendanceSetting(course) {
 function applyMarksSetting(course) {
 
     const marksEnabled =
+        course.class_type === "intermediate" ||
         course.assignments_enabled === true ||
         course.quizzes_enabled === true ||
+        course.monthly_tests_enabled === true ||
         course.midterm_enabled === true ||
         course.final_enabled === true;
 
@@ -1214,17 +1219,30 @@ async function loadCourseMarks() {
             ...(data.course || {})
         };
 
+        const courseMarksDescription = document.getElementById("courseMarksDescription");
+        if (courseMarksDescription) {
+            courseMarksDescription.textContent = currentCourse.class_type === "intermediate"
+                ? "Enter monthly-test marks, December Test marks, and Preboard marks."
+                : "Enter marks for each assignment and quiz.";
+        }
+
         courseAssignments =
             data.assignments || [];
 
         courseQuizzes =
             data.quizzes || [];
 
+        courseMonthlyTests =
+            data.monthlyTests || [];
+
         assignmentMarks =
             data.assignmentMarks || [];
 
         quizMarks =
             data.quizMarks || [];
+
+        monthlyTestMarks =
+            data.monthlyTestMarks || [];
 
         students =
             data.students || students;
@@ -1243,7 +1261,7 @@ async function loadCourseMarks() {
 
         marksContainer.innerHTML = `
             <p class="error">
-                Could not connect to server.
+                Could not load marks: ${escapeHtml(error.message || "Unknown error")}
             </p>
         `;
 
@@ -1273,6 +1291,9 @@ function renderMarksTable() {
 
         return;
     }
+
+
+    const isIntermediate = currentCourse?.class_type === "intermediate";
 
 
     let html = `
@@ -1345,6 +1366,22 @@ function renderMarksTable() {
         }
     );
 
+    courseMonthlyTests.forEach(test => {
+        html += `
+            <th>
+                ${escapeHtml(test.name)}
+                <small>/ ${test.max_marks}</small>
+            </th>`;
+    });
+
+    if (isIntermediate) {
+        html += `
+            <th class="total-header">Monthly Total</th>
+            <th class="total-header">Monthly %</th>
+            <th>December Test <small>/ 100</small></th>
+            <th>Preboard <small>/ 100</small></th>`;
+    }
+
 
     if (
         currentCourse &&
@@ -1380,9 +1417,7 @@ function renderMarksTable() {
 
     html += `
 
-                        <th class="total-header">
-                            Total
-                        </th>
+                        ${isIntermediate ? "" : `<th class="total-header">Total</th>`}
 
                     </tr>
 
@@ -1504,6 +1539,37 @@ function renderMarksTable() {
             }
         );
 
+        courseMonthlyTests.forEach(test => {
+            const existing = findMonthlyTestMark(test.id, student.id);
+            html += `
+                <td>
+                    <input type="number" class="mark-input monthly-test-mark"
+                        data-monthly-test-id="${test.id}"
+                        data-student-id="${student.id}"
+                        data-max-marks="${test.max_marks}"
+                        min="0" max="${test.max_marks}" step="0.01"
+                        value="${existing === null ? "" : existing}">
+                </td>`;
+        });
+
+        if (isIntermediate) {
+            html += `
+                <td class="total-cell" data-monthly-total-student="${student.id}">0</td>
+                <td class="total-cell" data-monthly-percentage-student="${student.id}">—</td>
+                <td>
+                    <input type="number" class="mark-input december-test-mark"
+                        data-student-id="${student.id}" data-max-marks="100"
+                        min="0" max="100" step="0.01"
+                        value="${student.december_test_marks ?? ""}">
+                </td>
+                <td>
+                    <input type="number" class="mark-input preboard-mark"
+                        data-student-id="${student.id}" data-max-marks="100"
+                        min="0" max="100" step="0.01"
+                        value="${student.preboard_marks ?? ""}">
+                </td>`;
+        }
+
 
         if (
             currentCourse &&
@@ -1569,12 +1635,7 @@ function renderMarksTable() {
 
         html += `
 
-                <td
-                    class="total-cell"
-                    data-total-student="${student.id}"
-                >
-                    0
-                </td>
+                ${isIntermediate ? "" : `<td class="total-cell" data-total-student="${student.id}">0</td>`}
 
             </tr>
         `;
@@ -1724,6 +1785,30 @@ function attachMarkValidation() {
 
 function updateStudentTotal(studentId) {
 
+    if (currentCourse?.class_type === "intermediate") {
+        const monthlyInputs = document.querySelectorAll(
+            `.monthly-test-mark[data-student-id="${studentId}"]`
+        );
+        let monthlyTotal = 0;
+        monthlyInputs.forEach(input => {
+            const value = Number(input.value);
+            if (input.value.trim() !== "" && Number.isFinite(value)) monthlyTotal += value;
+        });
+        const monthlyMaximum = courseMonthlyTests.reduce(
+            (sum, test) => sum + Number(test.max_marks || 0),
+            0
+        );
+        const totalCell = document.querySelector(`[data-monthly-total-student="${studentId}"]`);
+        const percentageCell = document.querySelector(`[data-monthly-percentage-student="${studentId}"]`);
+        if (totalCell) totalCell.textContent = formatTotal(monthlyTotal);
+        if (percentageCell) {
+            percentageCell.textContent = monthlyMaximum > 0
+                ? `${formatTotal((monthlyTotal / monthlyMaximum) * 100)}%`
+                : "—";
+        }
+        return;
+    }
+
     const inputs =
         document.querySelectorAll(
             `.mark-input[data-student-id="${studentId}"]`
@@ -1828,9 +1913,15 @@ async function saveCourseMarks() {
 
     const quizPayload = [];
 
+    const monthlyTestPayload = [];
+
     const midtermPayload = [];
 
     const finalPayload = [];
+
+    const decemberTestPayload = [];
+
+    const preboardPayload = [];
 
 
     for (const input of inputs) {
@@ -1917,6 +2008,15 @@ async function saveCourseMarks() {
         }
 
 
+        if (input.classList.contains("monthly-test-mark")) {
+            monthlyTestPayload.push({
+                monthly_test_id: Number(input.dataset.monthlyTestId),
+                student_id: studentId,
+                marks: marks
+            });
+        }
+
+
         if (input.classList.contains(
             "midterm-mark"
         )) {
@@ -1948,6 +2048,14 @@ async function saveCourseMarks() {
 
             });
 
+        }
+
+        if (input.classList.contains("december-test-mark")) {
+            decemberTestPayload.push({ student_id: studentId, marks });
+        }
+
+        if (input.classList.contains("preboard-mark")) {
+            preboardPayload.push({ student_id: studentId, marks });
         }
 
     }
@@ -1985,11 +2093,20 @@ async function saveCourseMarks() {
                             quizMarks:
                                 quizPayload,
 
+                            monthlyTestMarks:
+                                monthlyTestPayload,
+
                             midtermMarks:
                                 midtermPayload,
 
                             finalMarks:
-                                finalPayload
+                                finalPayload,
+
+                            decemberTestMarks:
+                                decemberTestPayload,
+
+                            preboardMarks:
+                                preboardPayload
 
                         })
 
@@ -2636,9 +2753,13 @@ function downloadMarksExcel() {
 
     }
 
+    const isIntermediate = currentCourse?.class_type === "intermediate";
+
     if (
+        !isIntermediate &&
         !courseAssignments.length &&
         !courseQuizzes.length &&
+        !courseMonthlyTests.length &&
         !(currentCourse && currentCourse.midterm_enabled) &&
         !(currentCourse && currentCourse.final_enabled)
     ) {
@@ -2691,6 +2812,14 @@ function downloadMarksExcel() {
 
     });
 
+    courseMonthlyTests.forEach(test => {
+        header.push(`${test.name || "Monthly Test"} (/${test.max_marks})`);
+    });
+
+    if (isIntermediate) {
+        header.push("Monthly Total", "Monthly %", "December Test (/100)", "Preboard (/100)");
+    }
+
     if (showMidterm) {
 
         header.push("Midterm");
@@ -2703,7 +2832,7 @@ function downloadMarksExcel() {
 
     }
 
-    header.push("Total");
+    if (!isIntermediate) header.push("Total");
 
     const rows = [header];
 
@@ -2733,6 +2862,7 @@ function downloadMarksExcel() {
             }
 
             let total = 0;
+            let monthlyTotal = 0;
 
             courseAssignments.forEach(assignment => {
 
@@ -2774,6 +2904,28 @@ function downloadMarksExcel() {
 
             });
 
+            courseMonthlyTests.forEach(test => {
+                const marks = findMonthlyTestMark(test.id, student.id);
+                row.push(marks === null ? "" : marks);
+                if (marks !== null) {
+                    total += Number(marks);
+                    monthlyTotal += Number(marks);
+                }
+            });
+
+            if (isIntermediate) {
+                const monthlyMaximum = courseMonthlyTests.reduce(
+                    (sum, test) => sum + Number(test.max_marks || 0),
+                    0
+                );
+                row.push(
+                    formatTotal(monthlyTotal),
+                    monthlyMaximum > 0 ? Number(((monthlyTotal / monthlyMaximum) * 100).toFixed(2)) : "",
+                    student.december_test_marks ?? "",
+                    student.preboard_marks ?? ""
+                );
+            }
+
             if (showMidterm) {
 
                 const marks =
@@ -2812,9 +2964,7 @@ function downloadMarksExcel() {
 
             }
 
-            row.push(
-                formatTotal(total)
-            );
+            if (!isIntermediate) row.push(formatTotal(total));
 
             rows.push(row);
 
@@ -3161,6 +3311,14 @@ function escapeHtml(value) {
 
 }
 
+function findMonthlyTestMark(testId, studentId) {
+    const record = monthlyTestMarks.find(item =>
+        Number(item.monthly_test_id) === Number(testId) &&
+        Number(item.student_id) === Number(studentId)
+    );
+    return record ? record.marks : null;
+}
+
 function syncAttendanceExportMonth() {
     if (!attendanceExportMonth) return;
     const months = [...new Set(currentAttendanceRecords
@@ -3399,7 +3557,36 @@ function setPanelMessage(elementId, text, type) {
     element.className = text ? `message ${type}` : "message";
 }
 
+const COURSE_MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+function settingsMonthlyTestRow(test = {}) {
+    const month = Number(test.month_number || 1);
+    return `<div class="settings-monthly-test-row">
+        <label>Month<select class="settings-monthly-month">${COURSE_MONTH_NAMES.slice(0, 11).map((name, index) => `<option value="${index + 1}" ${month === index + 1 ? "selected" : ""}>${name}</option>`).join("")}</select></label>
+        <label>Maximum Marks<input class="settings-monthly-max" type="number" min="0.01" step="0.01" value="${escapeHtml(test.max_marks || 25)}"></label>
+        <button class="secondary-btn settings-remove-monthly" type="button">Remove</button>
+    </div>`;
+}
+
+function renderSettingsMonthlyTests(tests = []) {
+    document.getElementById("settingsMonthlyTestRows").innerHTML = (tests.length ? tests : [{ month_number: Math.min(new Date().getMonth() + 1, 11), max_marks: 25 }])
+        .map(settingsMonthlyTestRow).join("");
+}
+
+function readSettingsMonthlyTests() {
+    if (!document.getElementById("settingsMonthlyTestsEnabled").checked) return [];
+    return [...document.querySelectorAll(".settings-monthly-test-row")].map(row => ({
+        month: Number(row.querySelector(".settings-monthly-month").value),
+        max_marks: Number(row.querySelector(".settings-monthly-max").value)
+    }));
+}
+
 function syncSettingsInputs() {
+    const intermediate = document.getElementById("settingsClassType").value === "intermediate";
+    if (intermediate) {
+        ["settingsAssignmentsEnabled", "settingsQuizzesEnabled", "settingsMidtermEnabled", "settingsFinalEnabled"]
+            .forEach(id => { document.getElementById(id).checked = false; });
+    }
     const pairs = [
         ["settingsAssignmentsEnabled", ["settingsAssignmentCount", "settingsAssignmentMax"]],
         ["settingsQuizzesEnabled", ["settingsQuizCount", "settingsQuizMax"]],
@@ -3410,10 +3597,19 @@ function syncSettingsInputs() {
         const enabled = document.getElementById(toggleId).checked;
         inputIds.forEach(id => { document.getElementById(id).disabled = !enabled; });
     });
-    const intermediate = document.getElementById("settingsClassType").value === "intermediate";
     document.getElementById("settingsIntermediateYearLabel").hidden = !intermediate;
+    document.getElementById("settingsCourseCodeLabel").hidden = intermediate;
     document.getElementById("settingsProgramLabel").hidden = intermediate;
     document.getElementById("settingsSemesterLabel").hidden = intermediate;
+    document.getElementById("settingsMonthlyTestsToggle").hidden = !intermediate;
+    document.getElementById("settingsIntermediateFixedAssessments").hidden = !intermediate;
+    [
+        "settingsAssignmentsToggle", "settingsAssignmentCountLabel", "settingsAssignmentMaxLabel",
+        "settingsQuizzesToggle", "settingsQuizCountLabel", "settingsQuizMaxLabel",
+        "settingsMidtermToggle", "settingsMidtermMaxLabel", "settingsFinalToggle", "settingsFinalMaxLabel"
+    ].forEach(id => { document.getElementById(id).hidden = intermediate; });
+    if (!intermediate) document.getElementById("settingsMonthlyTestsEnabled").checked = false;
+    document.getElementById("settingsMonthlyTestsPanel").hidden = !intermediate || !document.getElementById("settingsMonthlyTestsEnabled").checked;
 }
 
 async function openClassSettings() {
@@ -3431,6 +3627,7 @@ async function openClassSettings() {
     document.getElementById("settingsCourseCode").value = currentCourse.course_code || "";
     document.getElementById("settingsClassType").value = currentCourse.class_type || "bachelors";
     document.getElementById("settingsIntermediateYear").value = currentCourse.intermediate_year || "1st_year";
+    document.getElementById("settingsClassShift").value = currentCourse.class_shift || "morning";
     document.getElementById("settingsProgram").value = currentCourse.program || "";
     document.getElementById("settingsSemester").value = currentCourse.semester || "";
     document.getElementById("settingsSection").value = currentCourse.section || "";
@@ -3440,6 +3637,7 @@ async function openClassSettings() {
     document.getElementById("settingsQuizzesEnabled").checked = currentCourse.quizzes_enabled === true;
     document.getElementById("settingsMidtermEnabled").checked = currentCourse.midterm_enabled === true;
     document.getElementById("settingsFinalEnabled").checked = currentCourse.final_enabled === true;
+    document.getElementById("settingsMonthlyTestsEnabled").checked = currentCourse.monthly_tests_enabled === true;
     document.getElementById("settingsAssignmentCount").value = currentCourse.assignment_count || 1;
     document.getElementById("settingsQuizCount").value = currentCourse.quiz_count || 1;
     document.getElementById("settingsMidtermMax").value = currentCourse.midterm_max_marks || 30;
@@ -3447,13 +3645,15 @@ async function openClassSettings() {
 
     let assessmentLoadError = "";
     try {
-        const [assignmentResponse, quizResponse] = await Promise.all([
+        const [assignmentResponse, quizResponse, marksResponse] = await Promise.all([
             fetch(`/api/courses/${courseId}/assignments`, { credentials: "include" }),
-            fetch(`/api/courses/${courseId}/quizzes`, { credentials: "include" })
+            fetch(`/api/courses/${courseId}/quizzes`, { credentials: "include" }),
+            fetch(`/api/courses/${courseId}/marks`, { credentials: "include" })
         ]);
-        const [assignmentData, quizData] = await Promise.all([assignmentResponse.json(), quizResponse.json()]);
+        const [assignmentData, quizData, marksData] = await Promise.all([assignmentResponse.json(), quizResponse.json(), marksResponse.json()]);
         document.getElementById("settingsAssignmentMax").value = assignmentData.assignments?.[0]?.max_marks || 10;
         document.getElementById("settingsQuizMax").value = quizData.quizzes?.[0]?.max_marks || 10;
+        renderSettingsMonthlyTests(marksData.monthlyTests || []);
     } catch (error) {
         assessmentLoadError = "Could not load all assessment settings.";
     } finally {
@@ -3473,6 +3673,17 @@ document.getElementById("cancelClassSettingsBtn")?.addEventListener("click", () 
 ["settingsAssignmentsEnabled", "settingsQuizzesEnabled", "settingsMidtermEnabled", "settingsFinalEnabled"]
     .forEach(id => document.getElementById(id)?.addEventListener("change", syncSettingsInputs));
 document.getElementById("settingsClassType")?.addEventListener("change", syncSettingsInputs);
+document.getElementById("settingsMonthlyTestsEnabled")?.addEventListener("change", syncSettingsInputs);
+document.getElementById("settingsAddMonthlyTestBtn")?.addEventListener("click", () => {
+    const rows = document.getElementById("settingsMonthlyTestRows");
+    const used = new Set([...rows.querySelectorAll(".settings-monthly-month")].map(select => Number(select.value)));
+    const next = Array.from({length:11}, (_,index) => index + 1).find(month => !used.has(month));
+    if (next) rows.insertAdjacentHTML("beforeend", settingsMonthlyTestRow({ month_number: next, max_marks: 25 }));
+});
+document.getElementById("settingsMonthlyTestRows")?.addEventListener("click", event => {
+    const button = event.target.closest(".settings-remove-monthly");
+    if (button) button.closest(".settings-monthly-test-row").remove();
+});
 
 document.getElementById("saveClassSettingsBtn")?.addEventListener("click", async () => {
     const button = document.getElementById("saveClassSettingsBtn");
@@ -3480,8 +3691,9 @@ document.getElementById("saveClassSettingsBtn")?.addEventListener("click", async
     const checked = id => document.getElementById(id).checked;
     const payload = {
         name: value("settingsCourseName"),
-        course_code: value("settingsCourseCode").trim(),
+        course_code: value("settingsClassType") === "intermediate" ? "" : value("settingsCourseCode").trim(),
         class_type: value("settingsClassType"),
+        class_shift: value("settingsClassShift"),
         intermediate_year: value("settingsIntermediateYear"),
         program: value("settingsProgram").trim(),
         semester: value("settingsSemester").trim(),
@@ -3494,11 +3706,21 @@ document.getElementById("saveClassSettingsBtn")?.addEventListener("click", async
         quizzes_enabled: checked("settingsQuizzesEnabled"),
         quiz_count: Number(value("settingsQuizCount")),
         quiz_max_marks: Number(value("settingsQuizMax")),
+        monthly_tests_enabled: checked("settingsMonthlyTestsEnabled"),
+        monthly_tests: readSettingsMonthlyTests(),
         midterm_enabled: checked("settingsMidtermEnabled"),
         midterm_max_marks: Number(value("settingsMidtermMax")),
         final_enabled: checked("settingsFinalEnabled"),
         final_max_marks: Number(value("settingsFinalMax"))
     };
+    if (payload.monthly_tests_enabled && (
+        !payload.monthly_tests.length ||
+        payload.monthly_tests.some(test => !Number.isInteger(test.month) || test.month < 1 || test.month > 11 || !Number.isFinite(test.max_marks) || test.max_marks <= 0) ||
+        new Set(payload.monthly_tests.map(test => test.month)).size !== payload.monthly_tests.length
+    )) {
+        setPanelMessage("classSettingsMessage", "Monthly tests need unique months and positive maximum marks.", "error");
+        return;
+    }
     button.disabled = true;
     try {
         const response = await fetch(`/api/courses/${courseId}/settings`, {

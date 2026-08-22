@@ -617,6 +617,25 @@ body {
     font-size: 12px;
 }
 
+.fixed-intermediate-assessments {
+    display: grid;
+    gap: 10px;
+    margin-top: 14px;
+}
+
+.fixed-intermediate-assessments > div {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 13px 14px;
+    border: 1px solid rgba(162, 12, 22, 0.16);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.62);
+}
+
+.fixed-intermediate-assessments span { font-weight: 800; }
+.fixed-intermediate-assessments strong { color: #8f111a; font-size: 13px; text-align: right; }
+
 .class-level-panel {
     margin: 12px 0 18px;
     padding: 16px;
@@ -624,6 +643,73 @@ body {
     border-radius: 14px;
     background: rgba(255, 255, 255, 0.58);
 }
+
+.class-type-chooser {
+    margin: 18px 0 22px;
+    padding: 22px;
+    border: 1px solid rgba(162, 12, 22, .18);
+    border-radius: 16px;
+    background: rgba(255,255,255,.78);
+    text-align: center;
+}
+
+.class-type-chooser h3 { margin: 0 0 7px; color: #7f1017; font-size: 22px; }
+.class-type-chooser > p { margin: 0 0 18px; color: #6b5b5e; }
+
+.class-type-choices {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+}
+
+.class-type-choices[hidden] { display: none; }
+
+.class-type-choices button {
+    display: grid;
+    gap: 7px;
+    min-height: 132px;
+    place-content: center;
+    padding: 20px;
+    border: 2px solid #a70d18;
+    border-radius: 14px;
+    background: #fff;
+    color: #7f1017;
+    cursor: pointer;
+    transition: transform .16s ease, box-shadow .16s ease, background .16s ease;
+}
+
+.class-type-choices button:hover,
+.class-type-choices button:focus-visible {
+    transform: translateY(-2px);
+    background: #a70d18;
+    color: #fff;
+    box-shadow: 0 12px 24px rgba(127,16,23,.2);
+}
+
+.class-type-choices strong { font-size: 21px; }
+.class-type-choices span { font-size: 13px; line-height: 1.45; }
+
+.selected-class-type {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 13px 15px;
+    border-radius: 11px;
+    background: #a70d18;
+    color: #fff;
+}
+
+.selected-class-type[hidden] { display: none; }
+.selected-class-type button { border: 1px solid #fff; border-radius: 8px; padding: 8px 11px; background: #fff; color: #8f111a; font-weight: 800; cursor: pointer; }
+
+.class-setup-panel[hidden],
+.form-actions[hidden],
+#courseCodeField[hidden],
+#bachelorsAssignmentsFeature[hidden],
+#bachelorsQuizzesFeature[hidden],
+#bachelorsMidtermFeature[hidden],
+#bachelorsFinalFeature[hidden] { display: none !important; }
 
 .class-level-panel[hidden],
 .roll-entry-panel[hidden] {
@@ -833,6 +919,48 @@ body {
 }
 
 .import-error { color: #a20c16; font-weight: 700; }
+
+.monthly-test-rows {
+    display: grid;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+.monthly-test-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+    align-items: end;
+    gap: 10px;
+    padding: 12px;
+    border: 1px solid #ead7d9;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, .72);
+}
+
+.monthly-test-row label { margin: 0; }
+.monthly-test-row input,
+.monthly-test-row select { margin: 0 !important; }
+
+.monthly-test-row select {
+    width: 100%;
+    min-height: 42px;
+    padding: 9px 10px;
+    border: 1px solid #d1d5db;
+    border-radius: 7px;
+    background: #fff;
+    font: inherit;
+}
+
+.remove-monthly-test {
+    min-height: 42px;
+    padding: 9px 12px;
+    border: 1px solid #d8b7ba;
+    border-radius: 8px;
+    background: #fff;
+    color: #8e1018;
+    font-weight: 700;
+    cursor: pointer;
+}
 
 
 /* =========================
@@ -1071,7 +1199,8 @@ input[type="number"]::-webkit-outer-spin-button {
     }
 
     .manual-count-row,
-    .manual-roll-row {
+    .manual-roll-row,
+    .monthly-test-row {
         grid-template-columns: 1fr;
     }
 
@@ -1221,4 +1350,8 @@ input[type="number"]::-webkit-outer-spin-button {
     .student-name-grid {
         grid-template-columns: 1fr;
     }
+
+    .class-type-choices { grid-template-columns: 1fr; }
+    .class-type-choices button { min-height: 112px; }
+    .selected-class-type { align-items: stretch; flex-direction: column; }
 }

@@ -25,6 +25,7 @@ const createCourse = async (req, res) => {
             roll_entry_mode,
             class_type,
             intermediate_year,
+            class_shift,
 
             course_name_enabled,
             roll_number_enabled,
@@ -42,6 +43,8 @@ const createCourse = async (req, res) => {
             quizzes_enabled,
             quiz_count,
             quiz_max_marks,
+            monthly_tests_enabled,
+            monthly_tests = [],
             midterm_enabled,
             midterm_max_marks,
             final_enabled,
@@ -78,9 +81,9 @@ const createCourse = async (req, res) => {
 
         }
 
-        const cleanCourseCode = String(course_code || "").trim() || null;
+        const requestedCourseCode = String(course_code || "").trim() || null;
 
-        if (cleanCourseCode && cleanCourseCode.length > 50) {
+        if (requestedCourseCode && requestedCourseCode.length > 50) {
             return res.status(400).json({
                 success: false,
                 message: "Course code cannot exceed 50 characters"
@@ -149,9 +152,14 @@ const createCourse = async (req, res) => {
 
         const classType = String(class_type || "bachelors").trim().toLowerCase();
         const intermediateYear = classType === "intermediate" ? String(intermediate_year || "").trim() : null;
+        const classShift = String(class_shift || "morning").trim().toLowerCase();
+        const cleanCourseCode = classType === "intermediate" ? null : requestedCourseCode;
         const rollEntryMode = ["range", "manual", "excel"].includes(roll_entry_mode) ? roll_entry_mode : "range";
         if (!["bachelors", "intermediate"].includes(classType) || (classType === "intermediate" && !["1st_year", "2nd_year"].includes(intermediateYear))) {
             return res.status(400).json({ success: false, message: "Choose a valid class level and Intermediate year" });
+        }
+        if (!["morning", "evening"].includes(classShift)) {
+            return res.status(400).json({ success: false, message: "Choose Morning or Evening shift" });
         }
 
         // =========================
@@ -163,12 +171,21 @@ const createCourse = async (req, res) => {
         const sectionEnabled = section_enabled !== false;
         const studentNameEnabled = student_name_enabled === true;
         const attendanceEnabled = attendance_enabled !== false;
-        const assignmentsEnabled = assignments_enabled === true;
-        const quizzesEnabled = quizzes_enabled === true;
-        const midtermEnabled = midterm_enabled === true;
-        const finalEnabled = final_enabled === true;
+        const assignmentsEnabled = classType !== "intermediate" && assignments_enabled === true;
+        const quizzesEnabled = classType !== "intermediate" && quizzes_enabled === true;
+        const monthlyTestsEnabled = classType === "intermediate" && monthly_tests_enabled === true;
+        const midtermEnabled = classType !== "intermediate" && midterm_enabled === true;
+        const finalEnabled = classType !== "intermediate" && final_enabled === true;
         const resultsEnabled = results_enabled === true;
         const requestedResultCode = String(result_code || "").trim().toLowerCase();
+
+        const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+        const cleanMonthlyTests = monthlyTestsEnabled && Array.isArray(monthly_tests)
+            ? monthly_tests.map(test => ({ month: Number(test?.month), maxMarks: Number(test?.max_marks) }))
+            : [];
+        if (monthlyTestsEnabled && (!cleanMonthlyTests.length || cleanMonthlyTests.length > 11 || cleanMonthlyTests.some(test => !Number.isInteger(test.month) || test.month < 1 || test.month > 11 || !Number.isFinite(test.maxMarks) || test.maxMarks <= 0) || new Set(cleanMonthlyTests.map(test => test.month)).size !== cleanMonthlyTests.length)) {
+            return res.status(400).json({ success: false, message: "Monthly tests need unique months from January to November and positive maximum marks" });
+        }
 
         if (resultsEnabled && !/^[a-z0-9-]{4,24}$/.test(requestedResultCode)) {
             return res.status(400).json({
@@ -374,7 +391,9 @@ const createCourse = async (req, res) => {
                     result_code,
                     class_type,
                     intermediate_year,
-                    roll_entry_mode
+                    roll_entry_mode,
+                    monthly_tests_enabled,
+                    class_shift
                 )
 
                 VALUES
@@ -382,7 +401,7 @@ const createCourse = async (req, res) => {
                     $1, $2, $3, $4, $5, $6, $7, $8,
                     $9, $10, $11, $12, $13, $14,
                     $15, $16, $17, $18, $19, $20, $21, $22,
-                    $23, $24, $25, $26, $27, $28
+                    $23, $24, $25, $26, $27, $28, $29, $30
                 )
 
                 RETURNING *
@@ -418,7 +437,9 @@ const createCourse = async (req, res) => {
                     resultCode,
                     classType,
                     intermediateYear,
-                    rollEntryMode
+                    rollEntryMode,
+                    monthlyTestsEnabled,
+                    classShift
                 ]
             );
 
@@ -501,6 +522,17 @@ const createCourse = async (req, res) => {
 
         }
 
+        if (monthlyTestsEnabled) {
+            for (const test of cleanMonthlyTests) {
+                await client.query(
+                    `INSERT INTO assignments
+                     (course_id, assignment_number, name, max_marks, assessment_type, month_number)
+                     VALUES ($1, $2, $3, $4, 'monthly_test', $5)`,
+                    [course.id, 1000 + test.month, `${monthNames[test.month - 1]} Monthly Test`, test.maxMarks, test.month]
+                );
+            }
+        }
+
         // =========================
         // RESPONSE
         // =========================
@@ -557,6 +589,7 @@ const getMyCourses = async (req, res) => {
                     course_code,
                     class_type,
                     intermediate_year,
+                    class_shift,
                     roll_entry_mode,
                     program,
                     semester,
@@ -585,6 +618,7 @@ const getMyCourses = async (req, res) => {
                     midterm_enabled,
                     final_enabled,
                     results_enabled,
+                    monthly_tests_enabled,
                     result_code,
 
                     created_at
@@ -663,6 +697,7 @@ const getCourseStudents = async (
                     course_code,
                     class_type,
                     intermediate_year,
+                    class_shift,
                     roll_entry_mode,
                     program,
                     semester,
@@ -691,6 +726,7 @@ const getCourseStudents = async (
                     midterm_enabled,
                     final_enabled,
                     results_enabled,
+                    monthly_tests_enabled,
                     result_code,
                     midterm_max_marks,
                     final_max_marks
@@ -871,6 +907,7 @@ const getCourseAssignments = async (
                     max_marks
                 FROM assignments
                 WHERE course_id = $1
+                AND assessment_type = 'assignment'
                 ORDER BY assignment_number
                 `,
                 [courseId]
@@ -962,6 +999,7 @@ const updateAssignment = async (
                     name = $1,
                     max_marks = $2
                 WHERE id = $3
+                AND assessment_type = 'assignment'
                 AND course_id IN (
                     SELECT id
                     FROM courses
@@ -1251,6 +1289,7 @@ const getCourseMarks = async (
                     course_code,
                     class_type,
                     intermediate_year,
+                    class_shift,
                     roll_entry_mode,
                     program,
                     semester,
@@ -1264,6 +1303,7 @@ const getCourseMarks = async (
                     midterm_enabled,
                     final_enabled,
                     results_enabled,
+                    monthly_tests_enabled,
                     result_code,
                     midterm_max_marks,
                     final_max_marks
@@ -1308,6 +1348,7 @@ const getCourseMarks = async (
                     max_marks
                 FROM assignments
                 WHERE course_id = $1
+                AND assessment_type = 'assignment'
                 ORDER BY assignment_number
                 `,
                 [courseId]
@@ -1317,6 +1358,14 @@ const getCourseMarks = async (
         // =========================
         // QUIZZES
         // =========================
+
+        const monthlyTestsResult = await pool.query(
+            `SELECT id, course_id, month_number, name, max_marks
+             FROM assignments
+             WHERE course_id = $1 AND assessment_type = 'monthly_test'
+             ORDER BY month_number`,
+            [courseId]
+        );
 
         const quizzesResult =
             await pool.query(
@@ -1349,7 +1398,9 @@ const getCourseMarks = async (
                     program,
                     semester,
                     midterm_marks,
-                    final_marks
+                    final_marks,
+                    december_test_marks,
+                    preboard_marks
                 FROM students
                 WHERE course_id = $1
                 ORDER BY roll_number::INTEGER
@@ -1378,6 +1429,7 @@ const getCourseMarks = async (
                 INNER JOIN assignments a
                     ON a.id = am.assignment_id
                 WHERE a.course_id = $1
+                AND a.assessment_type = 'assignment'
                 ORDER BY
                     a.assignment_number,
                     s.roll_number::INTEGER
@@ -1418,6 +1470,17 @@ const getCourseMarks = async (
         // RESPONSE
         // =========================
 
+        const monthlyTestMarksResult = await pool.query(
+            `SELECT am.id, am.assignment_id AS monthly_test_id, am.student_id, am.marks,
+                    s.roll_number, s.name AS student_name
+             FROM assignment_marks am
+             JOIN students s ON s.id = am.student_id
+             JOIN assignments a ON a.id = am.assignment_id
+             WHERE a.course_id = $1 AND a.assessment_type = 'monthly_test'
+             ORDER BY a.month_number, s.roll_number::INTEGER`,
+            [courseId]
+        );
+
         res.json({
 
             success: true,
@@ -1430,6 +1493,9 @@ const getCourseMarks = async (
             quizzes:
                 quizzesResult.rows,
 
+            monthlyTests:
+                monthlyTestsResult.rows,
+
             students:
                 studentsResult.rows,
 
@@ -1437,7 +1503,10 @@ const getCourseMarks = async (
                 assignmentMarksResult.rows,
 
             quizMarks:
-                quizMarksResult.rows
+                quizMarksResult.rows,
+
+            monthlyTestMarks:
+                monthlyTestMarksResult.rows
 
         });
 
@@ -1486,16 +1555,24 @@ const updateCourseMarks = async (
 
         const {
             assignmentMarks = [],
+            monthlyTestMarks = [],
             quizMarks = [],
             midtermMarks = [],
-            finalMarks = []
+            finalMarks = [],
+            decemberTestMarks = [],
+            preboardMarks = []
         } = req.body;
+
+        const combinedAssignmentMarks = [
+            ...assignmentMarks,
+            ...monthlyTestMarks.map(mark => ({ ...mark, assignment_id: mark.monthly_test_id }))
+        ];
 
 
         const courseResult =
             await client.query(
                 `
-                SELECT id, midterm_max_marks, final_max_marks
+                SELECT id, class_type, midterm_max_marks, final_max_marks
                 FROM courses
                 WHERE id = $1
                 AND teacher_id = $2
@@ -1525,7 +1602,7 @@ const updateCourseMarks = async (
         // ASSIGNMENT MARKS
         // =========================
 
-        for (const mark of assignmentMarks) {
+        for (const mark of combinedAssignmentMarks) {
 
             const {
                 assignment_id,
@@ -1960,6 +2037,38 @@ const updateCourseMarks = async (
 
         }
 
+        // =========================
+        // INTERMEDIATE FIXED ASSESSMENTS
+        // =========================
+
+        const saveFixedIntermediateMarks = async (marksList, column, label) => {
+            if (marksList.length && courseResult.rows[0].class_type !== "intermediate") {
+                throw new Error(`${label} marks are only available for Intermediate classes`);
+            }
+
+            for (const mark of marksList) {
+                const studentId = Number(mark?.student_id);
+                const numericMarks = Number(mark?.marks);
+                if (!Number.isInteger(studentId) || !Number.isFinite(numericMarks) || numericMarks < 0 || numericMarks > 100) {
+                    throw new Error(`${label} marks must be between 0 and 100`);
+                }
+
+                const updated = await client.query(
+                    `UPDATE students
+                     SET ${column} = $1, updated_at = CURRENT_TIMESTAMP
+                     WHERE id = $2 AND course_id = $3
+                     RETURNING id`,
+                    [numericMarks, studentId, courseId]
+                );
+                if (!updated.rows.length) {
+                    throw new Error(`One or more students are invalid for ${label}`);
+                }
+            }
+        };
+
+        await saveFixedIntermediateMarks(decemberTestMarks, "december_test_marks", "December Test");
+        await saveFixedIntermediateMarks(preboardMarks, "preboard_marks", "Preboard");
+
 
         await client.query("COMMIT");
 
@@ -2201,18 +2310,25 @@ const updateCourseSettings = async (req, res) => {
     try {
         const courseId = req.params.courseId;
         const cleanName = String(req.body.name || "").trim();
-        const cleanCourseCode = String(req.body.course_code || "").trim() || null;
         const cleanSection = String(req.body.section || "").trim() || null;
         const classType = String(req.body.class_type || "bachelors").trim().toLowerCase();
+        const requestedCourseCode = String(req.body.course_code || "").trim() || null;
+        const cleanCourseCode = classType === "intermediate" ? null : requestedCourseCode;
         const intermediateYear = classType === "intermediate" ? String(req.body.intermediate_year || "").trim() : null;
+        const classShift = String(req.body.class_shift || "morning").trim().toLowerCase();
         const cleanProgram = classType === "intermediate" ? "Intermediate" : (String(req.body.program || "").trim() || null);
         const cleanSemester = classType === "intermediate"
             ? (intermediateYear === "2nd_year" ? "2nd Year" : "1st Year")
             : (String(req.body.semester || "").trim() || null);
-        const assignmentsEnabled = req.body.assignments_enabled === true;
-        const quizzesEnabled = req.body.quizzes_enabled === true;
-        const midtermEnabled = req.body.midterm_enabled === true;
-        const finalEnabled = req.body.final_enabled === true;
+        const assignmentsEnabled = classType !== "intermediate" && req.body.assignments_enabled === true;
+        const quizzesEnabled = classType !== "intermediate" && req.body.quizzes_enabled === true;
+        const monthlyTestsEnabled = classType === "intermediate" && req.body.monthly_tests_enabled === true;
+        const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+        const cleanMonthlyTests = monthlyTestsEnabled && Array.isArray(req.body.monthly_tests)
+            ? req.body.monthly_tests.map(test => ({ month: Number(test?.month), maxMarks: Number(test?.max_marks) }))
+            : [];
+        const midtermEnabled = classType !== "intermediate" && req.body.midterm_enabled === true;
+        const finalEnabled = classType !== "intermediate" && req.body.final_enabled === true;
         const resultsEnabled = req.body.results_enabled === true;
         const resultCode = String(req.body.result_code || "").trim().toLowerCase();
         const assignmentCount = assignmentsEnabled ? Number(req.body.assignment_count) : 0;
@@ -2228,6 +2344,9 @@ const updateCourseSettings = async (req, res) => {
         if (!["bachelors", "intermediate"].includes(classType) || (classType === "intermediate" && !["1st_year", "2nd_year"].includes(intermediateYear))) {
             return res.status(400).json({ success: false, message: "Choose a valid class level and Intermediate year" });
         }
+        if (!["morning", "evening"].includes(classShift)) {
+            return res.status(400).json({ success: false, message: "Choose Morning or Evening shift" });
+        }
         if (!/^[a-z0-9-]{4,24}$/.test(resultCode)) {
             return res.status(400).json({ success: false, message: "Result code must be 4-24 letters, numbers, or hyphens" });
         }
@@ -2236,6 +2355,9 @@ const updateCourseSettings = async (req, res) => {
         }
         if (quizzesEnabled && (!Number.isInteger(quizCount) || quizCount < 1 || quizCount > 100 || !Number.isFinite(quizMax) || quizMax <= 0)) {
             return res.status(400).json({ success: false, message: "Quiz count and maximum marks are invalid" });
+        }
+        if (monthlyTestsEnabled && (!cleanMonthlyTests.length || cleanMonthlyTests.length > 11 || cleanMonthlyTests.some(test => !Number.isInteger(test.month) || test.month < 1 || test.month > 11 || !Number.isFinite(test.maxMarks) || test.maxMarks <= 0) || new Set(cleanMonthlyTests.map(test => test.month)).size !== cleanMonthlyTests.length)) {
+            return res.status(400).json({ success: false, message: "Monthly tests need unique months from January to November and positive maximum marks" });
         }
         if (midtermEnabled && (!Number.isFinite(midtermMax) || midtermMax <= 0)) {
             return res.status(400).json({ success: false, message: "Midterm maximum marks are invalid" });
@@ -2257,24 +2379,25 @@ const updateCourseSettings = async (req, res) => {
         const programEnabledForUpdate = classType === "intermediate" ? true : existingCourse.program_enabled;
         const semesterEnabledForUpdate = classType === "intermediate" ? true : existingCourse.semester_enabled;
 
-        const reconcile = async ({ table, marksTable, foreignKey, numberColumn, enabled, count, maxMarks, label }) => {
+        const reconcile = async ({ table, marksTable, foreignKey, numberColumn, enabled, count, maxMarks, label, tableFilter = "", joinFilter = "" }) => {
             const existing = await client.query(
-                `SELECT id, ${numberColumn} AS slot_number FROM ${table} WHERE course_id = $1 ORDER BY ${numberColumn}`,
+                `SELECT id, ${numberColumn} AS slot_number FROM ${table} WHERE course_id = $1 ${tableFilter} ORDER BY ${numberColumn}`,
                 [courseId]
             );
+
             if (!enabled) {
                 const used = await client.query(
-                    `SELECT 1 FROM ${marksTable} m JOIN ${table} a ON a.id = m.${foreignKey} WHERE a.course_id = $1 LIMIT 1`,
+                    `SELECT 1 FROM ${marksTable} m JOIN ${table} a ON a.id = m.${foreignKey} WHERE a.course_id = $1 ${joinFilter} LIMIT 1`,
                     [courseId]
                 );
                 if (used.rows.length) throw Object.assign(new Error(`${label} cannot be disabled while marks exist`), { status: 409 });
-                await client.query(`DELETE FROM ${table} WHERE course_id = $1`, [courseId]);
+                await client.query(`DELETE FROM ${table} WHERE course_id = $1 ${tableFilter}`, [courseId]);
                 return;
             }
 
             const excessive = await client.query(
                 `SELECT 1 FROM ${marksTable} m JOIN ${table} a ON a.id = m.${foreignKey}
-                 WHERE a.course_id = $1 AND m.marks > $2 LIMIT 1`,
+                 WHERE a.course_id = $1 ${joinFilter} AND m.marks > $2 LIMIT 1`,
                 [courseId, maxMarks]
             );
             if (excessive.rows.length) throw Object.assign(new Error(`${label} maximum cannot be lower than marks already entered`), { status: 409 });
@@ -2289,7 +2412,7 @@ const updateCourseSettings = async (req, res) => {
                 await client.query(`DELETE FROM ${table} WHERE id = ANY($1::int[])`, [removedIds]);
             }
 
-            await client.query(`UPDATE ${table} SET max_marks = $1, updated_at = CURRENT_TIMESTAMP WHERE course_id = $2`, [maxMarks, courseId]);
+            await client.query(`UPDATE ${table} SET max_marks = $1, updated_at = CURRENT_TIMESTAMP WHERE course_id = $2 ${tableFilter}`, [maxMarks, courseId]);
             const existingNumbers = new Set(existing.rows.map(row => Number(row.slot_number)));
             for (let number = 1; number <= count; number += 1) {
                 if (!existingNumbers.has(number)) {
@@ -2301,8 +2424,36 @@ const updateCourseSettings = async (req, res) => {
             }
         };
 
-        await reconcile({ table: "assignments", marksTable: "assignment_marks", foreignKey: "assignment_id", numberColumn: "assignment_number", enabled: assignmentsEnabled, count: assignmentCount, maxMarks: assignmentMax, label: "Assignment" });
+        await reconcile({ table: "assignments", marksTable: "assignment_marks", foreignKey: "assignment_id", numberColumn: "assignment_number", enabled: assignmentsEnabled, count: assignmentCount, maxMarks: assignmentMax, label: "Assignment", tableFilter: "AND assessment_type = 'assignment'", joinFilter: "AND a.assessment_type = 'assignment'" });
         await reconcile({ table: "quizzes", marksTable: "quiz_marks", foreignKey: "quiz_id", numberColumn: "quiz_number", enabled: quizzesEnabled, count: quizCount, maxMarks: quizMax, label: "Quiz" });
+
+        const existingMonthly = await client.query(
+            "SELECT id, month_number FROM assignments WHERE course_id=$1 AND assessment_type='monthly_test'",
+            [courseId]
+        );
+        const requestedMonths = new Set(cleanMonthlyTests.map(test => test.month));
+        for (const row of existingMonthly.rows) {
+            if (!monthlyTestsEnabled || !requestedMonths.has(Number(row.month_number))) {
+                const used = await client.query("SELECT 1 FROM assignment_marks WHERE assignment_id=$1 LIMIT 1", [row.id]);
+                if (used.rows.length) throw Object.assign(new Error("A monthly test with saved marks cannot be removed"), { status: 409 });
+                await client.query("DELETE FROM assignments WHERE id=$1", [row.id]);
+            }
+        }
+        if (monthlyTestsEnabled) {
+            for (const test of cleanMonthlyTests) {
+                const existing = existingMonthly.rows.find(row => Number(row.month_number) === test.month);
+                if (existing) {
+                    const excessive = await client.query("SELECT 1 FROM assignment_marks WHERE assignment_id=$1 AND marks>$2 LIMIT 1", [existing.id, test.maxMarks]);
+                    if (excessive.rows.length) throw Object.assign(new Error(`${monthNames[test.month - 1]} test maximum cannot be lower than saved marks`), { status: 409 });
+                    await client.query("UPDATE assignments SET name=$1, max_marks=$2, updated_at=CURRENT_TIMESTAMP WHERE id=$3", [`${monthNames[test.month - 1]} Monthly Test`, test.maxMarks, existing.id]);
+                } else {
+                    await client.query(
+                        "INSERT INTO assignments (course_id, assignment_number, name, max_marks, assessment_type, month_number) VALUES ($1,$2,$3,$4,'monthly_test',$5)",
+                        [courseId, 1000 + test.month, `${monthNames[test.month - 1]} Monthly Test`, test.maxMarks, test.month]
+                    );
+                }
+            }
+        }
 
         if (midtermEnabled) {
             const excessive = await client.query("SELECT 1 FROM students WHERE course_id = $1 AND midterm_marks > $2 LIMIT 1", [courseId, midtermMax]);
@@ -2318,13 +2469,13 @@ const updateCourseSettings = async (req, res) => {
                     quizzes_enabled=$6, quiz_count=$7, midterm_enabled=$8, final_enabled=$9,
                     results_enabled=$10, midterm_max_marks=$11, final_max_marks=$12, result_code=$13,
                     class_type=$14, intermediate_year=$15, program=$16, semester=$17,
-                    program_enabled=$18, semester_enabled=$19,
+                    program_enabled=$18, semester_enabled=$19, monthly_tests_enabled=$20, class_shift=$21,
                     updated_at=CURRENT_TIMESTAMP
-             WHERE id=$20 RETURNING *`,
+             WHERE id=$22 RETURNING *`,
             [cleanName, cleanCourseCode, cleanSection, assignmentsEnabled, assignmentCount, quizzesEnabled, quizCount,
              midtermEnabled, finalEnabled, resultsEnabled, midtermMax, finalMax, resultCode,
              classType, intermediateYear, cleanProgram, cleanSemester,
-             programEnabledForUpdate, semesterEnabledForUpdate, courseId]
+             programEnabledForUpdate, semesterEnabledForUpdate, monthlyTestsEnabled, classShift, courseId]
         );
         await client.query(
             "UPDATE students SET program=$1, semester=$2, updated_at=CURRENT_TIMESTAMP WHERE course_id=$3",

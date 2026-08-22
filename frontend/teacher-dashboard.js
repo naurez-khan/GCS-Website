@@ -190,6 +190,13 @@ function displayCourses(courses) {
             </div>
         `);
 
+        infoItems.push(`
+            <div>
+                <strong>Shift:</strong>
+                ${course.class_shift === "evening" ? "Evening" : "Morning"}
+            </div>
+        `);
+
 
         // =========================
         // PROGRAM
@@ -846,11 +853,28 @@ function showAddCourseForm() {
         </div>
 
 
+        <div id="classTypeChooser" class="class-type-chooser">
+            <h3>What type of class do you want to create?</h3>
+            <p>Choose one option to open its class setup page.</p>
+            <div id="classTypeChoices" class="class-type-choices">
+                <button type="button" data-class-type="bachelors">
+                    <strong>Bachelors</strong><span>Program, semester and university assessments</span>
+                </button>
+                <button type="button" data-class-type="intermediate">
+                    <strong>Intermediate</strong><span>1st or 2nd Year with monthly tests</span>
+                </button>
+            </div>
+            <div id="selectedClassType" class="selected-class-type" hidden>
+                <strong id="selectedClassTypeLabel"></strong>
+                <button id="changeClassTypeBtn" type="button">Change class type</button>
+            </div>
+        </div>
+
         <!-- =========================
              COURSE INFORMATION
         ========================== -->
 
-        <div class="settings-group">
+        <div class="settings-group class-setup-panel" hidden>
 
             <h3>
                 Course Information
@@ -896,30 +920,17 @@ function showAddCourseForm() {
                     placeholder="e.g. Calculus-I"
                 >
 
-                <label>
-                    Course Code <small>Optional</small>
-                </label>
-
-                <input
-                    type="text"
-                    id="courseCode"
-                    maxlength="50"
-                    placeholder="e.g. MATH-101"
-                >
+                <div id="courseCodeField">
+                    <label>Course Code <small>Optional</small></label>
+                    <input type="text" id="courseCode" maxlength="50" placeholder="e.g. MATH-101">
+                </div>
 
             </div>
 
 
-            <div class="class-type-field conditional-field">
-                <label for="classType">Class Level</label>
-                <select id="classType">
-                    <option value="bachelors">Bachelors</option>
-                    <option value="intermediate">Intermediate</option>
-                </select>
-                <small>Choose the academic level before entering class details.</small>
-            </div>
+            <input type="hidden" id="classType" value="">
 
-            <div id="bachelorsPanel" class="class-level-panel">
+            <div id="bachelorsPanel" class="class-level-panel" hidden>
                 <div class="panel-kicker">Bachelors class details</div>
                 ${createSwitch("program_enabled", "Program", true)}
                 <div id="programField" class="conditional-field">
@@ -936,6 +947,10 @@ function showAddCourseForm() {
                     <label>Section</label>
                     <input type="text" id="section" placeholder="e.g. A">
                 </div>
+                <div class="conditional-field">
+                    <label for="bachelorsShift">Shift</label>
+                    <select id="bachelorsShift"><option value="morning">Morning</option><option value="evening">Evening</option></select>
+                </div>
             </div>
 
             <div id="intermediatePanel" class="class-level-panel" hidden>
@@ -948,6 +963,8 @@ function showAddCourseForm() {
                     </select>
                     <label for="intermediateSection">Section</label>
                     <input type="text" id="intermediateSection" maxlength="20" placeholder="e.g. A">
+                    <label for="intermediateShift">Shift</label>
+                    <select id="intermediateShift"><option value="morning">Morning</option><option value="evening">Evening</option></select>
                 </div>
             </div>
 
@@ -1087,7 +1104,7 @@ function showAddCourseForm() {
              COURSE FEATURES
         ========================== -->
 
-        <div class="settings-group">
+        <div class="settings-group class-setup-panel" hidden>
 
             <h3>
                 Course Features
@@ -1097,6 +1114,8 @@ function showAddCourseForm() {
             <!-- ATTENDANCE IS NOT SHOWN HERE -->
 
             <!-- ASSIGNMENTS -->
+
+            <div id="bachelorsAssignmentsFeature">
 
             ${createSwitch(
                 "assignments_enabled",
@@ -1144,7 +1163,11 @@ function showAddCourseForm() {
             </div>
 
 
+            </div>
+
             <!-- QUIZZES -->
+
+            <div id="bachelorsQuizzesFeature">
 
             ${createSwitch(
                 "quizzes_enabled",
@@ -1192,7 +1215,32 @@ function showAddCourseForm() {
             </div>
 
 
+            </div>
+
+            <!-- INTERMEDIATE MONTHLY TESTS -->
+
+            <div id="monthlyTestsFeature" hidden>
+                ${createSwitch("monthly_tests_enabled", "Monthly Tests", false)}
+                <div id="monthlyTestsField" class="conditional-field" style="display: none;">
+                    <div class="student-names-heading">
+                        <div>
+                            <label>Monthly Tests</label>
+                            <small>Select each test month and its maximum marks.</small>
+                        </div>
+                    </div>
+                    <div id="monthlyTestRows" class="monthly-test-rows"></div>
+                    <button type="button" id="addMonthlyTestBtn" class="add-roll-range-btn">+ Add Month</button>
+                </div>
+                <div class="fixed-intermediate-assessments" aria-label="Permanent Intermediate assessments">
+                    <div><span>December Test</span><strong>Permanent · 100 marks</strong></div>
+                    <div><span>Preboard</span><strong>Permanent · 100 marks</strong></div>
+                </div>
+            </div>
+
+
             <!-- MIDTERM -->
+
+            <div id="bachelorsMidtermFeature">
 
             ${createSwitch(
                 "midterm_enabled",
@@ -1217,7 +1265,11 @@ function showAddCourseForm() {
             </div>
 
 
+            </div>
+
             <!-- FINAL EXAM -->
+
+            <div id="bachelorsFinalFeature">
 
             ${createSwitch(
                 "final_enabled",
@@ -1241,6 +1293,8 @@ function showAddCourseForm() {
                 >
             </div>
 
+
+            </div>
 
             <!-- RESULTS -->
 
@@ -1274,7 +1328,7 @@ function showAddCourseForm() {
              ACTION BUTTONS
         ========================== -->
 
-        <div class="form-actions">
+        <div class="form-actions" hidden>
 
             <button
                 type="button"
@@ -1315,6 +1369,7 @@ function showAddCourseForm() {
 
     setupCourseSwitches();
     setupClassTypeFields();
+    setupMonthlyTestFields();
     setupRollEntryFields();
     setupStudentNameFields();
 
@@ -1420,6 +1475,11 @@ function setupCourseSwitches() {
     );
 
     setupConditionalField(
+        "monthly_tests_enabled",
+        "monthlyTestsField"
+    );
+
+    setupConditionalField(
         "midterm_enabled",
         "midtermMarksField"
     );
@@ -1454,13 +1514,119 @@ function setupStudentNameFields() {
 
 function setupClassTypeFields() {
     const select = document.getElementById("classType");
-    const update = () => {
-        const intermediate = select.value === "intermediate";
-        document.getElementById("bachelorsPanel").hidden = intermediate;
-        document.getElementById("intermediatePanel").hidden = !intermediate;
+    const form = document.getElementById("addCourseForm");
+    const choices = document.getElementById("classTypeChoices");
+    const selected = document.getElementById("selectedClassType");
+    const selectedLabel = document.getElementById("selectedClassTypeLabel");
+    const setupPanels = [...form.querySelectorAll(".class-setup-panel")];
+    const formActions = form.querySelector(".form-actions");
+    const bachelorsFeatureIds = [
+        "bachelorsAssignmentsFeature", "bachelorsQuizzesFeature",
+        "bachelorsMidtermFeature", "bachelorsFinalFeature"
+    ];
+
+    const turnOff = id => {
+        const toggle = document.getElementById(id);
+        if (!toggle) return;
+        toggle.checked = false;
+        toggle.dispatchEvent(new Event("change"));
     };
+
+    const update = () => {
+        const hasSelection = ["bachelors", "intermediate"].includes(select.value);
+        const intermediate = select.value === "intermediate";
+        setupPanels.forEach(panel => { panel.hidden = !hasSelection; });
+        formActions.hidden = !hasSelection;
+        choices.hidden = hasSelection;
+        selected.hidden = !hasSelection;
+        document.getElementById("bachelorsPanel").hidden = !hasSelection || intermediate;
+        document.getElementById("intermediatePanel").hidden = !hasSelection || !intermediate;
+        document.getElementById("monthlyTestsFeature").hidden = !hasSelection || !intermediate;
+        document.getElementById("courseCodeField").hidden = intermediate;
+        bachelorsFeatureIds.forEach(id => { document.getElementById(id).hidden = !hasSelection || intermediate; });
+
+        if (!hasSelection) {
+            document.querySelector("#addCourseForm .form-header h2").textContent = "Create New Class";
+            return;
+        }
+
+        selectedLabel.textContent = intermediate ? "Intermediate class setup" : "Bachelors class setup";
+        document.querySelector("#addCourseForm .form-header h2").textContent = intermediate
+            ? "Create Intermediate Class"
+            : "Create Bachelors Class";
+
+        if (intermediate) {
+            ["assignments_enabled", "quizzes_enabled", "midterm_enabled", "final_enabled"].forEach(turnOff);
+        } else {
+            turnOff("monthly_tests_enabled");
+        }
+    };
+
+    form.querySelectorAll("[data-class-type]").forEach(button => {
+        button.addEventListener("click", () => {
+            select.value = button.dataset.classType;
+            update();
+            form.querySelector(".class-setup-panel").scrollIntoView({ behavior: "smooth" });
+        });
+    });
+
+    document.getElementById("changeClassTypeBtn").addEventListener("click", () => {
+        select.value = "";
+        update();
+        document.getElementById("classTypeChooser").scrollIntoView({ behavior: "smooth" });
+    });
     select.addEventListener("change", update);
     update();
+}
+
+const MONTH_NAMES = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
+];
+
+function monthlyTestRowHtml(month = 1, maxMarks = 25) {
+    return `
+        <div class="monthly-test-row">
+            <label><span>Month</span><select class="monthly-test-month">
+                ${MONTH_NAMES.slice(0, 11).map((name, index) => `<option value="${index + 1}" ${Number(month) === index + 1 ? "selected" : ""}>${name}</option>`).join("")}
+            </select></label>
+            <label><span>Maximum Marks</span><input class="monthly-test-max" type="number" min="0.01" step="0.01" value="${escapeHtml(maxMarks)}"></label>
+            <button type="button" class="remove-monthly-test">Remove</button>
+        </div>`;
+}
+
+function setupMonthlyTestFields() {
+    const rows = document.getElementById("monthlyTestRows");
+    const addButton = document.getElementById("addMonthlyTestBtn");
+    rows.innerHTML = monthlyTestRowHtml(Math.min(new Date().getMonth() + 1, 11), 25);
+    addButton.addEventListener("click", () => {
+        const used = new Set([...rows.querySelectorAll(".monthly-test-month")].map(select => Number(select.value)));
+        const nextMonth = Array.from({ length: 11 }, (_, index) => index + 1).find(month => !used.has(month));
+        if (!nextMonth) return;
+        rows.insertAdjacentHTML("beforeend", monthlyTestRowHtml(nextMonth, 25));
+    });
+    rows.addEventListener("click", event => {
+        const button = event.target.closest(".remove-monthly-test");
+        if (!button) return;
+        button.closest(".monthly-test-row").remove();
+    });
+}
+
+function readMonthlyTests() {
+    if (!document.getElementById("monthly_tests_enabled").checked) return { tests: [], error: null };
+    const rows = [...document.querySelectorAll("#monthlyTestRows .monthly-test-row")];
+    if (!rows.length) return { error: "Add at least one monthly test." };
+    const tests = rows.map(row => ({
+        month: Number(row.querySelector(".monthly-test-month").value),
+        max_marks: Number(row.querySelector(".monthly-test-max").value)
+    }));
+    if (tests.some(test => !Number.isInteger(test.month) || test.month < 1 || test.month > 11 || !Number.isFinite(test.max_marks) || test.max_marks <= 0)) {
+        return { error: "Every monthly test needs a month from January to November and positive maximum marks." };
+    }
+    if (new Set(tests.map(test => test.month)).size !== tests.length) {
+        return { error: "Each monthly test must use a different month." };
+    }
+    return { tests, error: null };
 }
 
 function getRollEntryMode() {
@@ -1836,16 +2002,19 @@ async function createCourse() {
     // There is no Attendance switch on the page.
 
     const assignmentsEnabled =
-        checked("assignments_enabled");
+        !isIntermediate && checked("assignments_enabled");
 
     const quizzesEnabled =
-        checked("quizzes_enabled");
+        !isIntermediate && checked("quizzes_enabled");
+
+    const monthlyTestsEnabled =
+        isIntermediate && checked("monthly_tests_enabled");
 
     const midtermEnabled =
-        checked("midterm_enabled");
+        !isIntermediate && checked("midterm_enabled");
 
     const finalEnabled =
-        checked("final_enabled");
+        !isIntermediate && checked("final_enabled");
 
     const resultsEnabled =
         checked("results_enabled");
@@ -1878,6 +2047,9 @@ async function createCourse() {
     const section = isIntermediate
         ? document.getElementById("intermediateSection").value.trim()
         : document.getElementById("section").value.trim();
+    const classShift = isIntermediate
+        ? document.getElementById("intermediateShift").value
+        : document.getElementById("bachelorsShift").value;
 
 
     const assignmentCount =
@@ -1911,6 +2083,14 @@ async function createCourse() {
 
     const resultCode =
         document.getElementById("resultCode").value.trim().toLowerCase();
+
+    const monthlyTestResult = readMonthlyTests();
+
+    if (monthlyTestsEnabled && monthlyTestResult.error) {
+        message.textContent = monthlyTestResult.error;
+        message.className = "form-message error";
+        return;
+    }
 
 
     // =========================
@@ -2090,6 +2270,9 @@ async function createCourse() {
         intermediate_year:
             isIntermediate ? intermediateYear : null,
 
+        class_shift:
+            classShift,
+
 
         // OPTIONAL INFORMATION
 
@@ -2149,6 +2332,12 @@ async function createCourse() {
 
         quizzes_enabled:
             quizzesEnabled,
+
+        monthly_tests_enabled:
+            monthlyTestsEnabled,
+
+        monthly_tests:
+            monthlyTestsEnabled ? monthlyTestResult.tests : [],
 
         midterm_enabled:
             midtermEnabled,

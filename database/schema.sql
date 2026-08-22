@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS courses (
     course_code VARCHAR(50),
     class_type VARCHAR(20) NOT NULL DEFAULT 'bachelors' CHECK (class_type IN ('bachelors', 'intermediate')),
     intermediate_year VARCHAR(20) CHECK (intermediate_year IS NULL OR intermediate_year IN ('1st_year', '2nd_year')),
+    class_shift VARCHAR(10) NOT NULL DEFAULT 'morning' CHECK (class_shift IN ('morning', 'evening')),
     roll_entry_mode VARCHAR(20) NOT NULL DEFAULT 'range' CHECK (roll_entry_mode IN ('range', 'manual', 'excel')),
     program VARCHAR(100),
     semester VARCHAR(50),
@@ -44,6 +45,7 @@ CREATE TABLE IF NOT EXISTS courses (
     midterm_enabled BOOLEAN NOT NULL DEFAULT FALSE,
     final_enabled BOOLEAN NOT NULL DEFAULT FALSE,
     results_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+    monthly_tests_enabled BOOLEAN NOT NULL DEFAULT FALSE,
     midterm_max_marks NUMERIC(8,2) CHECK (midterm_max_marks IS NULL OR midterm_max_marks > 0),
     final_max_marks NUMERIC(8,2) CHECK (final_max_marks IS NULL OR final_max_marks > 0),
     result_code VARCHAR(24) NOT NULL DEFAULT SUBSTRING(MD5(RANDOM()::TEXT || CLOCK_TIMESTAMP()::TEXT), 1, 24),
@@ -65,6 +67,8 @@ CREATE TABLE IF NOT EXISTS students (
     semester VARCHAR(50),
     midterm_marks NUMERIC(8,2) CHECK (midterm_marks IS NULL OR midterm_marks >= 0),
     final_marks NUMERIC(8,2) CHECK (final_marks IS NULL OR final_marks >= 0),
+    december_test_marks NUMERIC(8,2) CHECK (december_test_marks IS NULL OR december_test_marks BETWEEN 0 AND 100),
+    preboard_marks NUMERIC(8,2) CHECK (preboard_marks IS NULL OR preboard_marks BETWEEN 0 AND 100),
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UNIQUE (course_id, roll_number)
@@ -108,12 +112,16 @@ CREATE TABLE IF NOT EXISTS assignments (
     assignment_number INTEGER NOT NULL CHECK (assignment_number > 0),
     name VARCHAR(150) NOT NULL,
     max_marks NUMERIC(8,2) NOT NULL CHECK (max_marks > 0),
+    assessment_type VARCHAR(20) NOT NULL DEFAULT 'assignment' CHECK (assessment_type IN ('assignment', 'monthly_test')),
+    month_number SMALLINT CHECK (month_number IS NULL OR month_number BETWEEN 1 AND 12),
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UNIQUE (course_id, assignment_number)
 );
 
 CREATE INDEX IF NOT EXISTS assignments_course_idx ON assignments(course_id);
+CREATE UNIQUE INDEX IF NOT EXISTS assignments_course_monthly_test_unique
+    ON assignments (course_id, month_number) WHERE assessment_type = 'monthly_test';
 
 CREATE TABLE IF NOT EXISTS quizzes (
     id SERIAL PRIMARY KEY,

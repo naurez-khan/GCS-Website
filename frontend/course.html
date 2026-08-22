@@ -16,7 +16,7 @@
 
     <link
         rel="stylesheet"
-        href="/course.css?v=20260815-2"
+        href="/course.css?v=20260822-5"
     >
     <link rel="stylesheet" href="/brand.css?v=20260815-12">
 
@@ -170,24 +170,34 @@
             <div id="classSettingsMessage" class="message"></div>
             <div class="settings-grid">
                 <label>Course Name<input id="settingsCourseName" maxlength="150"></label>
-                <label>Course Code <small>(optional)</small><input id="settingsCourseCode" maxlength="50" placeholder="e.g. MATH-101"></label>
+                <label id="settingsCourseCodeLabel">Course Code <small>(optional)</small><input id="settingsCourseCode" maxlength="50" placeholder="e.g. MATH-101"></label>
                 <label>Class Level<select id="settingsClassType"><option value="bachelors">Bachelors</option><option value="intermediate">Intermediate</option></select></label>
                 <label id="settingsIntermediateYearLabel">Class / Year<select id="settingsIntermediateYear"><option value="1st_year">1st Year</option><option value="2nd_year">2nd Year</option></select></label>
                 <label id="settingsProgramLabel">Program<input id="settingsProgram" maxlength="100" placeholder="e.g. BS Mathematics"></label>
                 <label id="settingsSemesterLabel">Semester<input id="settingsSemester" maxlength="50" placeholder="e.g. 3rd"></label>
                 <label>Section<input id="settingsSection" maxlength="20"></label>
+                <label>Shift<select id="settingsClassShift"><option value="morning">Morning</option><option value="evening">Evening</option></select></label>
                 <label class="setting-check"><input id="settingsResultsEnabled" type="checkbox"> Publish student results</label>
                 <label>Student Result Code<input id="settingsResultCode" minlength="4" maxlength="24" pattern="[A-Za-z0-9-]+" placeholder="e.g. calculus-2026"></label>
-                <label class="setting-check"><input id="settingsAssignmentsEnabled" type="checkbox"> Assignments enabled</label>
-                <label>Assignment Count<input id="settingsAssignmentCount" type="number" min="1" max="100"></label>
-                <label>Assignment Maximum Marks<input id="settingsAssignmentMax" type="number" min="0.01" step="0.01"></label>
-                <label class="setting-check"><input id="settingsQuizzesEnabled" type="checkbox"> Quizzes enabled</label>
-                <label>Quiz Count<input id="settingsQuizCount" type="number" min="1" max="100"></label>
-                <label>Quiz Maximum Marks<input id="settingsQuizMax" type="number" min="0.01" step="0.01"></label>
-                <label class="setting-check"><input id="settingsMidtermEnabled" type="checkbox"> Midterm enabled</label>
-                <label>Midterm Maximum Marks<input id="settingsMidtermMax" type="number" min="0.01" step="0.01"></label>
-                <label class="setting-check"><input id="settingsFinalEnabled" type="checkbox"> Final exam enabled</label>
-                <label>Final Maximum Marks<input id="settingsFinalMax" type="number" min="0.01" step="0.01"></label>
+                <label id="settingsAssignmentsToggle" class="setting-check"><input id="settingsAssignmentsEnabled" type="checkbox"> Assignments enabled</label>
+                <label id="settingsAssignmentCountLabel">Assignment Count<input id="settingsAssignmentCount" type="number" min="1" max="100"></label>
+                <label id="settingsAssignmentMaxLabel">Assignment Maximum Marks<input id="settingsAssignmentMax" type="number" min="0.01" step="0.01"></label>
+                <label id="settingsQuizzesToggle" class="setting-check"><input id="settingsQuizzesEnabled" type="checkbox"> Quizzes enabled</label>
+                <label id="settingsQuizCountLabel">Quiz Count<input id="settingsQuizCount" type="number" min="1" max="100"></label>
+                <label id="settingsQuizMaxLabel">Quiz Maximum Marks<input id="settingsQuizMax" type="number" min="0.01" step="0.01"></label>
+                <label id="settingsMonthlyTestsToggle" class="setting-check"><input id="settingsMonthlyTestsEnabled" type="checkbox"> Monthly tests enabled</label>
+                <div id="settingsMonthlyTestsPanel" class="settings-monthly-tests">
+                    <div id="settingsMonthlyTestRows"></div>
+                    <button id="settingsAddMonthlyTestBtn" class="secondary-btn" type="button">+ Add Month</button>
+                </div>
+                <div id="settingsIntermediateFixedAssessments" class="settings-fixed-assessments">
+                    <div><span>December Test</span><strong>Permanent · 100 marks</strong></div>
+                    <div><span>Preboard</span><strong>Permanent · 100 marks</strong></div>
+                </div>
+                <label id="settingsMidtermToggle" class="setting-check"><input id="settingsMidtermEnabled" type="checkbox"> Midterm enabled</label>
+                <label id="settingsMidtermMaxLabel">Midterm Maximum Marks<input id="settingsMidtermMax" type="number" min="0.01" step="0.01"></label>
+                <label id="settingsFinalToggle" class="setting-check"><input id="settingsFinalEnabled" type="checkbox"> Final exam enabled</label>
+                <label id="settingsFinalMaxLabel">Final Maximum Marks<input id="settingsFinalMax" type="number" min="0.01" step="0.01"></label>
             </div>
             <div class="panel-actions">
                 <button id="saveClassSettingsBtn" class="primary-btn" type="button">Save Settings</button>
@@ -289,7 +299,7 @@
                         Course Marks
                     </h2>
 
-                    <p>
+                    <p id="courseMarksDescription">
                         Enter marks for each assignment and quiz.
                     </p>
 
@@ -460,7 +470,7 @@
          COURSE JAVASCRIPT
     ========================= -->
 
-    <script src="/course.js?v=20260822-1"></script>
+    <script src="/course.js?v=20260822-8"></script>
 
 </body>
 

@@ -13,7 +13,14 @@ function assessmentRows(items) {
 }
 
 function renderResult(result) {
-    const rows = [assessmentRows(result.assignments), assessmentRows(result.quizzes)];
+    const rows = [assessmentRows(result.assignments), assessmentRows(result.quizzes), assessmentRows(result.monthlyTests || [])];
+    if (result.course.classType === "intermediate") {
+        rows.push(`
+            <tr><th>Monthly Total</th><th>${score(result.monthlySummary?.earned)}</th><th>${score(result.monthlySummary?.maximum)}</th></tr>
+            <tr><th>Monthly Percentage</th><th>${result.monthlySummary?.percentage === null ? "—" : `${escapeHtml(result.monthlySummary.percentage)}%`}</th><th>100%</th></tr>
+            <tr><td>December Test</td><td>${score(result.decemberTest?.marks)}</td><td>100</td></tr>
+            <tr><td>Preboard</td><td>${score(result.preboard?.marks)}</td><td>100</td></tr>`);
+    }
     if (result.midterm) rows.push(`<tr><td>Midterm</td><td>${score(result.midterm.marks)}</td><td>${score(result.midterm.maxMarks)}</td></tr>`);
     if (result.final) rows.push(`<tr><td>Final exam</td><td>${score(result.final.marks)}</td><td>${score(result.final.maxMarks)}</td></tr>`);
 
@@ -22,6 +29,7 @@ function renderResult(result) {
         <div class="result-score"><strong>${result.summary.percentage === null ? "—" : `${escapeHtml(result.summary.percentage)}%`}</strong><span>overall</span></div></div>
         <div class="result-meta">
             <div><span>Course code</span><strong>${escapeHtml(result.course.code || "—")}</strong></div>
+            <div><span>Shift</span><strong>${escapeHtml(result.course.shift === "evening" ? "Evening" : "Morning")}</strong></div>
             <div><span>Roll number</span><strong>${escapeHtml(result.student.rollNumber)}</strong></div>
             <div><span>Student</span><strong>${escapeHtml(result.student.name || "Name not recorded")}</strong></div>
             <div><span>Program</span><strong>${escapeHtml(result.course.program || "—")}</strong></div>

@@ -339,6 +339,8 @@ body {
     gap: 18px;
 }
 
+.settings-grid > [hidden] { display: none !important; }
+
 .settings-grid label,
 .attendance-editor-header label {
     display: grid;
@@ -379,6 +381,51 @@ body {
 
 .settings-grid .setting-check input {
     width: auto;
+}
+
+.settings-monthly-tests {
+    grid-column: 1 / -1;
+    display: grid;
+    gap: 10px;
+    padding: 14px;
+    border: 1px solid #ead7d9;
+    border-radius: 10px;
+    background: rgba(255,255,255,.55);
+}
+
+.settings-monthly-tests[hidden] { display: none; }
+
+.settings-fixed-assessments {
+    display: grid;
+    gap: 10px;
+    align-content: start;
+}
+
+.settings-fixed-assessments[hidden] { display: none; }
+
+.settings-fixed-assessments > div {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 13px 14px;
+    border: 1px solid rgba(162, 12, 22, 0.16);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.6);
+}
+
+.settings-fixed-assessments span { font-weight: 800; }
+.settings-fixed-assessments strong { color: #8f111a; font-size: 13px; text-align: right; }
+
+.settings-monthly-test-row {
+    display: grid;
+    grid-template-columns: minmax(0,1fr) minmax(0,1fr) auto;
+    gap: 10px;
+    align-items: end;
+    margin-bottom: 10px;
+}
+
+@media (max-width: 700px) {
+    .settings-monthly-test-row { grid-template-columns: 1fr; }
 }
 
 .panel-actions {

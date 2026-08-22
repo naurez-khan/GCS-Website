@@ -71,10 +71,12 @@ let students = [];
 let assignments = [];
 
 let quizzes = [];
+let monthlyTests = [];
 
 let assignmentMarks = [];
 
 let quizMarks = [];
+let monthlyTestMarks = [];
 
 
 // =========================
@@ -201,6 +203,9 @@ async function loadMarks() {
         quizzes =
             data.quizzes || [];
 
+        monthlyTests =
+            data.monthlyTests || [];
+
 
         assignmentMarks =
             data.assignmentMarks || [];
@@ -208,6 +213,9 @@ async function loadMarks() {
 
         quizMarks =
             data.quizMarks || [];
+
+        monthlyTestMarks =
+            data.monthlyTestMarks || [];
 
 
         displayCourse();
@@ -326,11 +334,15 @@ function displayCourse() {
             ? "1 quiz"
             : `${quizzes.length} quizzes`;
 
+    const monthlyText = monthlyTests.length === 1 ? "1 monthly test" : `${monthlyTests.length} monthly tests`;
+
 
     if (marksDescription) {
 
         marksDescription.textContent =
-            `Enter marks for ${assignmentText} and ${quizText}.`;
+            currentCourse?.class_type === "intermediate"
+                ? `Enter ${monthlyText}, the fixed December Test, and Preboard marks.`
+                : `Enter marks for ${assignmentText}, ${quizText}, and ${monthlyText}.`;
 
     }
 
@@ -360,6 +372,8 @@ function displayMarksTable() {
 
     }
 
+
+    const isIntermediate = currentCourse?.class_type === "intermediate";
 
     let html = `
 
@@ -461,12 +475,22 @@ function displayMarksTable() {
         }
     );
 
+    monthlyTests.forEach(test => {
+        html += `<th class="assignment-header"><span class="assessment-name">${escapeHTML(test.name)}</span><span class="max-marks">Max: ${test.max_marks}</span></th>`;
+    });
+
+    if (isIntermediate) {
+        html += `
+            <th class="total-header">Monthly Total</th>
+            <th class="total-header">Monthly %</th>
+            <th class="assignment-header"><span class="assessment-name">December Test</span><span class="max-marks">Max: 100</span></th>
+            <th class="assignment-header"><span class="assessment-name">Preboard</span><span class="max-marks">Max: 100</span></th>`;
+    }
+
 
     html += `
 
-                    <th class="total-header">
-                        Total
-                    </th>
+                    ${isIntermediate ? "" : `<th class="total-header">Total</th>`}
 
                 </tr>
 
@@ -600,15 +624,23 @@ function displayMarksTable() {
                 }
             );
 
+            monthlyTests.forEach(test => {
+                const existingMarks = findMonthlyTestMark(test.id, student.id);
+                html += `<td><input type="number" class="marks-input" min="0" max="${test.max_marks}" step="0.01" value="${existingMarks === null ? "" : existingMarks}" data-type="monthly-test" data-assessment-id="${test.id}" data-student-id="${student.id}"></td>`;
+            });
+
+            if (isIntermediate) {
+                html += `
+                    <td class="total-cell" data-monthly-total-student="${student.id}">0</td>
+                    <td class="total-cell" data-monthly-percentage-student="${student.id}">—</td>
+                    <td><input type="number" class="marks-input" min="0" max="100" step="0.01" value="${student.december_test_marks ?? ""}" data-type="december-test" data-student-id="${student.id}"></td>
+                    <td><input type="number" class="marks-input" min="0" max="100" step="0.01" value="${student.preboard_marks ?? ""}" data-type="preboard" data-student-id="${student.id}"></td>`;
+            }
+
 
             html += `
 
-                    <td
-                        class="total-cell"
-                        data-total-student="${student.id}"
-                    >
-                        0
-                    </td>
+                    ${isIntermediate ? "" : `<td class="total-cell" data-total-student="${student.id}">0</td>`}
 
                 </tr>
 
@@ -693,6 +725,11 @@ function findQuizMark(
 
     return record.marks;
 
+}
+
+function findMonthlyTestMark(testId, studentId) {
+    const record = monthlyTestMarks.find(item => Number(item.monthly_test_id) === Number(testId) && Number(item.student_id) === Number(studentId));
+    return record ? record.marks : null;
 }
 
 
@@ -802,6 +839,30 @@ function updateStudentTotal(
     studentId
 ) {
 
+    if (currentCourse?.class_type === "intermediate") {
+        const monthlyInputs = document.querySelectorAll(
+            `.marks-input[data-type="monthly-test"][data-student-id="${studentId}"]`
+        );
+        let monthlyTotal = 0;
+        monthlyInputs.forEach(input => {
+            const value = Number(input.value);
+            if (input.value.trim() !== "" && Number.isFinite(value)) monthlyTotal += value;
+        });
+        const monthlyMaximum = monthlyTests.reduce(
+            (sum, test) => sum + Number(test.max_marks || 0),
+            0
+        );
+        const totalCell = document.querySelector(`[data-monthly-total-student="${studentId}"]`);
+        const percentageCell = document.querySelector(`[data-monthly-percentage-student="${studentId}"]`);
+        if (totalCell) totalCell.textContent = formatNumber(monthlyTotal);
+        if (percentageCell) {
+            percentageCell.textContent = monthlyMaximum > 0
+                ? `${formatNumber((monthlyTotal / monthlyMaximum) * 100)}%`
+                : "—";
+        }
+        return;
+    }
+
     const inputs =
         document.querySelectorAll(
             `.marks-input[data-student-id="${studentId}"]`
@@ -889,6 +950,9 @@ async function saveMarks() {
     const assignmentPayload = [];
 
     const quizPayload = [];
+    const monthlyTestPayload = [];
+    const decemberTestPayload = [];
+    const preboardPayload = [];
 
 
     let hasError = false;
@@ -979,6 +1043,18 @@ async function saveMarks() {
 
         }
 
+        if (input.dataset.type === "monthly-test") {
+            monthlyTestPayload.push({ monthly_test_id: Number(input.dataset.assessmentId), student_id: item.student_id, marks: item.marks });
+        }
+
+        if (input.dataset.type === "december-test") {
+            decemberTestPayload.push(item);
+        }
+
+        if (input.dataset.type === "preboard") {
+            preboardPayload.push(item);
+        }
+
     });
 
 
@@ -1026,7 +1102,16 @@ async function saveMarks() {
                                 assignmentPayload,
 
                             quizMarks:
-                                quizPayload
+                                quizPayload,
+
+                            monthlyTestMarks:
+                                monthlyTestPayload,
+
+                            decemberTestMarks:
+                                decemberTestPayload,
+
+                            preboardMarks:
+                                preboardPayload
 
                         })
 
