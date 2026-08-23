@@ -4,6 +4,19 @@ const params = new URLSearchParams(
 
 const courseId = params.get("id");
 
+const coursePageAction = ({
+    "/edit-class.html": "edit",
+    "/import-students.html": "import",
+    "/take-attendance.html": "attendance",
+    "/course-marks.html": "marks",
+    "/attendance-history.html": "history"
+})[window.location.pathname] || "hub";
+
+const coursePageUrl = page => `/${page}.html?id=${encodeURIComponent(courseId || "")}`;
+const returnToCourseHub = () => {
+    window.location.href = `/course.html?id=${encodeURIComponent(courseId || "")}`;
+};
+
 
 // =========================
 // ELEMENTS
@@ -81,6 +94,7 @@ const attendanceSummary =
 
 const editClassBtn = document.getElementById("editClassBtn");
 const importStudentsBtn = document.getElementById("importStudentsBtn");
+const attendanceHistoryBtn = document.getElementById("attendanceHistoryBtn");
 const classSettingsSection = document.getElementById("classSettingsSection");
 const studentImportSection = document.getElementById("studentImportSection");
 const editAttendanceBtn = document.getElementById("editAttendanceBtn");
@@ -734,6 +748,11 @@ if (attendanceBtn) {
         "click",
         () => {
 
+            if (coursePageAction !== "attendance") {
+                window.location.href = coursePageUrl("take-attendance");
+                return;
+            }
+
             if (
                 currentCourse &&
                 currentCourse.attendance_enabled === false
@@ -1077,6 +1096,8 @@ if (cancelAttendanceBtn) {
         "click",
         () => {
 
+            if (coursePageAction === "attendance") return returnToCourseHub();
+
             attendanceSection.classList.add(
                 "hidden"
             );
@@ -1125,6 +1146,11 @@ if (marksBtn) {
     marksBtn.addEventListener(
         "click",
         async () => {
+
+            if (coursePageAction !== "marks") {
+                window.location.href = coursePageUrl("course-marks");
+                return;
+            }
 
             if (!currentCourse) {
                 return;
@@ -2198,6 +2224,8 @@ if (cancelMarksBtn) {
     cancelMarksBtn.addEventListener(
         "click",
         () => {
+
+            if (coursePageAction === "marks") return returnToCourseHub();
 
             marksSection.classList.add(
                 "hidden"
@@ -3719,8 +3747,14 @@ async function openClassSettings() {
     }
 }
 
-if (editClassBtn) editClassBtn.addEventListener("click", openClassSettings);
-document.getElementById("cancelClassSettingsBtn")?.addEventListener("click", () => classSettingsSection.classList.add("hidden"));
+if (editClassBtn) editClassBtn.addEventListener("click", () => {
+    if (coursePageAction === "edit") openClassSettings();
+    else window.location.href = coursePageUrl("edit-class");
+});
+document.getElementById("cancelClassSettingsBtn")?.addEventListener("click", () => {
+    if (coursePageAction === "edit") returnToCourseHub();
+    else classSettingsSection.classList.add("hidden");
+});
 ["settingsAssignmentsEnabled", "settingsQuizzesEnabled", "settingsMidtermEnabled", "settingsFinalEnabled"]
     .forEach(id => document.getElementById(id)?.addEventListener("change", syncSettingsInputs));
 document.getElementById("settingsClassType")?.addEventListener("change", syncSettingsInputs);
@@ -3855,11 +3889,18 @@ document.getElementById("saveClassSettingsBtn")?.addEventListener("click", async
 // =========================
 
 if (importStudentsBtn) importStudentsBtn.addEventListener("click", () => {
+    if (coursePageAction !== "import") {
+        window.location.href = coursePageUrl("import-students");
+        return;
+    }
     studentImportSection.classList.remove("hidden");
     classSettingsSection.classList.add("hidden");
     studentImportSection.scrollIntoView({ behavior: "smooth" });
 });
-document.getElementById("cancelStudentImportBtn")?.addEventListener("click", () => studentImportSection.classList.add("hidden"));
+document.getElementById("cancelStudentImportBtn")?.addEventListener("click", () => {
+    if (coursePageAction === "import") returnToCourseHub();
+    else studentImportSection.classList.add("hidden");
+});
 
 document.getElementById("studentImportFile")?.addEventListener("change", async event => {
     const preview = document.getElementById("studentImportPreview");
@@ -4036,6 +4077,48 @@ if (logoutBtn) {
 // START
 // =========================
 
-loadTeacher();
+async function initializeCoursePage() {
+    await loadTeacher();
+    await loadCourse();
 
-loadCourse();
+    const studentsSection = document.querySelector(".students-section");
+    const historySection = document.getElementById("attendanceHistorySection");
+    const backButton = document.querySelector(".back-btn");
+    const workflowSections = [classSettingsSection, studentImportSection, attendanceSection, marksSection, historySection];
+
+    if (coursePageAction === "hub") {
+        document.body.classList.add("course-hub");
+        document.getElementById("studentsContainer")?.classList.add("hidden");
+        historySection?.classList.add("hidden");
+        if (attendanceHistoryBtn && currentCourse?.attendance_enabled === false) attendanceHistoryBtn.style.display = "none";
+        return;
+    }
+
+    document.body.classList.add("course-workflow");
+    courseHeader?.classList.add("hidden");
+    studentsSection?.classList.add("hidden");
+    workflowSections.forEach(section => section?.classList.add("hidden"));
+    if (backButton) {
+        backButton.href = `/course.html?id=${encodeURIComponent(courseId || "")}`;
+        backButton.textContent = "← Back to Class";
+    }
+
+    if (coursePageAction === "edit") await openClassSettings();
+    if (coursePageAction === "import") studentImportSection?.classList.remove("hidden");
+    if (coursePageAction === "attendance" && currentCourse?.attendance_enabled !== false) {
+        attendanceSection?.classList.remove("hidden");
+        attendanceDate.textContent = getTodayDate();
+        renderAttendanceList();
+    }
+    if (coursePageAction === "marks") {
+        marksSection?.classList.remove("hidden");
+        await loadCourseMarks();
+    }
+    if (coursePageAction === "history") historySection?.classList.remove("hidden");
+}
+
+attendanceHistoryBtn?.addEventListener("click", () => {
+    window.location.href = coursePageUrl("attendance-history");
+});
+
+initializeCoursePage();

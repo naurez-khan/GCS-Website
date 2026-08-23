@@ -70,6 +70,18 @@ app.use(cookieParser());
 // Serves everything inside:
 // E:\math-department-portal\frontend
 
+const courseWorkflowPages = [
+    "/edit-class.html",
+    "/import-students.html",
+    "/take-attendance.html",
+    "/course-marks.html",
+    "/attendance-history.html"
+];
+
+app.get(courseWorkflowPages, (req, res) => {
+    res.sendFile(path.join(__dirname, "../frontend/course.html"));
+});
+
 app.use(
     express.static(
         path.join(__dirname, "../frontend"),
