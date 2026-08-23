@@ -34,6 +34,18 @@
         </section>
 
         <section class="panel">
+            <h2>Transfer a class</h2>
+            <p class="muted">Move a complete class to another teacher. Students, attendance, marks, settings, and results remain unchanged.</p>
+            <div id="transferMessage" class="notice hidden" role="status" aria-live="polite"></div>
+            <form id="transferClassForm">
+                <label>Current teacher<select id="transferFromTeacher" required></select></label>
+                <label>Class<select id="transferCourse" required></select></label>
+                <label>Receiving teacher<select id="transferToTeacher" required></select></label>
+                <button id="transferClassBtn" type="submit" class="primary">Transfer Class</button>
+            </form>
+        </section>
+
+        <section class="panel">
             <div class="panel-heading">
                 <div><h2>Teachers</h2><p class="muted">Current department accounts</p></div>
                 <div class="teacher-list-actions">
@@ -102,6 +114,6 @@
             </div>
         </section>
     </main>
-    <script src="/admin.js?v=20260815-2"></script>
+    <script src="/admin.js?v=20260823-1"></script>
 </body>
 </html>

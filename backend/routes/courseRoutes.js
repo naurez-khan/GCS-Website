@@ -5,6 +5,7 @@ const {
     getMyCourses,
     getCourseStudents,
     updateStudent,
+    updateCourseRollNumbers,
     getCourseAssignments,
     updateAssignment,
     getCourseQuizzes,
@@ -54,6 +55,8 @@ router.get(
     "/:courseId/students",
     getCourseStudents
 );
+
+router.put("/:courseId/students/roll-numbers", updateCourseRollNumbers);
 
 router.put(
     "/:courseId/students/:studentId",

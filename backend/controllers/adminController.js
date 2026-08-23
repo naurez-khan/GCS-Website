@@ -162,6 +162,73 @@ const getTeachers = async (req, res) => {
 
 };
 
+const getTransferableCourses = async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT c.id, c.name, c.course_code, c.section, c.class_type, c.teacher_id,
+                    u.name AS teacher_name
+             FROM courses c
+             JOIN users u ON u.id = c.teacher_id AND u.role = 'teacher'
+             ORDER BY u.name, c.name, c.section NULLS LAST, c.id`
+        );
+        res.json({ success: true, courses: result.rows });
+    } catch (error) {
+        console.error("Get transferable courses error:", error);
+        res.status(500).json({ success: false, message: "Server error" });
+    }
+};
+
+const transferCourse = async (req, res) => {
+    const client = await pool.connect();
+    try {
+        const courseId = Number(req.params.courseId);
+        const newTeacherId = Number(req.body.new_teacher_id);
+        if (!Number.isInteger(courseId) || courseId < 1 || !Number.isInteger(newTeacherId) || newTeacherId < 1) {
+            return res.status(400).json({ success: false, message: "Choose a valid class and receiving teacher" });
+        }
+
+        await client.query("BEGIN");
+        const courseResult = await client.query(
+            `SELECT c.id, c.name, c.teacher_id, u.name AS teacher_name
+             FROM courses c JOIN users u ON u.id = c.teacher_id
+             WHERE c.id = $1 FOR UPDATE OF c`,
+            [courseId]
+        );
+        const course = courseResult.rows[0];
+        if (!course) {
+            await client.query("ROLLBACK");
+            return res.status(404).json({ success: false, message: "Class not found" });
+        }
+        if (Number(course.teacher_id) === newTeacherId) {
+            await client.query("ROLLBACK");
+            return res.status(400).json({ success: false, message: "Choose a different receiving teacher" });
+        }
+
+        const teacherResult = await client.query(
+            "SELECT id, name FROM users WHERE id = $1 AND role = 'teacher' AND is_active = TRUE",
+            [newTeacherId]
+        );
+        const newTeacher = teacherResult.rows[0];
+        if (!newTeacher) {
+            await client.query("ROLLBACK");
+            return res.status(404).json({ success: false, message: "The receiving teacher is not active or does not exist" });
+        }
+
+        await client.query("UPDATE courses SET teacher_id = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2", [newTeacherId, courseId]);
+        await client.query("COMMIT");
+        res.json({
+            success: true,
+            message: `${course.name} transferred from ${course.teacher_name} to ${newTeacher.name}. All class records were preserved.`
+        });
+    } catch (error) {
+        await client.query("ROLLBACK");
+        console.error("Transfer course error:", error);
+        res.status(500).json({ success: false, message: "Server error" });
+    } finally {
+        client.release();
+    }
+};
+
 const addAdmin = async (req, res) => {
     try {
         const cleanName = String(req.body.name || "").trim();
@@ -350,5 +417,7 @@ module.exports = {
     viewTeacherDashboard,
     stopViewingTeacher,
     setTeacherStatus,
-    setAdminStatus
+    setAdminStatus,
+    getTransferableCourses,
+    transferCourse
 };

@@ -856,6 +856,145 @@ const updateStudent = async (req, res) => {
     }
 };
 
+const updateCourseRollNumbers = async (req, res) => {
+    const client = await pool.connect();
+    try {
+        const courseId = Number(req.params.courseId);
+        const requestedStudents = Array.isArray(req.body.students) ? req.body.students : [];
+        const removedStudentIds = Array.isArray(req.body.removed_student_ids)
+            ? req.body.removed_student_ids.map(Number)
+            : [];
+        if (!Number.isInteger(courseId) || !requestedStudents.length || requestedStudents.length > 500) {
+            return res.status(400).json({ success: false, message: "Provide between 1 and 500 roll numbers" });
+        }
+
+        const cleaned = requestedStudents.map(item => {
+            const numericRoll = Number(String(item?.roll_number ?? "").trim());
+            const studentId = item?.student_id === null || item?.student_id === undefined || item?.student_id === ""
+                ? null
+                : Number(item.student_id);
+            return {
+                studentId,
+                rollNumber: numericRoll,
+                rollText: Number.isInteger(numericRoll) ? String(numericRoll) : "",
+                name: String(item?.name || "").trim()
+            };
+        });
+
+        if (cleaned.some(item =>
+            (item.studentId !== null && (!Number.isInteger(item.studentId) || item.studentId < 1)) ||
+            !Number.isSafeInteger(item.rollNumber) || item.rollNumber < 0 || item.rollNumber > 2147483647 ||
+            item.name.length > 150
+        )) {
+            return res.status(400).json({ success: false, message: "Roll numbers must be unique whole numbers between 0 and 2147483647" });
+        }
+        if (new Set(cleaned.map(item => item.rollText)).size !== cleaned.length) {
+            return res.status(400).json({ success: false, message: "Each roll number must be unique" });
+        }
+        if (removedStudentIds.some(id => !Number.isInteger(id) || id < 1) || new Set(removedStudentIds).size !== removedStudentIds.length) {
+            return res.status(400).json({ success: false, message: "Invalid students selected for removal" });
+        }
+
+        await client.query("BEGIN");
+        const courseResult = await client.query(
+            `SELECT id, program, semester, student_name_enabled
+             FROM courses WHERE id=$1 AND teacher_id=$2 FOR UPDATE`,
+            [courseId, req.user.id]
+        );
+        if (!courseResult.rows.length) {
+            await client.query("ROLLBACK");
+            return res.status(404).json({ success: false, message: "Course not found or access denied" });
+        }
+        const course = courseResult.rows[0];
+        const existingResult = await client.query(
+            "SELECT id, name FROM students WHERE course_id=$1 ORDER BY id FOR UPDATE",
+            [courseId]
+        );
+        const existingById = new Map(existingResult.rows.map(student => [Number(student.id), student]));
+        const submittedExistingIds = cleaned.filter(item => item.studentId !== null).map(item => item.studentId);
+        const submittedSet = new Set(submittedExistingIds);
+        const removedSet = new Set(removedStudentIds);
+        if (
+            new Set(submittedExistingIds).size !== submittedExistingIds.length ||
+            submittedExistingIds.some(id => !existingById.has(id)) ||
+            removedStudentIds.some(id => !existingById.has(id) || submittedSet.has(id)) ||
+            submittedExistingIds.length + removedStudentIds.length !== existingById.size
+        ) {
+            throw Object.assign(new Error("Reload the page before editing roll numbers; the student list has changed"), { status: 409 });
+        }
+        if (course.student_name_enabled && cleaned.some(item => item.studentId === null && !item.name)) {
+            throw Object.assign(new Error("Enter a name for every new roll number"), { status: 400 });
+        }
+
+        if (removedStudentIds.length) {
+            await client.query("DELETE FROM students WHERE course_id=$1 AND id=ANY($2::int[])", [courseId, removedStudentIds]);
+        }
+
+        // Free the final numeric values first so swaps such as 10 ↔ 11 stay safe.
+        for (const student of existingResult.rows.filter(student => !removedSet.has(Number(student.id)))) {
+            await client.query(
+                "UPDATE students SET roll_number=$1 WHERE id=$2 AND course_id=$3",
+                [`__roll_edit_${courseId}_${student.id}`, student.id, courseId]
+            );
+        }
+
+        for (const item of cleaned) {
+            if (item.studentId !== null) {
+                const existing = existingById.get(item.studentId);
+                await client.query(
+                    `UPDATE students SET roll_number=$1, name=$2, updated_at=CURRENT_TIMESTAMP
+                     WHERE id=$3 AND course_id=$4`,
+                    [
+                        item.rollText,
+                        course.student_name_enabled ? (item.name || existing.name || null) : existing.name,
+                        item.studentId,
+                        courseId
+                    ]
+                );
+            } else {
+                await client.query(
+                    `INSERT INTO students (course_id, roll_number, name, program, semester)
+                     VALUES ($1,$2,$3,$4,$5)`,
+                    [courseId, item.rollText, course.student_name_enabled ? item.name : null, course.program, course.semester]
+                );
+            }
+        }
+
+        const updatedCourse = await client.query(
+            `UPDATE courses SET
+                roll_start=(SELECT MIN(roll_number::INTEGER) FROM students WHERE course_id=$1),
+                roll_end=(SELECT MAX(roll_number::INTEGER) FROM students WHERE course_id=$1),
+                roll_entry_mode='manual', updated_at=CURRENT_TIMESTAMP
+             WHERE id=$1 RETURNING *`,
+            [courseId]
+        );
+        const updatedStudents = await client.query(
+            `SELECT id, roll_number, name, program, semester
+             FROM students WHERE course_id=$1 ORDER BY roll_number::INTEGER`,
+            [courseId]
+        );
+        await client.query("COMMIT");
+        res.json({
+            success: true,
+            message: removedStudentIds.length
+                ? `${removedStudentIds.length} student${removedStudentIds.length === 1 ? "" : "s"} removed and roll numbers updated successfully`
+                : "Roll numbers updated successfully",
+            course: updatedCourse.rows[0],
+            students: updatedStudents.rows
+        });
+    } catch (error) {
+        await client.query("ROLLBACK");
+        console.error("Update course roll numbers error:", error);
+        const duplicate = error.code === "23505";
+        res.status(duplicate ? 409 : (error.status || 500)).json({
+            success: false,
+            message: duplicate ? "Each roll number must be unique" : (error.status ? error.message : "Server error")
+        });
+    } finally {
+        client.release();
+    }
+};
+
 const getCourseAssignments = async (
     req,
     res
@@ -2576,6 +2715,8 @@ module.exports = {
     getCourseStudents,
 
     updateStudent,
+
+    updateCourseRollNumbers,
 
     getCourseAssignments,
 

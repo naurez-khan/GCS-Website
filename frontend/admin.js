@@ -6,6 +6,11 @@ const teacherRows = document.getElementById("teacherRows");
 const adminRows = document.getElementById("adminRows");
 const message = document.getElementById("message");
 const adminMessage = document.getElementById("adminMessage");
+const transferMessage = document.getElementById("transferMessage");
+const transferClassForm = document.getElementById("transferClassForm");
+const transferFromTeacher = document.getElementById("transferFromTeacher");
+const transferCourse = document.getElementById("transferCourse");
+const transferToTeacher = document.getElementById("transferToTeacher");
 const teacherAccountPanel = document.getElementById("teacherAccountPanel");
 const teacherAccountSelect = document.getElementById("teacherAccountSelect");
 const confirmTeacherAccountBtn = document.getElementById("confirmTeacherAccountBtn");
@@ -14,6 +19,7 @@ const adminAccountSelect = document.getElementById("adminAccountSelect");
 const confirmAdminAccountBtn = document.getElementById("confirmAdminAccountBtn");
 let currentTeachers = [];
 let currentAdmins = [];
+let transferableCourses = [];
 let teacherAccountMode = "remove";
 let adminAccountMode = "remove";
 
@@ -76,6 +82,68 @@ async function loadAdmins() {
         adminRows.innerHTML = `<tr><td colspan="4">${escapeHtml(error.message)}</td></tr>`;
     }
 }
+
+function courseLabel(course) {
+    const details = [course.course_code, course.section].filter(Boolean).join(" · ");
+    return `${course.name}${details ? ` — ${details}` : ""}`;
+}
+
+function updateTransferChoices() {
+    const sourceId = Number(transferFromTeacher.value);
+    const courses = transferableCourses.filter(course => Number(course.teacher_id) === sourceId);
+    transferCourse.innerHTML = courses.length
+        ? courses.map(course => `<option value="${Number(course.id)}">${escapeHtml(courseLabel(course))}</option>`).join("")
+        : '<option value="">No classes for this teacher</option>';
+    const destinations = currentTeachers.filter(teacher => teacher.is_active && Number(teacher.id) !== sourceId);
+    transferToTeacher.innerHTML = destinations.length
+        ? destinations.map(teacher => `<option value="${Number(teacher.id)}">${escapeHtml(teacher.name)} — ${escapeHtml(teacher.email)}</option>`).join("")
+        : '<option value="">No other active teacher</option>';
+    document.getElementById("transferClassBtn").disabled = !courses.length || !destinations.length;
+}
+
+async function loadTransferableCourses() {
+    try {
+        const data = await api("/api/admin/courses");
+        transferableCourses = data.courses;
+        const sourceTeachers = currentTeachers.filter(teacher =>
+            transferableCourses.some(course => Number(course.teacher_id) === Number(teacher.id))
+        );
+        transferFromTeacher.innerHTML = sourceTeachers.length
+            ? sourceTeachers.map(teacher => `<option value="${Number(teacher.id)}">${escapeHtml(teacher.name)}</option>`).join("")
+            : '<option value="">No classes available</option>';
+        updateTransferChoices();
+    } catch (error) {
+        showMessage(transferMessage, error.message, "error");
+    }
+}
+
+transferFromTeacher.addEventListener("change", updateTransferChoices);
+transferClassForm.addEventListener("submit", async event => {
+    event.preventDefault();
+    const courseId = Number(transferCourse.value);
+    const teacherId = Number(transferToTeacher.value);
+    const course = transferableCourses.find(item => Number(item.id) === courseId);
+    const teacher = currentTeachers.find(item => Number(item.id) === teacherId);
+    if (!course || !teacher) return showMessage(transferMessage, "Choose a class and receiving teacher.", "error");
+    if (!window.confirm(`Transfer ${courseLabel(course)} to ${teacher.name}? All existing class records will move with it.`)) return;
+    const button = document.getElementById("transferClassBtn");
+    button.disabled = true;
+    try {
+        const data = await api(`/api/admin/courses/${courseId}/transfer`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ new_teacher_id: teacherId })
+        });
+        await loadTransferableCourses();
+        transferFromTeacher.value = String(teacherId);
+        updateTransferChoices();
+        showMessage(transferMessage, data.message, "success");
+        transferMessage.scrollIntoView({ behavior: "smooth", block: "center" });
+    } catch (error) {
+        showMessage(transferMessage, error.message, "error");
+        button.disabled = false;
+    }
+});
 
 teacherRows.addEventListener("click", async event => {
     const button = event.target.closest("[data-teacher-id]");
@@ -267,6 +335,7 @@ async function initializeAdminPage() {
         localStorage.removeItem("adminSession");
         document.getElementById("adminName").textContent = currentAdmin.name || "Administrator";
         await Promise.all([loadTeachers(), loadAdmins()]);
+        await loadTransferableCourses();
     } catch (error) {
         if (!document.hidden) showMessage(message, error.message, "error");
     }

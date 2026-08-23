@@ -16,7 +16,7 @@
 
     <link
         rel="stylesheet"
-        href="/course.css?v=20260822-5"
+        href="/course.css?v=20260823-1"
     >
     <link rel="stylesheet" href="/brand.css?v=20260815-12">
 
@@ -167,7 +167,6 @@
             <div class="section-title">
                 <div><h2>Edit Class Settings</h2><p>Update class information and assessment structure.</p></div>
             </div>
-            <div id="classSettingsMessage" class="message"></div>
             <div class="settings-grid">
                 <label>Course Name<input id="settingsCourseName" maxlength="150"></label>
                 <label id="settingsCourseCodeLabel">Course Code <small>(optional)</small><input id="settingsCourseCode" maxlength="50" placeholder="e.g. MATH-101"></label>
@@ -191,17 +190,29 @@
                     <button id="settingsAddMonthlyTestBtn" class="secondary-btn" type="button">+ Add Month</button>
                 </div>
                 <div id="settingsIntermediateFixedAssessments" class="settings-fixed-assessments">
-                    <div><span>December Test</span><strong>Permanent · 100 marks</strong></div>
-                    <div><span>Preboard</span><strong>Permanent · 100 marks</strong></div>
+                    <div><span>December Test</span><strong>100 marks</strong></div>
+                    <div><span>Preboard</span><strong>100 marks</strong></div>
                 </div>
                 <label id="settingsMidtermToggle" class="setting-check"><input id="settingsMidtermEnabled" type="checkbox"> Midterm enabled</label>
                 <label id="settingsMidtermMaxLabel">Midterm Maximum Marks<input id="settingsMidtermMax" type="number" min="0.01" step="0.01"></label>
                 <label id="settingsFinalToggle" class="setting-check"><input id="settingsFinalEnabled" type="checkbox"> Final exam enabled</label>
                 <label id="settingsFinalMaxLabel">Final Maximum Marks<input id="settingsFinalMax" type="number" min="0.01" step="0.01"></label>
             </div>
+            <div class="settings-roll-editor">
+                <div class="settings-roll-heading">
+                    <div><h3>Roll Numbers</h3><p>Edit existing numbers or add new students. Saved students keep their attendance and marks.</p></div>
+                    <button id="addSettingsRollBtn" class="secondary-btn" type="button">+ Add Roll Number</button>
+                </div>
+                <div id="settingsRollRows" class="settings-roll-rows"></div>
+                <div class="settings-roll-save">
+                    <button id="saveSettingsRollsBtn" class="primary-btn" type="button">Save Roll Numbers</button>
+                    <div id="settingsRollMessage" class="message" role="status" aria-live="polite"></div>
+                </div>
+            </div>
             <div class="panel-actions">
                 <button id="saveClassSettingsBtn" class="primary-btn" type="button">Save Settings</button>
                 <button id="cancelClassSettingsBtn" class="secondary-btn" type="button">Cancel</button>
+                <div id="classSettingsMessage" class="message" role="status" aria-live="polite"></div>
             </div>
         </section>
 
@@ -211,10 +222,10 @@
             </div>
             <input id="studentImportFile" class="file-input" type="file" accept=".xlsx,.xls,.csv">
             <div id="studentImportPreview" class="import-preview"><p>Select a file to preview it.</p></div>
-            <div id="studentImportMessage" class="message"></div>
             <div class="panel-actions">
                 <button id="saveStudentImportBtn" class="primary-btn" type="button" disabled>Import Students</button>
                 <button id="cancelStudentImportBtn" class="secondary-btn" type="button">Cancel</button>
+                <div id="studentImportMessage" class="message" role="status" aria-live="polite"></div>
             </div>
         </section>
 
@@ -247,12 +258,6 @@
 
 
             <div
-                id="attendanceMessage"
-                class="message"
-            ></div>
-
-
-            <div
                 id="attendanceList"
                 class="attendance-list"
             ></div>
@@ -276,6 +281,8 @@
                 >
                     Cancel
                 </button>
+
+                <div id="attendanceMessage" class="message" role="status" aria-live="polite"></div>
 
             </div>
 
@@ -321,12 +328,6 @@
 
 
             <div
-                id="marksMessage"
-                class="message"
-            ></div>
-
-
-            <div
                 id="marksLoading"
                 class="loading"
             >
@@ -368,6 +369,8 @@
                 >
                     Cancel
                 </button>
+
+                <div id="marksMessage" class="message" role="status" aria-live="polite"></div>
 
             </div>
 
@@ -425,11 +428,11 @@
                     <label>Attendance Date<select id="attendanceEditDate"></select></label>
                     <span id="attendanceEditHelp">Click a status to change it.</span>
                 </div>
-                <div id="attendanceEditMessage" class="message"></div>
                 <div id="attendanceEditList" class="attendance-list"></div>
                 <div class="panel-actions">
                     <button id="saveAttendanceEditBtn" class="primary-btn" type="button">Save Corrections</button>
                     <button id="cancelAttendanceEditBtn" class="secondary-btn" type="button">Cancel</button>
+                    <div id="attendanceEditMessage" class="message" role="status" aria-live="polite"></div>
                 </div>
                 <details class="audit-panel">
                     <summary>Attendance change history</summary>
@@ -470,7 +473,7 @@
          COURSE JAVASCRIPT
     ========================= -->
 
-    <script src="/course.js?v=20260822-8"></script>
+    <script src="/course.js?v=20260823-2"></script>
 
 </body>
 

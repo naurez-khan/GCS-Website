@@ -416,6 +416,67 @@ body {
 .settings-fixed-assessments span { font-weight: 800; }
 .settings-fixed-assessments strong { color: #8f111a; font-size: 13px; text-align: right; }
 
+.settings-roll-editor {
+    margin-top: 22px;
+    padding: 18px;
+    border: 1px solid rgba(162, 12, 22, 0.16);
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.48);
+}
+
+.settings-roll-heading {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 14px;
+}
+
+.settings-roll-heading h3 { margin: 0 0 5px; color: #7e0d16; }
+.settings-roll-heading p { margin: 0; color: #74676a; }
+
+.settings-roll-rows { display: grid; gap: 10px; margin: 12px 0 16px; }
+
+.settings-roll-row {
+    display: grid;
+    grid-template-columns: minmax(150px, .65fr) minmax(180px, 1fr) auto;
+    gap: 12px;
+    align-items: end;
+    padding: 12px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.7);
+}
+
+.settings-roll-row label { display: grid; gap: 6px; font-weight: 700; }
+.settings-roll-row input {
+    width: 100%;
+    padding: 10px 11px;
+    border: 1px solid rgba(162, 12, 22, 0.22);
+    border-radius: 8px;
+    font: inherit;
+}
+
+.settings-roll-row .roll-name-field[hidden] { display: none; }
+
+.settings-roll-save {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.settings-roll-save .message { flex: 1 1 260px; margin: 0; }
+.remove-settings-student { color: #a20c16; border-color: rgba(162, 12, 22, 0.35); }
+.panel-actions .message,
+.attendance-actions .message,
+.marks-actions .message { flex: 1 1 260px; margin: 0; }
+
+@media (max-width: 700px) {
+    .settings-roll-heading { flex-direction: column; }
+    .settings-roll-row { grid-template-columns: 1fr; }
+    .settings-roll-save > * { width: 100%; }
+}
+
 .settings-monthly-test-row {
     display: grid;
     grid-template-columns: minmax(0,1fr) minmax(0,1fr) auto;

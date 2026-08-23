@@ -177,10 +177,6 @@ function displayCourses(courses) {
         const section =
             course.section || "N/A";
 
-        const rollNumberSummary =
-            formatRollNumberSummary(course);
-
-
         const infoItems = [];
 
         infoItems.push(`
@@ -260,19 +256,6 @@ function displayCourses(courses) {
             `);
 
         }
-
-
-        // =========================
-        // ROLL NUMBERS
-        // ALWAYS REQUIRED
-        // =========================
-
-        infoItems.push(`
-            <div>
-                <strong>Roll Numbers:</strong>
-                ${escapeHtml(rollNumberSummary)}
-            </div>
-        `);
 
 
         // =========================
@@ -1231,9 +1214,9 @@ function showAddCourseForm() {
                     <div id="monthlyTestRows" class="monthly-test-rows"></div>
                     <button type="button" id="addMonthlyTestBtn" class="add-roll-range-btn">+ Add Month</button>
                 </div>
-                <div class="fixed-intermediate-assessments" aria-label="Permanent Intermediate assessments">
-                    <div><span>December Test</span><strong>Permanent · 100 marks</strong></div>
-                    <div><span>Preboard</span><strong>Permanent · 100 marks</strong></div>
+                <div class="fixed-intermediate-assessments" aria-label="Intermediate assessments">
+                    <div><span>December Test</span><strong>100 marks</strong></div>
+                    <div><span>Preboard</span><strong>100 marks</strong></div>
                 </div>
             </div>
 

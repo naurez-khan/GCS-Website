@@ -8,7 +8,9 @@ const {
     viewTeacherDashboard,
     stopViewingTeacher,
     setTeacherStatus,
-    setAdminStatus
+    setAdminStatus,
+    getTransferableCourses,
+    transferCourse
 } = require("../controllers/adminController");
 
 const {
@@ -44,6 +46,8 @@ router.post("/teachers/:teacherId/view", authenticate, adminOnly, viewTeacherDas
 router.post("/stop-viewing-teacher", authenticate, adminOnly, stopViewingTeacher);
 router.patch("/teachers/:teacherId/status", authenticate, adminOnly, setTeacherStatus);
 router.patch("/admins/:adminId/status", authenticate, adminOnly, setAdminStatus);
+router.get("/courses", authenticate, adminOnly, getTransferableCourses);
+router.patch("/courses/:courseId/transfer", authenticate, adminOnly, transferCourse);
 
 
 module.exports = router;
