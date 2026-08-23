@@ -798,7 +798,7 @@ function renderAttendanceList() {
     attendanceList.innerHTML = "";
 
 
-    students.forEach(student => {
+    students.forEach((student, index) => {
 
         const row =
             document.createElement("div");
@@ -897,6 +897,18 @@ function renderAttendanceList() {
 
 
         attendanceList.appendChild(row);
+
+        const completedCount = index + 1;
+        if (
+            currentCourse?.class_type === "intermediate" &&
+            completedCount % 25 === 0 &&
+            completedCount < students.length
+        ) {
+            const marker = document.createElement("div");
+            marker.className = "attendance-count-marker";
+            marker.innerHTML = `<span>${completedCount} students</span>`;
+            attendanceList.appendChild(marker);
+        }
 
     });
 
@@ -1051,10 +1063,20 @@ async function saveAttendance() {
         }
 
 
-        showAttendanceMessage(
-            `Attendance marked successfully! Present: ${data.presentStudents}, Absent: ${data.absentStudents}`,
-            "success"
-        );
+        showAttendanceMessage("Attendance saved successfully.", "success");
+
+        const presentTotal = Number(data.presentStudents) || 0;
+        const absentTotal = Number(data.absentStudents) || 0;
+        const savedSummary = document.getElementById("attendanceSavedSummary");
+        if (savedSummary) {
+            savedSummary.innerHTML = `
+                <h3>Attendance Total</h3>
+                <div><strong>${presentTotal + absentTotal}</strong><span>Total Students</span></div>
+                <div class="present-total"><strong>${presentTotal}</strong><span>Present</span></div>
+                <div class="absent-total"><strong>${absentTotal}</strong><span>Absent</span></div>`;
+            savedSummary.classList.remove("hidden");
+            savedSummary.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        }
 
 
         loadAttendanceHistory();
