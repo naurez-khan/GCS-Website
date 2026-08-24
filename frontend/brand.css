@@ -1,3 +1,32 @@
+@font-face {
+    font-family: "Poppins";
+    src: url("/assets/fonts/poppins/poppins-latin-400-normal.woff2") format("woff2");
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+}
+@font-face {
+    font-family: "Poppins";
+    src: url("/assets/fonts/poppins/poppins-latin-500-normal.woff2") format("woff2");
+    font-style: normal;
+    font-weight: 500;
+    font-display: swap;
+}
+@font-face {
+    font-family: "Poppins";
+    src: url("/assets/fonts/poppins/poppins-latin-600-normal.woff2") format("woff2");
+    font-style: normal;
+    font-weight: 600;
+    font-display: swap;
+}
+@font-face {
+    font-family: "Poppins";
+    src: url("/assets/fonts/poppins/poppins-latin-700-normal.woff2") format("woff2");
+    font-style: normal;
+    font-weight: 700;
+    font-display: swap;
+}
+
 :root {
     --brand: #c8101a;
     --brand-dark: #8e0b12;
@@ -23,7 +52,7 @@ body {
         radial-gradient(circle at 8% 4%, rgba(200, 16, 26, .08), transparent 28rem),
         radial-gradient(circle at 96% 88%, rgba(201, 146, 46, .08), transparent 24rem),
         #f8f5f3;
-    font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-family: "Poppins", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
 a { color: var(--brand-dark); }
@@ -74,6 +103,31 @@ button,
 input,
 select,
 textarea { font: inherit; }
+
+.has-ui-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: .5rem;
+}
+
+.ui-heroicon {
+    display: inline-block;
+    width: 1.18em;
+    height: 1.18em;
+    flex: 0 0 1.18em;
+    background-color: currentColor;
+    -webkit-mask: var(--ui-icon-url) center / contain no-repeat;
+    mask: var(--ui-icon-url) center / contain no-repeat;
+    pointer-events: none;
+}
+
+button:not(.excel-btn):not(.excel-button) .ui-heroicon.excel-icon,
+a:not(.excel-btn):not(.excel-button) .ui-heroicon.excel-icon {
+    color: #15803d;
+}
+
+.account-action .ui-heroicon { width: 1.05em; height: 1.05em; flex-basis: 1.05em; }
 
 button,
 .primary-btn,
@@ -973,6 +1027,11 @@ tbody tr:hover td {
         background-attachment: scroll;
         background-position: 62% center;
     }
+    .teacher-dashboard-page {
+        background: linear-gradient(to bottom, #F3F1F1 0, #F3F1F1 170px, #fff 300px) !important;
+        background-image: linear-gradient(to bottom, #F3F1F1 0, #F3F1F1 170px, #fff 300px) !important;
+        background-attachment: scroll;
+    }
     .portal-bar,
     .topbar {
         min-height: 72px;
@@ -985,18 +1044,125 @@ tbody tr:hover td {
     }
     .teacher-dashboard-page .topbar {
         flex-wrap: wrap;
+        position: relative;
+        top: auto;
+        gap: 8px;
+        padding: 12px 14px;
+        background: #F3F1F1;
+        border: 0;
+        box-shadow: none;
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+    }
+    .teacher-dashboard-page .topbar::after {
+        display: none;
+    }
+    .teacher-dashboard-page .brand-lockup {
+        width: 100%;
+        justify-content: center;
+    }
+    .teacher-dashboard-page .brand-logo {
+        width: 58px;
+        height: 58px;
+        flex-basis: 58px;
+    }
+    .teacher-dashboard-page .brand-copy strong {
+        font-size: 18px;
     }
     .teacher-dashboard-page .teacher-info {
         width: 100%;
         flex: 0 0 100%;
-        justify-content: flex-end;
+        display: grid;
+        grid-template-columns: 42px auto;
+        justify-content: center;
+        align-items: center;
+        gap: 8px;
     }
     .teacher-dashboard-page #teacherName {
-        width: 100%;
-        text-align: right;
+        display: none;
     }
     .teacher-dashboard-page .change-password-btn {
-        margin-right: auto;
+        margin-right: 0;
+        order: 1;
+        width: 42px;
+        height: 42px;
+        min-width: 42px;
+        padding: 0 !important;
+        border-radius: 12px;
+    }
+    .teacher-dashboard-page .password-button-label {
+        display: none;
+    }
+    .teacher-dashboard-page #logoutBtn {
+        order: 2;
+        min-height: 42px;
+        padding: 0 14px;
+        border-radius: 10px;
+        font-size: 14px;
+        white-space: nowrap;
+    }
+    .teacher-dashboard-page .return-admin-btn:not([hidden]) {
+        grid-column: 1 / -1;
+        order: 3;
+        justify-self: center;
+    }
+    body {
+        background: linear-gradient(to bottom, #F3F1F1 0, #F3F1F1 170px, #fff 300px) !important;
+        background-image: linear-gradient(to bottom, #F3F1F1 0, #F3F1F1 170px, #fff 300px) !important;
+        background-attachment: scroll;
+    }
+    .portal-bar,
+    .topbar {
+        min-height: auto;
+        position: relative;
+        top: auto;
+        flex-wrap: wrap;
+        gap: 8px;
+        padding: 12px 14px;
+        background: #F3F1F1;
+        border: 0;
+        box-shadow: none;
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+    }
+    .portal-bar::after,
+    .topbar::after {
+        display: none;
+    }
+    .portal-bar .brand-lockup,
+    .topbar .brand-lockup {
+        width: 100%;
+        justify-content: center;
+    }
+    .portal-bar .brand-logo,
+    .topbar .brand-logo {
+        width: 58px;
+        height: 58px;
+        flex-basis: 58px;
+    }
+    .portal-bar .brand-copy strong,
+    .topbar .brand-copy strong {
+        font-size: 18px;
+    }
+    .portal-bar .bar-actions,
+    .topbar .teacher-info {
+        width: 100%;
+        flex: 0 0 100%;
+        justify-content: center;
+        align-items: center;
+        gap: 8px;
+    }
+    .portal-bar #adminName,
+    .topbar #teacherName {
+        display: none;
+    }
+    .portal-bar .bar-actions > button,
+    .topbar .teacher-info > button {
+        min-height: 42px;
+        padding: 0 14px;
+        border-radius: 10px;
+        font-size: 14px;
+        white-space: nowrap;
     }
     .portal-main,
     .container {
