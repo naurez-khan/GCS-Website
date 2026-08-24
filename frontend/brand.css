@@ -1229,3 +1229,77 @@ tbody tr:hover td {
     .attendance-editor,
     .password-panel { animation: none; }
 }
+
+/* Purposeful interface motion */
+.gold-line-reveal::after {
+    transform-origin: left center;
+    animation: goldLineReveal .46s cubic-bezier(.2, .8, .25, 1) both;
+}
+
+.class-card-enter {
+    animation: classCardEnter .42s cubic-bezier(.2, .78, .28, 1) both;
+    animation-delay: var(--class-card-delay, 0ms);
+}
+
+body.course-workflow main.container {
+    animation: coursePageEnterFromRight .28s cubic-bezier(.2, .8, .25, 1) both;
+}
+
+body.course-page-exit-left main.container {
+    pointer-events: none;
+    animation: coursePageExitLeft .23s ease-in both;
+}
+
+button.is-loading {
+    cursor: wait !important;
+}
+
+button.is-loading > .ui-heroicon {
+    display: none !important;
+}
+
+button.is-loading::before {
+    content: "";
+    width: 17px;
+    height: 17px;
+    flex: 0 0 17px;
+    border: 2px solid currentColor;
+    border-right-color: transparent;
+    border-radius: 50%;
+    animation: buttonSpinner .7s linear infinite;
+}
+
+@keyframes goldLineReveal {
+    from { opacity: .35; transform: scaleX(0); }
+    to { opacity: 1; transform: scaleX(1); }
+}
+
+@keyframes classCardEnter {
+    from { opacity: 0; transform: translateY(14px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes coursePageEnterFromRight {
+    from { opacity: 0; transform: translateX(38px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes coursePageExitLeft {
+    from { opacity: 1; transform: translateX(0); }
+    to { opacity: 0; transform: translateX(-38px); }
+}
+
+@keyframes buttonSpinner {
+    to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .gold-line-reveal::after,
+    .class-card-enter,
+    body.course-workflow main.container,
+    body.course-page-exit-left main.container,
+    button.is-loading::before,
+    .attendance-status-btn.status-icon-pop::before {
+        animation: none !important;
+    }
+}

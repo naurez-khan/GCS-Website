@@ -17,7 +17,7 @@
         if (text.includes("mark leave") || text.includes("save leave")) return "calendar-days";
         if (text.includes("marks") || text.includes("results")) return "chart-bar";
         if (text.includes("import") || text.includes("upload")) return "arrow-up-tray";
-        if (text.includes("excel") || className.includes("excel")) return "table-cells";
+        if (text.includes("excel") || className.includes("excel")) return null;
         if (text.includes("download") || text.includes("export")) return "document-arrow-down";
         if (text.includes("restore")) return "arrow-path";
         if (text.includes("publish")) return "eye";
@@ -38,6 +38,9 @@
         const elements = root.matches?.(selector) ? [root] : root.querySelectorAll?.(selector) || [];
 
         elements.forEach((element) => {
+            if (element.dataset.heroiconApplied === "true" && !element.querySelector(":scope > .ui-heroicon")) {
+                delete element.dataset.heroiconApplied;
+            }
             if (element.dataset.heroiconApplied === "true") return;
             const icon = iconForText(element);
             if (!icon) return;
@@ -53,13 +56,70 @@
         });
     };
 
+    const headingSelector = [
+        ".section-title h2", ".section-header h2", ".panel-heading h2",
+        ".password-panel-heading h2", ".welcome h1", ".course-header h1",
+        ".hero-copy h1", ".hero-panel > h1", ".login-card h1",
+        ".panel > h1", ".panel > h2", ".course-card h3", ".form-header h2",
+        ".settings-group h3", ".attendance-editor-header h3", ".audit-panel h3",
+        ".result-heading h2"
+    ].join(",");
+
+    const revealHeadings = (root = document, restart = false) => {
+        const headings = root.matches?.(headingSelector) ? [root] : root.querySelectorAll?.(headingSelector) || [];
+        headings.forEach((heading) => {
+            if (restart) {
+                heading.classList.remove("gold-line-reveal");
+                void heading.offsetWidth;
+            }
+            heading.classList.add("gold-line-reveal");
+        });
+    };
+
+    const syncLoadingButton = (button) => {
+        if (!(button instanceof HTMLButtonElement)) return;
+        const label = button.textContent.replace(/\s+/g, " ").trim();
+        const loading = /^(saving|preparing|uploading|importing|updating|creating|transferring)/i.test(label);
+        button.classList.toggle("is-loading", loading);
+    };
+
+    const refreshElement = (node) => {
+        const element = node.nodeType === Node.ELEMENT_NODE ? node : node.parentElement;
+        if (!element) return;
+        decorate(element);
+        if (element.matches?.("button")) syncLoadingButton(element);
+        element.querySelectorAll?.("button").forEach(syncLoadingButton);
+    };
+
     const start = () => {
         decorate(document);
+        revealHeadings(document);
+        document.querySelectorAll("button").forEach(syncLoadingButton);
         new MutationObserver((mutations) => {
-            mutations.forEach((mutation) => mutation.addedNodes.forEach((node) => {
-                if (node.nodeType === Node.ELEMENT_NODE) decorate(node);
-            }));
-        }).observe(document.body, { childList: true, subtree: true });
+            mutations.forEach((mutation) => {
+                refreshElement(mutation.target);
+                mutation.addedNodes.forEach((node) => {
+                    refreshElement(node);
+                    if (node.nodeType === Node.ELEMENT_NODE) revealHeadings(node);
+                });
+                if (
+                    mutation.type === "attributes" &&
+                    mutation.attributeName === "class" &&
+                    String(mutation.oldValue || "").split(/\s+/).includes("hidden") &&
+                    mutation.target instanceof HTMLElement &&
+                    !mutation.target.classList.contains("hidden")
+                ) {
+                    revealHeadings(mutation.target, true);
+                }
+            });
+        }).observe(document.body, {
+            childList: true,
+            characterData: true,
+            attributes: true,
+            attributeOldValue: true,
+            attributeFilter: ["class", "disabled"],
+            subtree: true
+        });
     };
 
     if (document.readyState === "loading") {

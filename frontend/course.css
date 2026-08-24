@@ -1644,3 +1644,56 @@ body {
     .leave-form h3 { font-size: 22px; }
     .leave-form-actions { grid-template-columns: 1fr; }
 }
+
+/* Attendance status motion */
+.attendance-status-btn {
+    transition:
+        background-color .24s ease,
+        color .24s ease,
+        box-shadow .24s ease,
+        transform .16s ease;
+}
+
+.attendance-status-btn::before {
+    content: "";
+    display: inline-block;
+    width: 18px;
+    height: 18px;
+    margin-right: 7px;
+    vertical-align: -4px;
+    background: currentColor;
+    -webkit-mask: var(--attendance-status-icon) center / contain no-repeat;
+    mask: var(--attendance-status-icon) center / contain no-repeat;
+    transform-origin: center;
+}
+
+.attendance-status-btn.present {
+    --attendance-status-icon: url("/assets/heroicons/check.svg");
+}
+
+.attendance-status-btn.absent {
+    --attendance-status-icon: url("/assets/heroicons/x-mark.svg");
+}
+
+.attendance-status-btn.leave {
+    --attendance-status-icon: url("/assets/heroicons/calendar-days.svg");
+}
+
+.attendance-status-btn.status-icon-pop::before {
+    animation: attendanceIconPop .3s cubic-bezier(.2, .9, .35, 1.35);
+}
+
+@keyframes attendanceIconPop {
+    0% {
+        opacity: .25;
+        transform: scale(.45) rotate(-10deg);
+    }
+    70% {
+        opacity: 1;
+        transform: scale(1.18) rotate(2deg);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1) rotate(0);
+    }
+}

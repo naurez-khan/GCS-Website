@@ -153,13 +153,18 @@ function displayCourses(courses) {
     coursesContainer.innerHTML = "";
 
 
-    courses.forEach(course => {
+    courses.forEach((course, index) => {
 
         const card =
             document.createElement("div");
 
         card.className =
-            "course-card";
+            "course-card class-card-enter";
+
+        card.style.setProperty(
+            "--class-card-delay",
+            `${Math.min(index, 8) * 65}ms`
+        );
 
 
         const courseName =

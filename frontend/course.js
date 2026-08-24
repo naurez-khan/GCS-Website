@@ -17,6 +17,38 @@ const returnToCourseHub = () => {
     window.location.href = `/course.html?id=${encodeURIComponent(courseId || "")}`;
 };
 
+let courseNavigationPending = false;
+function navigateFromCourseHub(url) {
+    if (courseNavigationPending) return;
+
+    const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    if (coursePageAction !== "hub" || reduceMotion) {
+        window.location.href = url;
+        return;
+    }
+
+    courseNavigationPending = true;
+    document.body.classList.add("course-page-exit-left");
+    window.setTimeout(() => {
+        window.location.href = url;
+    }, 230);
+}
+
+function pulseAttendanceStatus(button) {
+    button.classList.remove("status-icon-pop");
+    void button.offsetWidth;
+    button.classList.add("status-icon-pop");
+}
+
+function setAttendanceButtonStatus(button, status, animate = true) {
+    button.dataset.status = status;
+    button.textContent = status === "present" ? "Present" : (status === "leave" ? "Leave" : "Absent");
+    button.classList.toggle("present", status === "present");
+    button.classList.toggle("absent", status === "absent");
+    button.classList.toggle("leave", status === "leave");
+    if (animate) pulseAttendanceStatus(button);
+}
+
 
 // =========================
 // ELEMENTS
@@ -750,7 +782,7 @@ if (attendanceBtn) {
         () => {
 
             if (coursePageAction !== "attendance") {
-                window.location.href = coursePageUrl("take-attendance");
+                navigateFromCourseHub(coursePageUrl("take-attendance"));
                 return;
             }
 
@@ -860,40 +892,7 @@ function renderAttendanceList() {
                 const isPresent =
                     button.dataset.status === "present";
 
-
-                if (isPresent) {
-
-                    button.dataset.status =
-                        "absent";
-
-                    button.textContent =
-                        "Absent";
-
-                    button.classList.remove(
-                        "present"
-                    );
-
-                    button.classList.add(
-                        "absent"
-                    );
-
-                } else {
-
-                    button.dataset.status =
-                        "present";
-
-                    button.textContent =
-                        "Present";
-
-                    button.classList.remove(
-                        "absent"
-                    );
-
-                    button.classList.add(
-                        "present"
-                    );
-
-                }
+                setAttendanceButtonStatus(button, isPresent ? "absent" : "present");
 
             }
         );
@@ -931,7 +930,7 @@ function displaySavedAttendanceTotals(presentTotal, absentTotal, leaveTotal = 0)
     summary.classList.remove("hidden");
 }
 
-function restoreTodayAttendanceSummary() {
+function restoreTodayAttendanceSummary(animateStudentId = null) {
     const summary = document.getElementById("attendanceSavedSummary");
     if (!summary) return;
     const todayRecords = currentAttendanceRecords.filter(record => record.attendance_date === getTodayDate());
@@ -943,11 +942,7 @@ function restoreTodayAttendanceSummary() {
     document.querySelectorAll(".attendance-status-btn").forEach(button => {
         const status = statusByStudent.get(Number(button.dataset.studentId));
         if (!status) return;
-        button.dataset.status = status;
-        button.textContent = status === "present" ? "Present" : (status === "leave" ? "Leave" : "Absent");
-        button.classList.toggle("present", status === "present");
-        button.classList.toggle("absent", status === "absent");
-        button.classList.toggle("leave", status === "leave");
+        setAttendanceButtonStatus(button, status, Number(button.dataset.studentId) === Number(animateStudentId));
     });
     const absentTotal = todayRecords.filter(record => record.status === "absent").length;
     const leaveTotal = todayRecords.filter(record => record.status === "leave").length;
@@ -1206,7 +1201,7 @@ if (marksBtn) {
         async () => {
 
             if (coursePageAction !== "marks") {
-                window.location.href = coursePageUrl("course-marks");
+                navigateFromCourseHub(coursePageUrl("course-marks"));
                 return;
             }
 
@@ -3834,7 +3829,7 @@ async function openClassSettings() {
 
 if (editClassBtn) editClassBtn.addEventListener("click", () => {
     if (coursePageAction === "edit") openClassSettings();
-    else window.location.href = coursePageUrl("edit-class");
+    else navigateFromCourseHub(coursePageUrl("edit-class"));
 });
 document.getElementById("cancelClassSettingsBtn")?.addEventListener("click", () => {
     if (coursePageAction === "edit") returnToCourseHub();
@@ -4122,11 +4117,7 @@ function renderAttendanceEditor() {
     document.querySelectorAll(".edit-attendance-status").forEach(button => button.addEventListener("click", () => {
         const statuses = ["present", "absent", "leave"];
         const next = statuses[(statuses.indexOf(button.dataset.status) + 1) % statuses.length];
-        button.dataset.status = next;
-        button.textContent = next === "present" ? "Present" : (next === "leave" ? "Leave" : "Absent");
-        button.classList.toggle("present", next === "present");
-        button.classList.toggle("absent", next === "absent");
-        button.classList.toggle("leave", next === "leave");
+        setAttendanceButtonStatus(button, next);
     }));
 }
 
@@ -4212,12 +4203,15 @@ document.getElementById("leaveStartDate")?.addEventListener("change", event => {
 studentLeaveForm?.addEventListener("submit", async event => {
     event.preventDefault();
     const submit = studentLeaveForm.querySelector("button[type='submit']");
+    const originalSubmitText = submit.textContent;
+    const leaveRollNumber = document.getElementById("leaveRollNumber").value.trim();
     submit.disabled = true;
+    submit.textContent = "Saving Leave…";
     try {
         const response = await fetch(`/api/attendance/course/${courseId}/leave`, {
             method: "POST", credentials: "include", headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-                roll_number: document.getElementById("leaveRollNumber").value.trim(),
+                roll_number: leaveRollNumber,
                 start_date: document.getElementById("leaveStartDate").value,
                 end_date: document.getElementById("leaveEndDate").value
             })
@@ -4226,11 +4220,13 @@ studentLeaveForm?.addEventListener("submit", async event => {
         if (!response.ok || !data.success) throw new Error(data.message || "Could not save student leave");
         setPanelMessage("leaveMessage", data.message, "success");
         await loadAttendanceHistory();
-        restoreTodayAttendanceSummary();
+        const leaveStudent = students.find(student => String(student.roll_number) === leaveRollNumber);
+        restoreTodayAttendanceSummary(leaveStudent?.id ?? null);
     } catch (error) {
         setPanelMessage("leaveMessage", error.message, "error");
     } finally {
         submit.disabled = false;
+        submit.textContent = originalSubmitText;
     }
 });
 // LOGOUT
@@ -4318,7 +4314,7 @@ async function initializeCoursePage() {
 }
 
 attendanceHistoryBtn?.addEventListener("click", () => {
-    window.location.href = coursePageUrl("attendance-history");
+    navigateFromCourseHub(coursePageUrl("attendance-history"));
 });
 
 downloadClassBackupBtn?.addEventListener("click", async () => {
