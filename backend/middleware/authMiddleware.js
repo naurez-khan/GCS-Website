@@ -78,23 +78,7 @@ const adminOnly = (req, res, next) => {
 const teacherOnly = async (req, res, next) => {
     if (req.user?.role === "teacher") return next();
 
-    let viewedTeacherId = Number(req.user?.acting_as_teacher_id);
-    if (req.user?.role === "admin" && (!Number.isInteger(viewedTeacherId) || viewedTeacherId < 1)) {
-        const pathParts = String(req.path || "").split("/").filter(Boolean);
-        const coursePathIndex = pathParts.indexOf("course");
-        const pathCourseId = coursePathIndex >= 0 ? pathParts[coursePathIndex + 1] : pathParts[0];
-        const courseId = Number(req.params?.courseId || req.body?.course_id || pathCourseId);
-        if (Number.isInteger(courseId) && courseId > 0) {
-            const courseOwner = await pool.query(
-                `SELECT u.id
-                 FROM courses c
-                 JOIN users u ON u.id = c.teacher_id
-                 WHERE c.id = $1 AND u.role = 'teacher' AND u.is_active = TRUE`,
-                [courseId]
-            );
-            viewedTeacherId = Number(courseOwner.rows[0]?.id);
-        }
-    }
+    const viewedTeacherId = Number(req.user?.acting_as_teacher_id);
     if (req.user?.role === "admin" && Number.isInteger(viewedTeacherId) && viewedTeacherId > 0) {
         const teacherResult = await pool.query(
             "SELECT id FROM users WHERE id = $1 AND role = 'teacher' AND is_active = TRUE",
