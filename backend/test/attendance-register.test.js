@@ -1,7 +1,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 
-const { buildMonthlyAttendanceRegister } = require("../../frontend/attendance-register");
+const { buildMonthlyAttendanceRegister, attendanceStatusColor } = require("../../frontend/attendance-register");
 
 const students = [
     { id: 1, roll_number: "101", name: "Student One" },
@@ -48,4 +48,35 @@ test("calculates current, brought-forward, and total attendance", () => {
     assert.equal(spec.lectureCounts.currentTheory, 2);
     assert.equal(spec.lectureCounts.broughtForwardTheory, 2);
     assert.equal(spec.lectureCounts.totalTheory, 4);
+});
+
+test("uses Intermediate class details in the printed header", () => {
+    const spec = buildMonthlyAttendanceRegister({ students, records, selectedMonth: "2026-08", course: { class_type: "intermediate", intermediate_year: "1st Year", section: "C1", name: "Algebra", course_code: "MTH-101" } });
+    assert.equal(spec.rows[0][0], "Class 1st Year");
+    assert.equal(spec.rows[0][6], "Section/Sem C1");
+    assert.equal(spec.rows[0][14], "Subject Mathematics");
+    assert.equal(spec.rows[0][23], "Paper ____________");
+});
+
+test("uses BS program and course details in the printed header", () => {
+    const spec = buildMonthlyAttendanceRegister({ students, records, selectedMonth: "2026-08", course: { class_type: "bachelors", program: "BS Mathematics", semester: "5", section: "A", name: "Graph Theory", course_code: "MATH-804" } });
+    assert.equal(spec.rows[0][0], "Class BS Mathematics");
+    assert.equal(spec.rows[0][6], "Section/Sem 5");
+
+test("uses distinct Excel font colors for attendance statuses", () => {
+    assert.equal(attendanceStatusColor("P"), "FF2563EB");
+    assert.equal(attendanceStatusColor("A"), "FFDC2626");
+    assert.equal(attendanceStatusColor("L"), "FF16A34A");
+    assert.equal(attendanceStatusColor(""), null);
+});
+    assert.equal(spec.rows[0][14], "Subject Graph Theory");
+    assert.equal(spec.rows[0][23], "Paper MATH-804");
+});
+
+test("counts leave as attended and marks it L in the register", () => {
+    const leaveRecords = [{ student_id: 1, attendance_date: "2026-08-03", status: "leave" }];
+    const spec = buildMonthlyAttendanceRegister({ students: [students[0]], records: leaveRecords, selectedMonth: "2026-08", course: { name: "Calculus" } });
+    assert.equal(spec.rows[6][spec.ranges.dailyStart + 2], "L");
+    assert.equal(spec.rows[6][spec.ranges.currentStart].v, 1);
+    assert.match(spec.rows[6][spec.ranges.currentStart].f, /COUNTIF\(.+,"L"\)/);
 });

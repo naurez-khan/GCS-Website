@@ -86,10 +86,15 @@
             .map(record => dateKey(record.attendance_date)));
 
         const rows = Array.from({ length: dataStart }, () => []);
-        rows[0][0] = `Class ${course.program || "________________"}`;
-        rows[0][6] = `Section/Sem ${[course.section, course.semester].filter(Boolean).join(" / ") || "____________"}`;
-        rows[0][14] = `Subject ${course.name || "________________"}`;
-        rows[0][23] = `Paper ${course.course_code || "____________"}`;
+        const isIntermediate = course.class_type === "intermediate";
+        const classValue = isIntermediate ? course.intermediate_year : course.program;
+        const sectionSemesterValue = isIntermediate ? course.section : course.semester;
+        const subjectValue = isIntermediate ? "Mathematics" : course.name;
+        const paperValue = isIntermediate ? "" : course.course_code;
+        rows[0][0] = `Class ${classValue || "________________"}`;
+        rows[0][6] = `Section/Sem ${sectionSemesterValue || "____________"}`;
+        rows[0][14] = `Subject ${subjectValue || "________________"}`;
+        rows[0][23] = `Paper ${paperValue || "____________"}`;
         rows[0][31] = `Month ${selectedMonthLabel}`;
         rows[0][39] = "LECTURES DELIVERED";
 
@@ -156,21 +161,21 @@
                 }
                 const key = `${selectedMonth}-${String(day).padStart(2, "0")}`;
                 const status = studentAttendance.get(key);
-                row[dailyStart + day - 1] = status === "present" ? "P" : (status === "absent" ? "A" : "");
+                row[dailyStart + day - 1] = status === "present" ? "P" : (status === "leave" ? "L" : (status === "absent" ? "A" : ""));
             }
             for (let column = practicalStart; column <= practicalEnd; column += 1) row[column] = "";
 
             const dayRange = `${columnName(dailyStart)}${excelRow}:${columnName(dailyEnd)}${excelRow}`;
             const currentPresent = [...studentAttendance.entries()]
-                .filter(([key, status]) => key.slice(0, 7) === selectedMonth && status === "present").length;
+                .filter(([key, status]) => key.slice(0, 7) === selectedMonth && (status === "present" || status === "leave")).length;
             const previousPresent = [...studentAttendance.entries()]
-                .filter(([key, status]) => key.slice(0, 7) < selectedMonth && status === "present").length;
+                .filter(([key, status]) => key.slice(0, 7) < selectedMonth && (status === "present" || status === "leave")).length;
             const totalPresent = currentPresent + previousPresent;
             const studentId = Number(student.id);
 
-            row[currentStart] = numericCell(currentPresent, `COUNTIF(${dayRange},"P")`);
+            row[currentStart] = numericCell(currentPresent, `COUNTIF(${dayRange},"P")+COUNTIF(${dayRange},"L")`);
             row[currentStart + 1] = "";
-            row[broughtForwardStart] = numericCell(previousPresent, `COUNTIFS(${rawIdRange},${studentId},${rawDateRange},"<"&${monthStartFormula},${rawStatusRange},"present")`);
+            row[broughtForwardStart] = numericCell(previousPresent, `COUNTIFS(${rawIdRange},${studentId},${rawDateRange},"<"&${monthStartFormula},${rawStatusRange},"present")+COUNTIFS(${rawIdRange},${studentId},${rawDateRange},"<"&${monthStartFormula},${rawStatusRange},"leave")`);
             row[broughtForwardStart + 1] = "";
             row[totalStart] = numericCell(totalPresent, `${columnName(currentStart)}${excelRow}+${columnName(broughtForwardStart)}${excelRow}`);
             row[totalStart + 1] = "";
@@ -246,5 +251,15 @@
         };
     }
 
-    return { buildMonthlyAttendanceRegister, columnName };
+    const attendanceStatusColors = Object.freeze({
+        P: "FF2563EB",
+        A: "FFDC2626",
+        L: "FF16A34A"
+    });
+
+    function attendanceStatusColor(value) {
+        return attendanceStatusColors[String(value || "").trim().toUpperCase()] || null;
+    }
+
+    return { buildMonthlyAttendanceRegister, columnName, attendanceStatusColor };
 }));

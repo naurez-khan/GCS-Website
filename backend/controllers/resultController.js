@@ -59,7 +59,7 @@ const getStudentResult = async (req, res) => {
             ),
             pool.query(
                 `SELECT COUNT(*)::INTEGER AS total,
-                        COUNT(*) FILTER (WHERE status = 'present')::INTEGER AS present
+                        COUNT(*) FILTER (WHERE status IN ('present', 'leave'))::INTEGER AS present
                  FROM attendance WHERE course_id = $1 AND student_id = $2`,
                 [student.course_id, student.id]
             )

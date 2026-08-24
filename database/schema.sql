@@ -84,7 +84,7 @@ CREATE TABLE IF NOT EXISTS attendance (
     course_id INTEGER NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
     student_id INTEGER NOT NULL REFERENCES students(id) ON DELETE CASCADE,
     attendance_date DATE NOT NULL,
-    status VARCHAR(10) NOT NULL CHECK (status IN ('present', 'absent')),
+    status VARCHAR(10) NOT NULL CHECK (status IN ('present', 'absent', 'leave')),
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UNIQUE (course_id, student_id, attendance_date)
@@ -99,8 +99,8 @@ CREATE TABLE IF NOT EXISTS attendance_audit_logs (
     course_id INTEGER NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
     student_id INTEGER NOT NULL REFERENCES students(id) ON DELETE CASCADE,
     attendance_date DATE NOT NULL,
-    old_status VARCHAR(10) NOT NULL CHECK (old_status IN ('present', 'absent')),
-    new_status VARCHAR(10) NOT NULL CHECK (new_status IN ('present', 'absent')),
+    old_status VARCHAR(10) NOT NULL CHECK (old_status IN ('present', 'absent', 'leave')),
+    new_status VARCHAR(10) NOT NULL CHECK (new_status IN ('present', 'absent', 'leave')),
     changed_by INTEGER NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
     changed_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );

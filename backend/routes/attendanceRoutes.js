@@ -7,6 +7,7 @@ const {
     getAttendanceAudit
 } = require("../controllers/attendanceController");
 
+const { createStudentLeave } = require("../controllers/leaveController");
 const {
     authenticate,
     teacherOnly
@@ -36,6 +37,7 @@ router.get(
     getAttendance
 );
 
+router.post("/course/:courseId/leave", createStudentLeave);
 router.put("/course/:courseId/:date", updateAttendance);
 router.get("/course/:courseId/audit/log", getAttendanceAudit);
 

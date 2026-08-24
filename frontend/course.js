@@ -774,7 +774,7 @@ if (attendanceBtn) {
 
 
             attendanceDate.textContent =
-                today;
+                formatDateForDisplay(today);
 
 
             renderAttendanceList();
@@ -855,6 +855,8 @@ function renderAttendanceList() {
             "click",
             () => {
 
+                if (button.dataset.status === "leave") return;
+
                 const isPresent =
                     button.dataset.status === "present";
 
@@ -913,6 +915,43 @@ function renderAttendanceList() {
 
     });
 
+    restoreTodayAttendanceSummary();
+
+}
+
+function displaySavedAttendanceTotals(presentTotal, absentTotal, leaveTotal = 0) {
+    const summary = document.getElementById("attendanceSavedSummary");
+    if (!summary) return;
+    summary.innerHTML = `
+        <h3>Attendance Saved</h3>
+        <div><strong>${presentTotal + absentTotal + leaveTotal}</strong><span>Students</span></div>
+        <div class="present-total"><strong>${presentTotal}</strong><span>Present</span></div>
+        <div class="absent-total"><strong>${absentTotal}</strong><span>Absent</span></div>
+        <div class="leave-total"><strong>${leaveTotal}</strong><span>Leave</span></div>`;
+    summary.classList.remove("hidden");
+}
+
+function restoreTodayAttendanceSummary() {
+    const summary = document.getElementById("attendanceSavedSummary");
+    if (!summary) return;
+    const todayRecords = currentAttendanceRecords.filter(record => record.attendance_date === getTodayDate());
+    if (!todayRecords.length) {
+        summary.classList.add("hidden");
+        return;
+    }
+    const statusByStudent = new Map(todayRecords.map(record => [Number(record.student_id), record.status]));
+    document.querySelectorAll(".attendance-status-btn").forEach(button => {
+        const status = statusByStudent.get(Number(button.dataset.studentId));
+        if (!status) return;
+        button.dataset.status = status;
+        button.textContent = status === "present" ? "Present" : (status === "leave" ? "Leave" : "Absent");
+        button.classList.toggle("present", status === "present");
+        button.classList.toggle("absent", status === "absent");
+        button.classList.toggle("leave", status === "leave");
+    });
+    const absentTotal = todayRecords.filter(record => record.status === "absent").length;
+    const leaveTotal = todayRecords.filter(record => record.status === "leave").length;
+    displaySavedAttendanceTotals(todayRecords.length - absentTotal - leaveTotal, absentTotal, leaveTotal);
 }
 
 
@@ -1068,15 +1107,11 @@ async function saveAttendance() {
 
         const presentTotal = Number(data.presentStudents) || 0;
         const absentTotal = Number(data.absentStudents) || 0;
+        const leaveTotal = Number(data.leaveStudents) || 0;
+        displaySavedAttendanceTotals(presentTotal, absentTotal, leaveTotal);
         const savedSummary = document.getElementById("attendanceSavedSummary");
         if (savedSummary) {
-            savedSummary.innerHTML = `
-                <h3>Attendance Total</h3>
-                <div><strong>${presentTotal + absentTotal}</strong><span>Total Students</span></div>
-                <div class="present-total"><strong>${presentTotal}</strong><span>Present</span></div>
-                <div class="absent-total"><strong>${absentTotal}</strong><span>Absent</span></div>`;
-            savedSummary.classList.remove("hidden");
-            savedSummary.scrollIntoView({ behavior: "smooth", block: "nearest" });
+            savedSummary.scrollIntoView({ behavior: "smooth", block: "start" });
         }
 
 
@@ -2337,6 +2372,8 @@ async function loadAttendanceHistory() {
 
         syncAttendanceExportMonth();
 
+        restoreTodayAttendanceSummary();
+
 
         displayAttendanceSummary(
             data.attendance || []
@@ -2423,7 +2460,7 @@ function displayAttendanceSummary(
         studentStats[key].total += 1;
 
 
-        if (record.status === "present") {
+        if (record.status === "present" || record.status === "leave") {
 
             studentStats[key].present += 1;
 
@@ -3208,6 +3245,11 @@ function downloadAttendanceExcel() {
                     present++;
 
                 } else if (status === "absent") {
+                } else if (status === "leave") {
+
+                    row.push("L");
+                    present++;
+
 
                     row.push("A");
 
@@ -3346,6 +3388,12 @@ function getTodayDate() {
 
 }
 
+function formatDateForDisplay(dateValue) {
+    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(dateValue || ""));
+    if (!match) return String(dateValue || "");
+    return `${match[3]}-${match[2]}-${match[1]}`;
+}
+
 
 // =========================
 // HTML ESCAPE
@@ -3439,6 +3487,20 @@ function applyAttendanceRegisterStyles(worksheet, spec) {
 
     for (let row = 1; row <= 4; row += 1) {
         for (let col = 1; col <= spec.ranges.lastColumn + 1; col += 1) {
+    for (let row = spec.ranges.dataStart + 1; row <= spec.ranges.dataEnd + 1; row += 1) {
+        for (let column = spec.ranges.dailyStart + 1; column <= spec.ranges.dailyEnd + 1; column += 1) {
+            const cell = worksheet.getCell(row, column);
+            const color = AttendanceRegister.attendanceStatusColor(cell.value);
+            if (!color) continue;
+            cell.font = {
+                name: "Arial Narrow",
+                size: 9,
+                bold: true,
+                color: { argb: color }
+            };
+        }
+    }
+
             worksheet.getCell(row, col).font = { name: "Arial Narrow", size: row === 1 ? 10 : 9, bold: row === 1 };
             worksheet.getCell(row, col).alignment = { horizontal: "left", vertical: "middle", wrapText: true };
         }
@@ -4055,14 +4117,16 @@ function renderAttendanceEditor() {
         <div class="attendance-row">
             <div class="roll-number">${escapeHtml(record.roll_number)}</div>
             <div class="student-name">${escapeHtml(record.student_name || `Student ${record.roll_number}`)}</div>
-            <button type="button" class="attendance-status-btn edit-attendance-status ${record.status}" data-student-id="${record.student_id}" data-status="${record.status}">${record.status === "present" ? "Present" : "Absent"}</button>
+            <button type="button" class="attendance-status-btn edit-attendance-status ${record.status}" data-student-id="${record.student_id}" data-status="${record.status}">${record.status === "present" ? "Present" : (record.status === "leave" ? "Leave" : "Absent")}</button>
         </div>`).join("");
     document.querySelectorAll(".edit-attendance-status").forEach(button => button.addEventListener("click", () => {
-        const next = button.dataset.status === "present" ? "absent" : "present";
+        const statuses = ["present", "absent", "leave"];
+        const next = statuses[(statuses.indexOf(button.dataset.status) + 1) % statuses.length];
         button.dataset.status = next;
-        button.textContent = next === "present" ? "Present" : "Absent";
+        button.textContent = next === "present" ? "Present" : (next === "leave" ? "Leave" : "Absent");
         button.classList.toggle("present", next === "present");
         button.classList.toggle("absent", next === "absent");
+        button.classList.toggle("leave", next === "leave");
     }));
 }
 
@@ -4098,13 +4162,13 @@ document.getElementById("cancelAttendanceEditBtn")?.addEventListener("click", ()
 document.getElementById("saveAttendanceEditBtn")?.addEventListener("click", async () => {
     const button = document.getElementById("saveAttendanceEditBtn");
     const date = document.getElementById("attendanceEditDate").value;
-    const absentStudentIds = [...document.querySelectorAll(".edit-attendance-status")]
-        .filter(item => item.dataset.status === "absent").map(item => Number(item.dataset.studentId));
+    const studentStatuses = [...document.querySelectorAll(".edit-attendance-status")]
+        .map(item => ({ student_id: Number(item.dataset.studentId), status: item.dataset.status }));
     button.disabled = true;
     try {
         const response = await fetch(`/api/attendance/course/${courseId}/${date}`, {
             method: "PUT", credentials: "include", headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ absentStudentIds })
+            body: JSON.stringify({ studentStatuses })
         });
         const data = await response.json();
         if (!response.ok || !data.success) throw new Error(data.message || "Could not update attendance");
@@ -4121,6 +4185,49 @@ document.getElementById("saveAttendanceEditBtn")?.addEventListener("click", asyn
 
 
 // =========================
+
+// =========================
+// STUDENT LEAVE
+// =========================
+
+const studentLeaveForm = document.getElementById("studentLeaveForm");
+document.getElementById("openLeaveBtn")?.addEventListener("click", () => {
+    const today = getTodayDate();
+    document.getElementById("leaveStartDate").value = today;
+    document.getElementById("leaveEndDate").value = today;
+    studentLeaveForm.classList.remove("hidden");
+    studentLeaveForm.scrollIntoView({ behavior: "smooth", block: "center" });
+});
+document.getElementById("cancelLeaveBtn")?.addEventListener("click", () => studentLeaveForm.classList.add("hidden"));
+document.getElementById("leaveStartDate")?.addEventListener("change", event => {
+    const end = document.getElementById("leaveEndDate");
+    end.min = event.target.value;
+    if (!end.value || end.value < event.target.value) end.value = event.target.value;
+});
+studentLeaveForm?.addEventListener("submit", async event => {
+    event.preventDefault();
+    const submit = studentLeaveForm.querySelector("button[type='submit']");
+    submit.disabled = true;
+    try {
+        const response = await fetch(`/api/attendance/course/${courseId}/leave`, {
+            method: "POST", credentials: "include", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                roll_number: document.getElementById("leaveRollNumber").value.trim(),
+                start_date: document.getElementById("leaveStartDate").value,
+                end_date: document.getElementById("leaveEndDate").value
+            })
+        });
+        const data = await response.json();
+        if (!response.ok || !data.success) throw new Error(data.message || "Could not save student leave");
+        setPanelMessage("leaveMessage", data.message, "success");
+        await loadAttendanceHistory();
+        restoreTodayAttendanceSummary();
+    } catch (error) {
+        setPanelMessage("leaveMessage", error.message, "error");
+    } finally {
+        submit.disabled = false;
+    }
+});
 // LOGOUT
 // =========================
 
@@ -4195,7 +4302,7 @@ async function initializeCoursePage() {
     if (coursePageAction === "import") studentImportSection?.classList.remove("hidden");
     if (coursePageAction === "attendance" && currentCourse?.attendance_enabled !== false) {
         attendanceSection?.classList.remove("hidden");
-        attendanceDate.textContent = getTodayDate();
+        attendanceDate.textContent = formatDateForDisplay(getTodayDate());
         renderAttendanceList();
     }
     if (coursePageAction === "marks") {

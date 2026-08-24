@@ -16,7 +16,7 @@
 
     <link
         rel="stylesheet"
-        href="/course.css?v=20260823-1"
+        href="/course.css?v=20260824-5"
     >
     <link rel="stylesheet" href="/brand.css?v=20260815-12">
 
@@ -266,12 +266,31 @@
 
             </div>
 
+            <div id="attendanceSavedSummary" class="attendance-saved-summary hidden" aria-live="polite"></div>
+
 
             <div
                 id="attendanceList"
                 class="attendance-list"
             ></div>
 
+
+            <div class="leave-controls">
+                <button id="openLeaveBtn" class="leave-btn" type="button">Mark Leave</button>
+                <form id="studentLeaveForm" class="leave-form hidden">
+                    <h3>Mark Student Leave</h3>
+                    <label>Student Roll Number<input id="leaveRollNumber" required placeholder="e.g. 101"></label>
+                    <div class="leave-date-grid">
+                        <label>Leave From<input id="leaveStartDate" type="date" required></label>
+                        <label>Leave To<input id="leaveEndDate" type="date" required></label>
+                    </div>
+                    <div class="leave-form-actions">
+                        <button class="leave-btn" type="submit">Save Leave</button>
+                        <button id="cancelLeaveBtn" class="secondary-btn" type="button">Cancel</button>
+                    </div>
+                    <div id="leaveMessage" class="message" role="status" aria-live="polite"></div>
+                </form>
+            </div>
 
             <div class="attendance-actions">
 
@@ -296,7 +315,6 @@
 
             </div>
 
-            <div id="attendanceSavedSummary" class="attendance-saved-summary hidden" aria-live="polite"></div>
 
         </section>
 
@@ -476,14 +494,14 @@
 
     <script src="/vendor/xlsx.full.min.js"></script>
     <script src="/vendor/exceljs.min.js"></script>
-    <script src="/attendance-register.js?v=20260815-2"></script>
+    <script src="/attendance-register.js?v=20260824-1"></script>
 
 
     <!-- =========================
          COURSE JAVASCRIPT
     ========================= -->
 
-    <script src="/course.js?v=20260824-1"></script>
+    <script src="/course.js?v=20260824-5"></script>
 
 </body>
 

@@ -198,7 +198,7 @@ function displayCourses(courses) {
         // PROGRAM
         // =========================
 
-        if (course.program_enabled) {
+        if (course.program_enabled && course.class_type !== "intermediate") {
 
             infoItems.push(`
                 <div>

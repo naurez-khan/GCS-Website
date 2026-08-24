@@ -122,17 +122,16 @@ const markAttendance = async (req, res) => {
 
         const existingAttendance = await client.query(
             `
-            SELECT id
+            SELECT student_id, status
             FROM attendance
             WHERE course_id = $1
             AND attendance_date = $2
-            LIMIT 1
             `,
             [courseId, date]
         );
 
 
-        if (existingAttendance.rows.length > 0) {
+        if (existingAttendance.rows.some(record => record.status !== "leave")) {
 
             await client.query("ROLLBACK");
 
@@ -146,8 +145,11 @@ const markAttendance = async (req, res) => {
 
         // Insert attendance for every student
 
+        const leaveIds = new Set(existingAttendance.rows.filter(record => record.status === "leave").map(record => Number(record.student_id)));
+
         for (const student of students) {
 
+            if (leaveIds.has(Number(student.id))) continue;
             const status = absentIds.includes(student.id) ||
                            absentIds.includes(String(student.id))
                 ? "absent"
@@ -186,14 +188,16 @@ const markAttendance = async (req, res) => {
             absentIds.includes(String(student.id))
         ).length;
 
+        const leaveCount = leaveIds.size;
 
         res.status(201).json({
             success: true,
             message: "Attendance marked successfully",
             date: date,
             totalStudents: students.length,
-            presentStudents: students.length - absentCount,
-            absentStudents: absentCount
+            presentStudents: students.length - absentCount - leaveCount,
+            absentStudents: absentCount,
+            leaveStudents: leaveCount
         });
 
 
@@ -309,7 +313,12 @@ const updateAttendance = async (req, res) => {
             ? req.body.absentStudentIds.map(Number)
             : [];
 
-        if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || absentIds.some(id => !Number.isInteger(id))) {
+        const requestedStatuses = Array.isArray(req.body.studentStatuses) ? req.body.studentStatuses : [];
+        const statusMap = new Map(requestedStatuses.map(item => [Number(item.student_id), String(item.status || "")]));
+        const validStatuses = new Set(["present", "absent", "leave"]);
+        const invalidStatuses = [...statusMap.entries()].some(([id, status]) => !Number.isInteger(id) || !validStatuses.has(status));
+
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || absentIds.some(id => !Number.isInteger(id)) || invalidStatuses) {
             return res.status(400).json({ success: false, message: "A valid date and student list are required" });
         }
 
@@ -337,7 +346,7 @@ const updateAttendance = async (req, res) => {
         }
 
         const validIds = new Set(current.rows.map(row => Number(row.student_id)));
-        if (absentIds.some(id => !validIds.has(id))) {
+        if (absentIds.some(id => !validIds.has(id)) || [...statusMap.keys()].some(id => !validIds.has(id))) {
             await client.query("ROLLBACK");
             return res.status(400).json({ success: false, message: "One or more students are invalid for this class" });
         }
@@ -345,7 +354,7 @@ const updateAttendance = async (req, res) => {
         const absentSet = new Set(absentIds);
         let changed = 0;
         for (const record of current.rows) {
-            const newStatus = absentSet.has(Number(record.student_id)) ? "absent" : "present";
+            const newStatus = statusMap.size ? statusMap.get(Number(record.student_id)) : (absentSet.has(Number(record.student_id)) ? "absent" : "present");
             if (record.status === newStatus) continue;
             await client.query(
                 `INSERT INTO attendance_audit_logs

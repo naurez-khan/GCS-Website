@@ -1336,10 +1336,12 @@ body {
 
 .attendance-saved-summary {
     display: grid;
-    grid-template-columns: 1.2fr repeat(3, minmax(90px, 1fr));
+    grid-template-columns: 1.2fr repeat(4, minmax(82px, 1fr));
     gap: 12px;
     align-items: stretch;
     margin-top: 18px;
+    margin-bottom: 26px;
+    scroll-margin-top: 155px;
     padding: 16px;
     border: 1px solid rgba(162, 12, 22, .2);
     border-radius: 14px;
@@ -1357,7 +1359,7 @@ body {
 .attendance-saved-summary .absent-total { background: #fdeced; }
 
 @media (max-width: 700px) {
-    .attendance-saved-summary { grid-template-columns: repeat(3, 1fr); }
+    .attendance-saved-summary { grid-template-columns: repeat(2, 1fr); }
     .attendance-saved-summary h3 { grid-column: 1 / -1; }
 }
 
@@ -1570,4 +1572,67 @@ body {
     .panel-actions {
         grid-template-columns: 1fr;
     }
+}
+
+.leave-controls { margin-top: 22px; }
+.leave-btn { background: linear-gradient(135deg, #2563eb, #1d4ed8); color: #fff; border: 1px solid #1d4ed8; box-shadow: 0 8px 18px rgba(37, 99, 235, .2); }
+#openLeaveBtn { width: 100%; padding-left: 34px; padding-right: 34px; }
+.leave-btn:hover { background: linear-gradient(135deg, #1d4ed8, #1e40af); }
+.leave-form { display: grid; gap: 16px; margin-top: 14px; padding: 18px; border: 1px solid #bfdbfe; border-radius: 14px; background: rgba(239, 246, 255, .94); }
+.leave-form.hidden { display: none; }
+.leave-form h3 { margin: 0; color: #1e40af; }
+.leave-date-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.leave-form-actions { display: flex; gap: 10px; }
+.attendance-status-btn.leave, .attendance-status.leave { background: #dbeafe; color: #1d4ed8; }
+.attendance-saved-summary .leave-total { background: #dbeafe; }
+.attendance-saved-summary .leave-total strong { color: #1d4ed8; }
+@media (max-width: 600px) { .leave-date-grid { grid-template-columns: 1fr; } .leave-form-actions button { flex: 1; } }
+
+/* Add Class-style treatment for the opened Leave panel */
+.leave-form {
+    gap: 20px;
+    margin-top: 18px;
+    padding: 26px;
+    border: 1px solid rgba(167, 13, 24, .2);
+    border-radius: 18px;
+    background: rgba(255, 250, 248, .94);
+    box-shadow: 0 14px 34px rgba(83, 22, 27, .09);
+}
+.leave-form h3 {
+    position: relative;
+    margin: 0 0 12px;
+    padding-bottom: 14px;
+    color: #7f1017;
+    font-size: 25px;
+    line-height: 1.2;
+}
+.leave-form h3::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    width: 54px;
+    height: 4px;
+    border-radius: 999px;
+    background: #c99a35;
+}
+.leave-form label { display: grid; gap: 9px; color: #3b3032; font-size: 15px; font-weight: 750; }
+.leave-form input {
+    width: 100%;
+    min-height: 54px;
+    padding: 13px 16px;
+    border: 1px solid #dfc3c6;
+    border-radius: 14px;
+    background: rgba(255,255,255,.92);
+    color: #302628;
+    font: inherit;
+}
+.leave-form input:focus { outline: 3px solid rgba(167,13,24,.11); border-color: #a70d18; }
+.leave-date-grid { gap: 16px; }
+.leave-form-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 2px; }
+.leave-form-actions button { min-height: 54px; border-radius: 13px; }
+@media (max-width: 600px) {
+    .leave-form { padding: 22px 18px; }
+    .leave-form h3 { font-size: 22px; }
+    .leave-form-actions { grid-template-columns: 1fr; }
 }
