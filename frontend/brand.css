@@ -1028,9 +1028,13 @@ tbody tr:hover td {
         background-position: 62% center;
     }
     .teacher-dashboard-page {
-        background: linear-gradient(to bottom, #F3F1F1 0, #F3F1F1 170px, #fff 300px) !important;
-        background-image: linear-gradient(to bottom, #F3F1F1 0, #F3F1F1 170px, #fff 300px) !important;
+        background: #fff !important;
+        background-image: none !important;
         background-attachment: scroll;
+    }
+    .teacher-dashboard-page main.container {
+        background: #fff !important;
+        opacity: 1;
     }
     .portal-bar,
     .topbar {
@@ -1048,7 +1052,7 @@ tbody tr:hover td {
         top: auto;
         gap: 8px;
         padding: 12px 14px;
-        background: #F3F1F1;
+        background: transparent;
         border: 0;
         box-shadow: none;
         backdrop-filter: none;
@@ -1142,7 +1146,7 @@ tbody tr:hover td {
     }
     .portal-bar .brand-copy strong,
     .topbar .brand-copy strong {
-        font-size: 18px;
+        font-size: 16px;
     }
     .portal-bar .bar-actions,
     .topbar .teacher-info {
