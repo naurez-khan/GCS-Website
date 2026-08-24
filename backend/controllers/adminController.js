@@ -409,6 +409,40 @@ const setAdminStatus = async (req, res) => {
     }
 };
 
+const resetUserPassword = async (req, res) => {
+    try {
+        const userId = Number(req.params.userId);
+        const password = String(req.body.password || "");
+        if (!Number.isInteger(userId) || userId < 1) {
+            return res.status(400).json({ success: false, message: "Choose a valid account" });
+        }
+        if (password.length < 8 || password.length > 128) {
+            return res.status(400).json({ success: false, message: "Temporary password must be 8-128 characters" });
+        }
+
+        const target = await pool.query(
+            "SELECT id, name, email, role FROM users WHERE id=$1 AND role IN ('teacher','admin')",
+            [userId]
+        );
+        if (!target.rows.length) {
+            return res.status(404).json({ success: false, message: "Account not found" });
+        }
+
+        const passwordHash = await bcrypt.hash(password, 12);
+        await pool.query(
+            "UPDATE users SET password_hash=$1, updated_at=CURRENT_TIMESTAMP WHERE id=$2",
+            [passwordHash, userId]
+        );
+        res.json({
+            success: true,
+            message: `Password reset successfully for ${target.rows[0].name}. Their old password no longer works.`
+        });
+    } catch (error) {
+        console.error("Reset user password error:", error);
+        res.status(500).json({ success: false, message: "Server error" });
+    }
+};
+
 module.exports = {
     addTeacher,
     getTeachers,
@@ -419,5 +453,6 @@ module.exports = {
     setTeacherStatus,
     setAdminStatus,
     getTransferableCourses,
-    transferCourse
+    transferCourse,
+    resetUserPassword
 };

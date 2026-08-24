@@ -11,6 +11,9 @@ const transferClassForm = document.getElementById("transferClassForm");
 const transferFromTeacher = document.getElementById("transferFromTeacher");
 const transferCourse = document.getElementById("transferCourse");
 const transferToTeacher = document.getElementById("transferToTeacher");
+const resetPasswordForm = document.getElementById("resetPasswordForm");
+const resetPasswordAccount = document.getElementById("resetPasswordAccount");
+const resetPasswordMessage = document.getElementById("resetPasswordMessage");
 const teacherAccountPanel = document.getElementById("teacherAccountPanel");
 const teacherAccountSelect = document.getElementById("teacherAccountSelect");
 const confirmTeacherAccountBtn = document.getElementById("confirmTeacherAccountBtn");
@@ -116,6 +119,46 @@ async function loadTransferableCourses() {
         showMessage(transferMessage, error.message, "error");
     }
 }
+
+function updateResetPasswordAccounts() {
+    const accounts = [
+        ...currentTeachers.map(user => ({ ...user, accountType: "Teacher" })),
+        ...currentAdmins.map(user => ({ ...user, accountType: "Administrator" }))
+    ];
+    resetPasswordAccount.innerHTML = accounts.map(user =>
+        `<option value="${Number(user.id)}">${escapeHtml(user.accountType)}: ${escapeHtml(user.name)} — ${escapeHtml(user.email)}</option>`
+    ).join("");
+    document.getElementById("resetPasswordBtn").disabled = accounts.length === 0;
+}
+
+resetPasswordForm.addEventListener("submit", async event => {
+    event.preventDefault();
+    const userId = Number(resetPasswordAccount.value);
+    const password = document.getElementById("resetTemporaryPassword").value;
+    const confirmation = document.getElementById("resetTemporaryPasswordConfirm").value;
+    const account = [...currentTeachers, ...currentAdmins].find(user => Number(user.id) === userId);
+    if (!account) return showMessage(resetPasswordMessage, "Choose an account.", "error");
+    if (password.length < 8) return showMessage(resetPasswordMessage, "Temporary password must be at least 8 characters.", "error");
+    if (password !== confirmation) return showMessage(resetPasswordMessage, "The two passwords do not match.", "error");
+    if (!window.confirm(`Reset the password for ${account.name}? Their old password will immediately stop working.`)) return;
+
+    const button = document.getElementById("resetPasswordBtn");
+    button.disabled = true;
+    try {
+        const data = await api(`/api/admin/users/${userId}/password`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ password })
+        });
+        resetPasswordForm.reset();
+        updateResetPasswordAccounts();
+        showMessage(resetPasswordMessage, data.message, "success");
+    } catch (error) {
+        showMessage(resetPasswordMessage, error.message, "error");
+    } finally {
+        button.disabled = false;
+    }
+});
 
 transferFromTeacher.addEventListener("change", updateTransferChoices);
 transferClassForm.addEventListener("submit", async event => {
@@ -335,6 +378,7 @@ async function initializeAdminPage() {
         localStorage.removeItem("adminSession");
         document.getElementById("adminName").textContent = currentAdmin.name || "Administrator";
         await Promise.all([loadTeachers(), loadAdmins()]);
+        updateResetPasswordAccounts();
         await loadTransferableCourses();
     } catch (error) {
         if (!document.hidden) showMessage(message, error.message, "error");

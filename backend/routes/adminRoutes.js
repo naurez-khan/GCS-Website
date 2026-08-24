@@ -10,7 +10,8 @@ const {
     setTeacherStatus,
     setAdminStatus,
     getTransferableCourses,
-    transferCourse
+    transferCourse,
+    resetUserPassword
 } = require("../controllers/adminController");
 
 const {
@@ -48,6 +49,7 @@ router.patch("/teachers/:teacherId/status", authenticate, adminOnly, setTeacherS
 router.patch("/admins/:adminId/status", authenticate, adminOnly, setAdminStatus);
 router.get("/courses", authenticate, adminOnly, getTransferableCourses);
 router.patch("/courses/:courseId/transfer", authenticate, adminOnly, transferCourse);
+router.patch("/users/:userId/password", authenticate, adminOnly, resetUserPassword);
 
 
 module.exports = router;

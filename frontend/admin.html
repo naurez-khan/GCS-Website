@@ -34,6 +34,20 @@
         </section>
 
         <section class="panel">
+            <h2>Reset an account password</h2>
+            <p class="muted">Set a temporary password for a teacher or administrator. Their old password will immediately stop working.</p>
+            <form id="resetPasswordForm" autocomplete="off">
+                <label>Account<select id="resetPasswordAccount" required></select></label>
+                <label>Temporary password<input id="resetTemporaryPassword" type="password" minlength="8" maxlength="128" autocomplete="new-password" required></label>
+                <label>Confirm temporary password<input id="resetTemporaryPasswordConfirm" type="password" minlength="8" maxlength="128" autocomplete="new-password" required></label>
+                <div class="account-manager-actions">
+                    <button id="resetPasswordBtn" class="primary" type="submit">Reset Password</button>
+                    <div id="resetPasswordMessage" class="notice hidden" role="status" aria-live="polite"></div>
+                </div>
+            </form>
+        </section>
+
+        <section class="panel">
             <h2>Transfer a class</h2>
             <p class="muted">Move a complete class to another teacher. Students, attendance, marks, settings, and results remain unchanged.</p>
             <div id="transferMessage" class="notice hidden" role="status" aria-live="polite"></div>
@@ -114,6 +128,6 @@
             </div>
         </section>
     </main>
-    <script src="/admin.js?v=20260823-1"></script>
+    <script src="/admin.js?v=20260824-1"></script>
 </body>
 </html>
