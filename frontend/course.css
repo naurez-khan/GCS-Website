@@ -682,6 +682,10 @@ body {
     margin-top: 25px;
 }
 
+.attendance-actions > button {
+    flex: 1 1 0;
+}
+
 
 /* =========================
    MESSAGES
@@ -1576,7 +1580,7 @@ body {
 
 .leave-controls { margin-top: 22px; }
 .leave-btn { background: linear-gradient(135deg, #2563eb, #1d4ed8); color: #fff; border: 1px solid #1d4ed8; box-shadow: 0 8px 18px rgba(37, 99, 235, .2); }
-#openLeaveBtn { width: 100%; padding-left: 34px; padding-right: 34px; }
+#openLeaveBtn { padding-left: 34px; padding-right: 34px; }
 .leave-btn:hover { background: linear-gradient(135deg, #1d4ed8, #1e40af); }
 .leave-form { display: grid; gap: 16px; margin-top: 14px; padding: 18px; border: 1px solid #bfdbfe; border-radius: 14px; background: rgba(239, 246, 255, .94); }
 .leave-form.hidden { display: none; }
@@ -1586,7 +1590,11 @@ body {
 .attendance-status-btn.leave, .attendance-status.leave { background: #dbeafe; color: #1d4ed8; }
 .attendance-saved-summary .leave-total { background: #dbeafe; }
 .attendance-saved-summary .leave-total strong { color: #1d4ed8; }
-@media (max-width: 600px) { .leave-date-grid { grid-template-columns: 1fr; } .leave-form-actions button { flex: 1; } }
+@media (max-width: 600px) {
+    .leave-date-grid { grid-template-columns: 1fr; }
+    .leave-form-actions button { flex: 1; }
+    .attendance-actions #openLeaveBtn { order: -1; }
+}
 
 /* Add Class-style treatment for the opened Leave panel */
 .leave-form {
