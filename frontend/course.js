@@ -4191,14 +4191,19 @@ document.getElementById("saveAttendanceEditBtn")?.addEventListener("click", asyn
 // =========================
 
 const studentLeaveForm = document.getElementById("studentLeaveForm");
-document.getElementById("openLeaveBtn")?.addEventListener("click", () => {
+const openLeaveBtn = document.getElementById("openLeaveBtn");
+openLeaveBtn?.addEventListener("click", () => {
     const today = getTodayDate();
     document.getElementById("leaveStartDate").value = today;
     document.getElementById("leaveEndDate").value = today;
     studentLeaveForm.classList.remove("hidden");
+    openLeaveBtn.classList.add("hidden");
     studentLeaveForm.scrollIntoView({ behavior: "smooth", block: "center" });
 });
-document.getElementById("cancelLeaveBtn")?.addEventListener("click", () => studentLeaveForm.classList.add("hidden"));
+document.getElementById("cancelLeaveBtn")?.addEventListener("click", () => {
+    studentLeaveForm.classList.add("hidden");
+    openLeaveBtn?.classList.remove("hidden");
+});
 document.getElementById("leaveStartDate")?.addEventListener("change", event => {
     const end = document.getElementById("leaveEndDate");
     end.min = event.target.value;
