@@ -11,7 +11,8 @@ const {
     setAdminStatus,
     getTransferableCourses,
     transferCourse,
-    resetUserPassword
+    resetUserPassword,
+    restoreClassBackup
 } = require("../controllers/adminController");
 
 const {
@@ -50,6 +51,7 @@ router.patch("/admins/:adminId/status", authenticate, adminOnly, setAdminStatus)
 router.get("/courses", authenticate, adminOnly, getTransferableCourses);
 router.patch("/courses/:courseId/transfer", authenticate, adminOnly, transferCourse);
 router.patch("/users/:userId/password", authenticate, adminOnly, resetUserPassword);
+router.post("/backups/restore", authenticate, adminOnly, restoreClassBackup);
 
 
 module.exports = router;

@@ -69,13 +69,15 @@ CREATE TABLE IF NOT EXISTS students (
     final_marks NUMERIC(8,2) CHECK (final_marks IS NULL OR final_marks >= 0),
     december_test_marks NUMERIC(8,2) CHECK (december_test_marks IS NULL OR december_test_marks BETWEEN 0 AND 100),
     preboard_marks NUMERIC(8,2) CHECK (preboard_marks IS NULL OR preboard_marks BETWEEN 0 AND 100),
+    deleted_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE (course_id, roll_number)
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX IF NOT EXISTS students_course_idx ON students(course_id);
 CREATE INDEX IF NOT EXISTS students_roll_idx ON students(roll_number);
+CREATE UNIQUE INDEX IF NOT EXISTS students_course_roll_active_unique ON students(course_id, roll_number) WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS students_deleted_course_idx ON students(course_id, deleted_at);
 
 CREATE TABLE IF NOT EXISTS attendance (
     id SERIAL PRIMARY KEY,

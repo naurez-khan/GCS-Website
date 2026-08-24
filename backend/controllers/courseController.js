@@ -600,6 +600,7 @@ const getMyCourses = async (req, res) => {
                         SELECT student.roll_number
                         FROM students student
                         WHERE student.course_id = courses.id
+                        AND student.deleted_at IS NULL
                         ORDER BY student.roll_number::INTEGER
                     ) AS roll_numbers,
 
@@ -708,6 +709,7 @@ const getCourseStudents = async (
                         SELECT student.roll_number
                         FROM students student
                         WHERE student.course_id = courses.id
+                        AND student.deleted_at IS NULL
                         ORDER BY student.roll_number::INTEGER
                     ) AS roll_numbers,
 
@@ -776,6 +778,7 @@ const getCourseStudents = async (
                 FROM students
 
                 WHERE course_id = $1
+                AND deleted_at IS NULL
 
                 ORDER BY roll_number::INTEGER
                 `,
@@ -840,6 +843,7 @@ const updateStudent = async (req, res) => {
             `UPDATE students
              SET name = $1, updated_at = CURRENT_TIMESTAMP
              WHERE id = $2 AND course_id = $3
+               AND deleted_at IS NULL
                AND course_id IN (SELECT id FROM courses WHERE id = $3 AND teacher_id = $4)
              RETURNING id, roll_number, name, program, semester`,
             [name || null, studentId, courseId, req.user.id]
@@ -907,7 +911,7 @@ const updateCourseRollNumbers = async (req, res) => {
         }
         const course = courseResult.rows[0];
         const existingResult = await client.query(
-            "SELECT id, name FROM students WHERE course_id=$1 ORDER BY id FOR UPDATE",
+            "SELECT id, name FROM students WHERE course_id=$1 AND deleted_at IS NULL ORDER BY id FOR UPDATE",
             [courseId]
         );
         const existingById = new Map(existingResult.rows.map(student => [Number(student.id), student]));
@@ -927,7 +931,10 @@ const updateCourseRollNumbers = async (req, res) => {
         }
 
         if (removedStudentIds.length) {
-            await client.query("DELETE FROM students WHERE course_id=$1 AND id=ANY($2::int[])", [courseId, removedStudentIds]);
+            await client.query(
+                "UPDATE students SET deleted_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP WHERE course_id=$1 AND id=ANY($2::int[])",
+                [courseId, removedStudentIds]
+            );
         }
 
         // Free the final numeric values first so swaps such as 10 ↔ 11 stay safe.
@@ -962,15 +969,15 @@ const updateCourseRollNumbers = async (req, res) => {
 
         const updatedCourse = await client.query(
             `UPDATE courses SET
-                roll_start=(SELECT MIN(roll_number::INTEGER) FROM students WHERE course_id=$1),
-                roll_end=(SELECT MAX(roll_number::INTEGER) FROM students WHERE course_id=$1),
+                roll_start=(SELECT MIN(roll_number::INTEGER) FROM students WHERE course_id=$1 AND deleted_at IS NULL),
+                roll_end=(SELECT MAX(roll_number::INTEGER) FROM students WHERE course_id=$1 AND deleted_at IS NULL),
                 roll_entry_mode='manual', updated_at=CURRENT_TIMESTAMP
              WHERE id=$1 RETURNING *`,
             [courseId]
         );
         const updatedStudents = await client.query(
             `SELECT id, roll_number, name, program, semester
-             FROM students WHERE course_id=$1 ORDER BY roll_number::INTEGER`,
+             FROM students WHERE course_id=$1 AND deleted_at IS NULL ORDER BY roll_number::INTEGER`,
             [courseId]
         );
         await client.query("COMMIT");
@@ -992,6 +999,106 @@ const updateCourseRollNumbers = async (req, res) => {
         });
     } finally {
         client.release();
+    }
+};
+
+const getDeletedStudents = async (req, res) => {
+    try {
+        const courseId = Number(req.params.courseId);
+        const result = await pool.query(
+            `SELECT s.id, s.roll_number, s.name, s.deleted_at
+             FROM students s
+             JOIN courses c ON c.id=s.course_id
+             WHERE s.course_id=$1 AND c.teacher_id=$2 AND s.deleted_at IS NOT NULL
+             ORDER BY s.deleted_at DESC, s.roll_number::INTEGER`,
+            [courseId, req.user.id]
+        );
+        res.json({ success: true, students: result.rows });
+    } catch (error) {
+        console.error("Get deleted students error:", error);
+        res.status(500).json({ success: false, message: "Server error" });
+    }
+};
+
+const restoreStudent = async (req, res) => {
+    const client = await pool.connect();
+    try {
+        const courseId = Number(req.params.courseId);
+        const studentId = Number(req.params.studentId);
+        await client.query("BEGIN");
+        const studentResult = await client.query(
+            `SELECT s.id, s.roll_number, s.name
+             FROM students s JOIN courses c ON c.id=s.course_id
+             WHERE s.id=$1 AND s.course_id=$2 AND s.deleted_at IS NOT NULL AND c.teacher_id=$3
+             FOR UPDATE OF s`,
+            [studentId, courseId, req.user.id]
+        );
+        const student = studentResult.rows[0];
+        if (!student) {
+            await client.query("ROLLBACK");
+            return res.status(404).json({ success: false, message: "Removed student not found" });
+        }
+        const conflict = await client.query(
+            "SELECT id FROM students WHERE course_id=$1 AND roll_number=$2 AND deleted_at IS NULL",
+            [courseId, student.roll_number]
+        );
+        if (conflict.rows.length) {
+            await client.query("ROLLBACK");
+            return res.status(409).json({ success: false, message: `Roll number ${student.roll_number} is already used. Change the active roll number before restoring.` });
+        }
+        await client.query("UPDATE students SET deleted_at=NULL, updated_at=CURRENT_TIMESTAMP WHERE id=$1", [studentId]);
+        await client.query(
+            `UPDATE courses SET
+                roll_start=(SELECT MIN(roll_number::INTEGER) FROM students WHERE course_id=$1 AND deleted_at IS NULL),
+                roll_end=(SELECT MAX(roll_number::INTEGER) FROM students WHERE course_id=$1 AND deleted_at IS NULL),
+                updated_at=CURRENT_TIMESTAMP WHERE id=$1`,
+            [courseId]
+        );
+        await client.query("COMMIT");
+        res.json({ success: true, message: `Student ${student.roll_number} restored with attendance and marks.` });
+    } catch (error) {
+        await client.query("ROLLBACK");
+        console.error("Restore student error:", error);
+        res.status(500).json({ success: false, message: "Server error" });
+    } finally {
+        client.release();
+    }
+};
+
+const exportClassBackup = async (req, res) => {
+    try {
+        const courseId = Number(req.params.courseId);
+        const courseResult = await pool.query("SELECT * FROM courses WHERE id=$1 AND teacher_id=$2", [courseId, req.user.id]);
+        if (!courseResult.rows.length) return res.status(404).json({ success: false, message: "Course not found or access denied" });
+
+        const [studentsResult, attendanceResult, auditResult, assignmentsResult, quizzesResult, assignmentMarksResult, quizMarksResult] = await Promise.all([
+            pool.query("SELECT * FROM students WHERE course_id=$1 ORDER BY id", [courseId]),
+            pool.query("SELECT * FROM attendance WHERE course_id=$1 ORDER BY attendance_date, student_id", [courseId]),
+            pool.query("SELECT * FROM attendance_audit_logs WHERE course_id=$1 ORDER BY changed_at", [courseId]),
+            pool.query("SELECT * FROM assignments WHERE course_id=$1 ORDER BY id", [courseId]),
+            pool.query("SELECT * FROM quizzes WHERE course_id=$1 ORDER BY id", [courseId]),
+            pool.query("SELECT am.* FROM assignment_marks am JOIN assignments a ON a.id=am.assignment_id WHERE a.course_id=$1 ORDER BY am.id", [courseId]),
+            pool.query("SELECT qm.* FROM quiz_marks qm JOIN quizzes q ON q.id=qm.quiz_id WHERE q.course_id=$1 ORDER BY qm.id", [courseId])
+        ]);
+        const safeName = String(courseResult.rows[0].name || "class").replace(/[^a-z0-9_-]+/gi, "_");
+        const backup = {
+            format: "math-department-class-backup",
+            version: 1,
+            exported_at: new Date().toISOString(),
+            course: courseResult.rows[0],
+            students: studentsResult.rows,
+            attendance: attendanceResult.rows,
+            attendance_audit_logs: auditResult.rows,
+            assignments: assignmentsResult.rows,
+            quizzes: quizzesResult.rows,
+            assignment_marks: assignmentMarksResult.rows,
+            quiz_marks: quizMarksResult.rows
+        };
+        res.setHeader("Content-Disposition", `attachment; filename="${safeName}_backup.json"`);
+        res.type("application/json").send(JSON.stringify(backup, null, 2));
+    } catch (error) {
+        console.error("Export class backup error:", error);
+        res.status(500).json({ success: false, message: "Could not export class backup" });
     }
 };
 
@@ -1542,6 +1649,7 @@ const getCourseMarks = async (
                     preboard_marks
                 FROM students
                 WHERE course_id = $1
+                AND deleted_at IS NULL
                 ORDER BY roll_number::INTEGER
                 `,
                 [courseId]
@@ -1568,6 +1676,7 @@ const getCourseMarks = async (
                 INNER JOIN assignments a
                     ON a.id = am.assignment_id
                 WHERE a.course_id = $1
+                AND s.deleted_at IS NULL
                 AND a.assessment_type = 'assignment'
                 ORDER BY
                     a.assignment_number,
@@ -1597,6 +1706,7 @@ const getCourseMarks = async (
                 INNER JOIN quizzes q
                     ON q.id = qm.quiz_id
                 WHERE q.course_id = $1
+                AND s.deleted_at IS NULL
                 ORDER BY
                     q.quiz_number,
                     s.roll_number::INTEGER
@@ -1615,7 +1725,7 @@ const getCourseMarks = async (
              FROM assignment_marks am
              JOIN students s ON s.id = am.student_id
              JOIN assignments a ON a.id = am.assignment_id
-             WHERE a.course_id = $1 AND a.assessment_type = 'monthly_test'
+             WHERE a.course_id = $1 AND a.assessment_type = 'monthly_test' AND s.deleted_at IS NULL
              ORDER BY a.month_number, s.roll_number::INTEGER`,
             [courseId]
         );
@@ -1772,6 +1882,7 @@ const updateCourseMarks = async (
                     FROM assignments
                     WHERE id = $1
                     AND course_id = $2
+                    AND deleted_at IS NULL
                     `,
                     [
                         assignment_id,
@@ -1796,6 +1907,7 @@ const updateCourseMarks = async (
                     FROM students
                     WHERE id = $1
                     AND course_id = $2
+                    AND deleted_at IS NULL
                     `,
                     [
                         student_id,
@@ -1904,6 +2016,7 @@ const updateCourseMarks = async (
                     FROM quizzes
                     WHERE id = $1
                     AND course_id = $2
+                    AND deleted_at IS NULL
                     `,
                     [
                         quiz_id,
@@ -1928,6 +2041,7 @@ const updateCourseMarks = async (
                     FROM students
                     WHERE id = $1
                     AND course_id = $2
+                    AND deleted_at IS NULL
                     `,
                     [
                         student_id,
@@ -2595,11 +2709,11 @@ const updateCourseSettings = async (req, res) => {
         }
 
         if (midtermEnabled) {
-            const excessive = await client.query("SELECT 1 FROM students WHERE course_id = $1 AND midterm_marks > $2 LIMIT 1", [courseId, midtermMax]);
+            const excessive = await client.query("SELECT 1 FROM students WHERE course_id = $1 AND deleted_at IS NULL AND midterm_marks > $2 LIMIT 1", [courseId, midtermMax]);
             if (excessive.rows.length) throw Object.assign(new Error("Midterm maximum cannot be lower than marks already entered"), { status: 409 });
         }
         if (finalEnabled) {
-            const excessive = await client.query("SELECT 1 FROM students WHERE course_id = $1 AND final_marks > $2 LIMIT 1", [courseId, finalMax]);
+            const excessive = await client.query("SELECT 1 FROM students WHERE course_id = $1 AND deleted_at IS NULL AND final_marks > $2 LIMIT 1", [courseId, finalMax]);
             if (excessive.rows.length) throw Object.assign(new Error("Final maximum cannot be lower than marks already entered"), { status: 409 });
         }
 
@@ -2617,7 +2731,7 @@ const updateCourseSettings = async (req, res) => {
              programEnabledForUpdate, semesterEnabledForUpdate, monthlyTestsEnabled, classShift, courseId]
         );
         await client.query(
-            "UPDATE students SET program=$1, semester=$2, updated_at=CURRENT_TIMESTAMP WHERE course_id=$3",
+            "UPDATE students SET program=$1, semester=$2, updated_at=CURRENT_TIMESTAMP WHERE course_id=$3 AND deleted_at IS NULL",
             [cleanProgram, cleanSemester, courseId]
         );
         await client.query("COMMIT");
@@ -2671,20 +2785,20 @@ const importStudents = async (req, res) => {
             await client.query(
                 `INSERT INTO students (course_id, roll_number, name, program, semester)
                  VALUES ($1, $2, $3, $4, $5)
-                 ON CONFLICT (course_id, roll_number)
+                 ON CONFLICT (course_id, roll_number) WHERE deleted_at IS NULL
                  DO UPDATE SET name = EXCLUDED.name, updated_at = CURRENT_TIMESTAMP`,
                 [courseId, student.rollNumber, student.name, course.program, course.semester]
             );
         }
 
-        const totalResult = await client.query("SELECT COUNT(*)::INTEGER AS total FROM students WHERE course_id = $1", [courseId]);
+        const totalResult = await client.query("SELECT COUNT(*)::INTEGER AS total FROM students WHERE course_id = $1 AND deleted_at IS NULL", [courseId]);
         if (totalResult.rows[0].total > 500) {
             throw Object.assign(new Error("Import would make the class larger than 500 students"), { status: 400 });
         }
         await client.query(
             `UPDATE courses SET student_name_enabled = TRUE,
-                    roll_start = (SELECT MIN(roll_number::INTEGER) FROM students WHERE course_id = $1),
-                    roll_end = (SELECT MAX(roll_number::INTEGER) FROM students WHERE course_id = $1),
+                    roll_start = (SELECT MIN(roll_number::INTEGER) FROM students WHERE course_id = $1 AND deleted_at IS NULL),
+                    roll_end = (SELECT MAX(roll_number::INTEGER) FROM students WHERE course_id = $1 AND deleted_at IS NULL),
                     updated_at = CURRENT_TIMESTAMP
              WHERE id = $1`,
             [courseId]
@@ -2717,6 +2831,12 @@ module.exports = {
     updateStudent,
 
     updateCourseRollNumbers,
+
+    getDeletedStudents,
+
+    restoreStudent,
+
+    exportClassBackup,
 
     getCourseAssignments,
 

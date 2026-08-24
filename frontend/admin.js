@@ -11,6 +11,12 @@ const transferClassForm = document.getElementById("transferClassForm");
 const transferFromTeacher = document.getElementById("transferFromTeacher");
 const transferCourse = document.getElementById("transferCourse");
 const transferToTeacher = document.getElementById("transferToTeacher");
+const restoreBackupForm = document.getElementById("restoreBackupForm");
+const restoreBackupFile = document.getElementById("restoreBackupFile");
+const restoreBackupPreview = document.getElementById("restoreBackupPreview");
+const restoreBackupTeacher = document.getElementById("restoreBackupTeacher");
+const restoreBackupBtn = document.getElementById("restoreBackupBtn");
+const restoreBackupMessage = document.getElementById("restoreBackupMessage");
 const resetPasswordForm = document.getElementById("resetPasswordForm");
 const resetPasswordAccount = document.getElementById("resetPasswordAccount");
 const resetPasswordMessage = document.getElementById("resetPasswordMessage");
@@ -23,6 +29,7 @@ const confirmAdminAccountBtn = document.getElementById("confirmAdminAccountBtn")
 let currentTeachers = [];
 let currentAdmins = [];
 let transferableCourses = [];
+let pendingClassBackup = null;
 let teacherAccountMode = "remove";
 let adminAccountMode = "remove";
 
@@ -61,10 +68,78 @@ async function loadTeachers() {
             </tr>`).join("") : '<tr><td colspan="4">No teachers have been added.</td></tr>';
         document.getElementById("removeTeacherBtn").disabled = !currentTeachers.some(teacher => teacher.is_active);
         document.getElementById("restoreTeacherBtn").disabled = !currentTeachers.some(teacher => !teacher.is_active);
+        updateRestoreTeacherChoices();
     } catch (error) {
         teacherRows.innerHTML = `<tr><td colspan="4">${escapeHtml(error.message)}</td></tr>`;
     }
 }
+
+function updateRestoreTeacherChoices() {
+    if (!restoreBackupTeacher) return;
+    const activeTeachers = currentTeachers.filter(teacher => teacher.is_active);
+    restoreBackupTeacher.innerHTML = activeTeachers.length
+        ? activeTeachers.map(teacher => `<option value="${Number(teacher.id)}">${escapeHtml(teacher.name)} — ${escapeHtml(teacher.email)}</option>`).join("")
+        : '<option value="">No active teachers available</option>';
+    restoreBackupBtn.disabled = !pendingClassBackup || !activeTeachers.length;
+}
+
+function resetBackupPreview(message = "") {
+    pendingClassBackup = null;
+    restoreBackupPreview.innerHTML = "";
+    restoreBackupPreview.classList.add("hidden");
+    restoreBackupBtn.disabled = true;
+    if (message) showMessage(restoreBackupMessage, message, "error");
+}
+
+restoreBackupFile.addEventListener("change", async () => {
+    restoreBackupMessage.className = "notice hidden";
+    const file = restoreBackupFile.files[0];
+    if (!file) return resetBackupPreview();
+    if (file.size > 10 * 1024 * 1024) return resetBackupPreview("The backup file must be 10 MB or smaller.");
+    try {
+        const backup = JSON.parse(await file.text());
+        if (backup?.format !== "math-department-class-backup" || Number(backup?.version) !== 1) {
+            throw new Error("This is not a supported class backup file.");
+        }
+        if (!backup.course || !Array.isArray(backup.students)) throw new Error("The backup is missing class or student data.");
+        pendingClassBackup = backup;
+        const activeStudents = backup.students.filter(student => !student.deleted_at).length;
+        restoreBackupPreview.innerHTML = `<div class="backup-preview-card">
+            <strong>${escapeHtml(backup.course.name || "Unnamed class")}</strong>
+            <span>${activeStudents} active student${activeStudents === 1 ? "" : "s"} · ${backup.students.length - activeStudents} removed</span>
+            <span>${Array.isArray(backup.attendance) ? backup.attendance.length : 0} attendance records · ${(backup.assignments?.length || 0) + (backup.quizzes?.length || 0)} assessments</span>
+            <small>Exported ${backup.exported_at ? escapeHtml(new Date(backup.exported_at).toLocaleString()) : "date unavailable"}</small>
+        </div>`;
+        restoreBackupPreview.classList.remove("hidden");
+        updateRestoreTeacherChoices();
+    } catch (error) {
+        resetBackupPreview(error instanceof SyntaxError ? "The selected file is not valid JSON." : error.message);
+    }
+});
+
+restoreBackupForm.addEventListener("submit", async event => {
+    event.preventDefault();
+    const teacherId = Number(restoreBackupTeacher.value);
+    if (!pendingClassBackup || !teacherId) return showMessage(restoreBackupMessage, "Choose a valid backup and receiving teacher.", "error");
+    const teacher = currentTeachers.find(item => Number(item.id) === teacherId);
+    if (!window.confirm(`Restore “${pendingClassBackup.course.name}” as a new class for ${teacher?.name || "this teacher"}?`)) return;
+    restoreBackupBtn.disabled = true;
+    try {
+        const data = await api("/api/admin/backups/restore", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ teacher_id: teacherId, backup: pendingClassBackup })
+        });
+        showMessage(restoreBackupMessage, data.message || "Class restored successfully.", "success");
+        restoreBackupForm.reset();
+        resetBackupPreview();
+        showMessage(restoreBackupMessage, data.message || "Class restored successfully.", "success");
+        await loadTransferableCourses();
+    } catch (error) {
+        showMessage(restoreBackupMessage, error.message, "error");
+        restoreBackupBtn.disabled = false;
+    }
+});
 
 async function loadAdmins() {
     try {

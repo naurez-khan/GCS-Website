@@ -434,6 +434,19 @@ body {
 
 .settings-roll-heading h3 { margin: 0 0 5px; color: #7e0d16; }
 .settings-roll-heading p { margin: 0; color: #74676a; }
+.settings-roll-heading-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+
+.removed-students-panel { margin: 12px 0; padding: 14px; border: 1px solid rgba(162, 12, 22, .16); border-radius: 12px; background: rgba(255,255,255,.72); }
+.removed-students-panel h4 { margin: 0 0 4px; color: #7e0d16; }
+.removed-students-panel > p { margin: 0 0 10px; color: #74676a; }
+.removed-student-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 0; border-top: 1px solid rgba(162, 12, 22, .1); }
+.removed-student-row > div { display: grid; gap: 2px; }
+.removed-student-row span { color: #74676a; font-size: 13px; }
+
+.import-validation-summary { display: grid; gap: 6px; margin-bottom: 14px; padding: 14px; border-radius: 11px; }
+.import-validation-summary.is-valid { color: #176b38; border: 1px solid #9ee0b5; background: #effbf3; }
+.import-validation-summary.has-errors { color: #8f111a; border: 1px solid #efb2b7; background: #fff1f2; }
+.import-validation-summary strong { font-size: 18px; }
 
 .settings-roll-rows { display: grid; gap: 10px; margin: 12px 0 16px; }
 

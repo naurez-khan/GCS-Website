@@ -6,6 +6,9 @@ const {
     getCourseStudents,
     updateStudent,
     updateCourseRollNumbers,
+    getDeletedStudents,
+    restoreStudent,
+    exportClassBackup,
     getCourseAssignments,
     updateAssignment,
     getCourseQuizzes,
@@ -57,6 +60,9 @@ router.get(
 );
 
 router.put("/:courseId/students/roll-numbers", updateCourseRollNumbers);
+router.get("/:courseId/students/deleted", getDeletedStudents);
+router.post("/:courseId/students/:studentId/restore", restoreStudent);
+router.get("/:courseId/backup", exportClassBackup);
 
 router.put(
     "/:courseId/students/:studentId",

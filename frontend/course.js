@@ -95,6 +95,7 @@ const attendanceSummary =
 const editClassBtn = document.getElementById("editClassBtn");
 const importStudentsBtn = document.getElementById("importStudentsBtn");
 const attendanceHistoryBtn = document.getElementById("attendanceHistoryBtn");
+const downloadClassBackupBtn = document.getElementById("downloadClassBackupBtn");
 const classSettingsSection = document.getElementById("classSettingsSection");
 const studentImportSection = document.getElementById("studentImportSection");
 const editAttendanceBtn = document.getElementById("editAttendanceBtn");
@@ -3805,11 +3806,53 @@ document.getElementById("settingsRollRows")?.addEventListener("click", event => 
     const studentId = Number(row.dataset.studentId);
     if (studentId) {
         const rollNumber = row.querySelector(".settings-roll-number")?.value || "";
-        if (!window.confirm(`Remove student roll number ${rollNumber}? Their attendance and marks will be permanently removed when you save.`)) return;
+        if (!window.confirm(`Remove student roll number ${rollNumber}? They will disappear from the class after saving, but can be restored later with attendance and marks intact.`)) return;
         settingsRemovedStudentIds.push(studentId);
     }
     row.remove();
-    setPanelMessage("settingsRollMessage", studentId ? "Student marked for removal. Press Save Roll Numbers to confirm." : "", studentId ? "error" : "");
+    setPanelMessage("settingsRollMessage", studentId ? "Student marked for removal. Press Save Roll Numbers to confirm; they can be restored later." : "", studentId ? "error" : "");
+});
+
+async function loadRemovedStudents() {
+    const list = document.getElementById("removedStudentsList");
+    try {
+        const response = await fetch(`/api/courses/${courseId}/students/deleted`, { credentials: "include", cache: "no-store" });
+        const data = await response.json();
+        if (!response.ok || !data.success) throw new Error(data.message || "Could not load removed students");
+        list.innerHTML = data.students.length ? data.students.map(student => `
+            <div class="removed-student-row">
+                <div><strong>Roll ${escapeHtml(student.roll_number)}</strong><span>${escapeHtml(student.name || "No name")}</span></div>
+                <button class="secondary-btn restore-student-btn" type="button" data-student-id="${Number(student.id)}">Restore</button>
+            </div>`).join("") : "<p>No removed students.</p>";
+    } catch (error) {
+        list.innerHTML = `<p class="error">${escapeHtml(error.message)}</p>`;
+    }
+}
+
+document.getElementById("showRemovedStudentsBtn")?.addEventListener("click", async () => {
+    const panel = document.getElementById("removedStudentsPanel");
+    panel.classList.toggle("hidden");
+    if (!panel.classList.contains("hidden")) await loadRemovedStudents();
+});
+
+document.getElementById("removedStudentsList")?.addEventListener("click", async event => {
+    const button = event.target.closest(".restore-student-btn");
+    if (!button) return;
+    button.disabled = true;
+    try {
+        const response = await fetch(`/api/courses/${courseId}/students/${button.dataset.studentId}/restore`, {
+            method: "POST", credentials: "include"
+        });
+        const data = await response.json();
+        if (!response.ok || !data.success) throw new Error(data.message || "Could not restore student");
+        setPanelMessage("settingsRollMessage", data.message, "success");
+        await loadCourse();
+        renderSettingsRollEditor();
+        await loadRemovedStudents();
+    } catch (error) {
+        setPanelMessage("settingsRollMessage", error.message, "error");
+        button.disabled = false;
+    }
 });
 
 document.getElementById("saveSettingsRollsBtn")?.addEventListener("click", async () => {
@@ -3949,8 +3992,31 @@ document.getElementById("studentImportFile")?.addEventListener("change", async e
             .map(row => ({ roll_number: String(row[rollIndex] ?? "").trim(), name: String(row[nameIndex] ?? "").trim() }))
             .filter(row => row.roll_number || row.name);
         if (!pendingStudentImport.length) throw new Error("No student rows were found");
-        preview.innerHTML = `<p><strong>${pendingStudentImport.length} rows ready</strong></p><div class="summary-table-wrapper"><table class="summary-table"><thead><tr><th>Roll Number</th><th>Name</th></tr></thead><tbody>${pendingStudentImport.slice(0, 8).map(row => `<tr><td>${escapeHtml(row.roll_number)}</td><td>${escapeHtml(row.name)}</td></tr>`).join("")}</tbody></table></div>${pendingStudentImport.length > 8 ? `<p>…and ${pendingStudentImport.length - 8} more</p>` : ""}`;
-        saveButton.disabled = false;
+        const seen = new Set();
+        const validRows = [];
+        const invalidRollRows = [];
+        const duplicateRows = [];
+        const missingNameRows = [];
+        pendingStudentImport.forEach((row, index) => {
+            const roll = Number(row.roll_number);
+            const excelRow = index + 2;
+            if (!Number.isInteger(roll) || roll < 0) invalidRollRows.push(excelRow);
+            else if (seen.has(roll)) duplicateRows.push(excelRow);
+            else if (!row.name) missingNameRows.push(excelRow);
+            else { seen.add(roll); validRows.push(row); }
+        });
+        const issueCount = invalidRollRows.length + duplicateRows.length + missingNameRows.length;
+        preview.innerHTML = `
+            <div class="import-validation-summary ${issueCount ? "has-errors" : "is-valid"}">
+                <strong>${validRows.length} valid students</strong><span>${pendingStudentImport.length} data rows found</span>
+                ${invalidRollRows.length ? `<span>Invalid roll number rows: ${invalidRollRows.join(", ")}</span>` : ""}
+                ${duplicateRows.length ? `<span>Duplicate roll number rows: ${duplicateRows.join(", ")}</span>` : ""}
+                ${missingNameRows.length ? `<span>Missing name rows: ${missingNameRows.join(", ")}</span>` : ""}
+                ${issueCount ? "<b>Fix the listed rows before importing.</b>" : "<b>File is ready to import.</b>"}
+            </div>
+            <div class="summary-table-wrapper"><table class="summary-table"><thead><tr><th>Roll Number</th><th>Name</th></tr></thead><tbody>${pendingStudentImport.slice(0, 8).map(row => `<tr><td>${escapeHtml(row.roll_number)}</td><td>${escapeHtml(row.name)}</td></tr>`).join("")}</tbody></table></div>
+            ${pendingStudentImport.length > 8 ? `<p>…and ${pendingStudentImport.length - 8} more rows</p>` : ""}`;
+        saveButton.disabled = issueCount > 0;
     } catch (error) {
         preview.innerHTML = "<p>Could not preview this file.</p>";
         setPanelMessage("studentImportMessage", error.message, "error");
@@ -4141,6 +4207,32 @@ async function initializeCoursePage() {
 
 attendanceHistoryBtn?.addEventListener("click", () => {
     window.location.href = coursePageUrl("attendance-history");
+});
+
+downloadClassBackupBtn?.addEventListener("click", async () => {
+    const originalText = downloadClassBackupBtn.textContent;
+    downloadClassBackupBtn.disabled = true;
+    downloadClassBackupBtn.textContent = "Preparing Backup…";
+    try {
+        const response = await fetch(`/api/courses/${courseId}/backup`, { credentials: "include", cache: "no-store" });
+        if (!response.ok) {
+            const data = await response.json();
+            throw new Error(data.message || "Could not export class backup");
+        }
+        const blob = await response.blob();
+        const disposition = response.headers.get("Content-Disposition") || "";
+        const filename = disposition.match(/filename="([^"]+)"/)?.[1] || `class_${courseId}_backup.json`;
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = filename;
+        link.click();
+        URL.revokeObjectURL(link.href);
+    } catch (error) {
+        alert(error.message);
+    } finally {
+        downloadClassBackupBtn.disabled = false;
+        downloadClassBackupBtn.textContent = originalText;
+    }
 });
 
 initializeCoursePage();

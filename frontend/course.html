@@ -115,15 +115,6 @@
                     </button>
 
                     <button
-                        id="importStudentsBtn"
-                        class="secondary-btn"
-                        type="button"
-                        disabled
-                    >
-                        Import Students
-                    </button>
-
-                    <button
                         id="saveStudentNamesBtn"
                         class="secondary-btn hidden"
                         type="button"
@@ -137,6 +128,10 @@
                         type="button"
                     >
                         Attendance History
+                    </button>
+
+                    <button id="downloadClassBackupBtn" class="secondary-btn" type="button">
+                        Download Class Backup
                     </button>
 
                     <button
@@ -208,7 +203,15 @@
             <div class="settings-roll-editor">
                 <div class="settings-roll-heading">
                     <div><h3>Roll Numbers</h3><p>Edit existing numbers or add new students. Saved students keep their attendance and marks.</p></div>
-                    <button id="addSettingsRollBtn" class="secondary-btn" type="button">+ Add Roll Number</button>
+                    <div class="settings-roll-heading-actions">
+                        <button id="addSettingsRollBtn" class="secondary-btn" type="button">+ Add Roll Number</button>
+                        <button id="showRemovedStudentsBtn" class="secondary-btn" type="button">Restore Students</button>
+                    </div>
+                </div>
+                <div id="removedStudentsPanel" class="removed-students-panel hidden">
+                    <h4>Removed Students</h4>
+                    <p>Restoring a student also restores their saved attendance and marks.</p>
+                    <div id="removedStudentsList"></div>
                 </div>
                 <div id="settingsRollRows" class="settings-roll-rows"></div>
                 <div class="settings-roll-save">
@@ -480,7 +483,7 @@
          COURSE JAVASCRIPT
     ========================= -->
 
-    <script src="/course.js?v=20260823-4"></script>
+    <script src="/course.js?v=20260824-1"></script>
 
 </body>
 

@@ -22,6 +22,7 @@ const getStudentResult = async (req, res) => {
             JOIN users u ON u.id = c.teacher_id
             WHERE LOWER(c.result_code) = LOWER($1)
               AND s.roll_number = $2
+              AND s.deleted_at IS NULL
               AND c.results_enabled = TRUE
             `,
             [resultCode, rollNumber]

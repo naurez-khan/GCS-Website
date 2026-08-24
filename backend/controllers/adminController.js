@@ -443,6 +443,155 @@ const resetUserPassword = async (req, res) => {
     }
 };
 
+const restoreClassBackup = async (req, res) => {
+    const client = await pool.connect();
+    try {
+        const teacherId = Number(req.body.teacher_id);
+        const backup = req.body.backup;
+        if (!Number.isInteger(teacherId) || teacherId < 1) {
+            return res.status(400).json({ success: false, message: "Choose a receiving teacher" });
+        }
+        if (!backup || backup.format !== "math-department-class-backup" || Number(backup.version) !== 1 || !backup.course) {
+            return res.status(400).json({ success: false, message: "This is not a supported class backup file" });
+        }
+
+        const students = Array.isArray(backup.students) ? backup.students : [];
+        const attendance = Array.isArray(backup.attendance) ? backup.attendance : [];
+        const audit = Array.isArray(backup.attendance_audit_logs) ? backup.attendance_audit_logs : [];
+        const assignments = Array.isArray(backup.assignments) ? backup.assignments : [];
+        const quizzes = Array.isArray(backup.quizzes) ? backup.quizzes : [];
+        const assignmentMarks = Array.isArray(backup.assignment_marks) ? backup.assignment_marks : [];
+        const quizMarks = Array.isArray(backup.quiz_marks) ? backup.quiz_marks : [];
+        if (!students.length || students.length > 500 || attendance.length > 200000 || audit.length > 200000 || assignments.length > 111 || quizzes.length > 100 || assignmentMarks.length > 100000 || quizMarks.length > 100000) {
+            return res.status(400).json({ success: false, message: "Backup contents exceed the supported class limits" });
+        }
+
+        const sourceCourse = backup.course;
+        const activeStudents = students.filter(student => !student.deleted_at);
+        const activeRolls = activeStudents.map(student => Number(student.roll_number));
+        if (!activeRolls.length || activeRolls.some(roll => !Number.isInteger(roll) || roll < 0) || new Set(activeRolls).size !== activeRolls.length) {
+            return res.status(400).json({ success: false, message: "Backup contains invalid or duplicate active roll numbers" });
+        }
+
+        await client.query("BEGIN");
+        const teacher = await client.query("SELECT id, name FROM users WHERE id=$1 AND role='teacher' AND is_active=TRUE FOR UPDATE", [teacherId]);
+        if (!teacher.rows.length) {
+            await client.query("ROLLBACK");
+            return res.status(404).json({ success: false, message: "Receiving teacher is not active or does not exist" });
+        }
+
+        const restoredName = `${String(sourceCourse.name || "Restored Class").slice(0, 135)} (Restored)`;
+        const courseResult = await client.query(
+            `INSERT INTO courses (
+                name, course_code, class_type, intermediate_year, class_shift, roll_entry_mode,
+                program, semester, section, teacher_id, roll_start, roll_end,
+                course_name_enabled, program_enabled, semester_enabled, section_enabled,
+                roll_number_enabled, student_name_enabled, attendance_enabled,
+                assignments_enabled, assignment_count, quizzes_enabled, quiz_count,
+                midterm_enabled, final_enabled, results_enabled, monthly_tests_enabled,
+                midterm_max_marks, final_max_marks
+             ) VALUES (
+                $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29
+             ) RETURNING *`,
+            [
+                restoredName, sourceCourse.course_code || null, sourceCourse.class_type || "bachelors",
+                sourceCourse.intermediate_year || null, sourceCourse.class_shift || "morning", sourceCourse.roll_entry_mode || "manual",
+                sourceCourse.program || null, sourceCourse.semester || null, sourceCourse.section || null, teacherId,
+                Math.min(...activeRolls), Math.max(...activeRolls),
+                sourceCourse.course_name_enabled !== false, sourceCourse.program_enabled !== false,
+                sourceCourse.semester_enabled !== false, sourceCourse.section_enabled !== false,
+                sourceCourse.roll_number_enabled !== false, sourceCourse.student_name_enabled === true,
+                sourceCourse.attendance_enabled !== false, sourceCourse.assignments_enabled === true,
+                Number(sourceCourse.assignment_count) || 0, sourceCourse.quizzes_enabled === true,
+                Number(sourceCourse.quiz_count) || 0, sourceCourse.midterm_enabled === true,
+                sourceCourse.final_enabled === true, false, sourceCourse.monthly_tests_enabled === true,
+                sourceCourse.midterm_max_marks || null, sourceCourse.final_max_marks || null
+            ]
+        );
+        const newCourse = courseResult.rows[0];
+        const studentIds = new Map();
+        for (const student of students) {
+            const oldId = Number(student.id);
+            const roll = Number(student.roll_number);
+            if (!Number.isInteger(oldId) || !Number.isInteger(roll) || roll < 0) throw Object.assign(new Error("Backup contains an invalid student record"), { status: 400 });
+            const inserted = await client.query(
+                `INSERT INTO students (course_id,roll_number,name,program,semester,midterm_marks,final_marks,december_test_marks,preboard_marks,deleted_at)
+                 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING id`,
+                [newCourse.id, String(roll), student.name || null, student.program || null, student.semester || null,
+                 student.midterm_marks ?? null, student.final_marks ?? null, student.december_test_marks ?? null,
+                 student.preboard_marks ?? null, student.deleted_at || null]
+            );
+            studentIds.set(oldId, inserted.rows[0].id);
+        }
+
+        const assignmentIds = new Map();
+        for (const assignment of assignments) {
+            const inserted = await client.query(
+                `INSERT INTO assignments (course_id,assignment_number,name,max_marks,assessment_type,month_number)
+                 VALUES ($1,$2,$3,$4,$5,$6) RETURNING id`,
+                [newCourse.id, Number(assignment.assignment_number), assignment.name, assignment.max_marks,
+                 assignment.assessment_type || "assignment", assignment.month_number ?? null]
+            );
+            assignmentIds.set(Number(assignment.id), inserted.rows[0].id);
+        }
+        const quizIds = new Map();
+        for (const quiz of quizzes) {
+            const inserted = await client.query(
+                "INSERT INTO quizzes (course_id,quiz_number,name,max_marks) VALUES ($1,$2,$3,$4) RETURNING id",
+                [newCourse.id, Number(quiz.quiz_number), quiz.name, quiz.max_marks]
+            );
+            quizIds.set(Number(quiz.id), inserted.rows[0].id);
+        }
+
+        for (const record of attendance) {
+            const newStudentId = studentIds.get(Number(record.student_id));
+            if (!newStudentId) continue;
+            await client.query(
+                "INSERT INTO attendance (course_id,student_id,attendance_date,status) VALUES ($1,$2,$3,$4) ON CONFLICT DO NOTHING",
+                [newCourse.id, newStudentId, record.attendance_date, record.status]
+            );
+        }
+        for (const mark of assignmentMarks) {
+            const assignmentId = assignmentIds.get(Number(mark.assignment_id));
+            const studentId = studentIds.get(Number(mark.student_id));
+            if (assignmentId && studentId) await client.query("INSERT INTO assignment_marks (assignment_id,student_id,marks) VALUES ($1,$2,$3)", [assignmentId, studentId, mark.marks]);
+        }
+        for (const mark of quizMarks) {
+            const quizId = quizIds.get(Number(mark.quiz_id));
+            const studentId = studentIds.get(Number(mark.student_id));
+            if (quizId && studentId) await client.query("INSERT INTO quiz_marks (quiz_id,student_id,marks) VALUES ($1,$2,$3)", [quizId, studentId, mark.marks]);
+        }
+
+        const auditUserIds = [...new Set(audit.map(record => Number(record.changed_by)).filter(Number.isInteger))];
+        const validAuditUsers = auditUserIds.length
+            ? new Set((await client.query("SELECT id FROM users WHERE id=ANY($1::int[])", [auditUserIds])).rows.map(row => Number(row.id)))
+            : new Set();
+        for (const record of audit) {
+            const studentId = studentIds.get(Number(record.student_id));
+            if (!studentId) continue;
+            const changedBy = validAuditUsers.has(Number(record.changed_by)) ? Number(record.changed_by) : Number(req.user.id);
+            await client.query(
+                `INSERT INTO attendance_audit_logs (course_id,student_id,attendance_date,old_status,new_status,changed_by,changed_at)
+                 VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+                [newCourse.id, studentId, record.attendance_date, record.old_status, record.new_status, changedBy, record.changed_at || new Date()]
+            );
+        }
+
+        await client.query("COMMIT");
+        res.status(201).json({
+            success: true,
+            message: `${newCourse.name} restored for ${teacher.rows[0].name}.`,
+            course: { id: newCourse.id, name: newCourse.name, teacher_id: teacherId }
+        });
+    } catch (error) {
+        await client.query("ROLLBACK");
+        console.error("Restore class backup error:", error);
+        res.status(error.status || 400).json({ success: false, message: error.status ? error.message : "Backup could not be restored. Check that the file is valid." });
+    } finally {
+        client.release();
+    }
+};
+
 module.exports = {
     addTeacher,
     getTeachers,
@@ -454,5 +603,6 @@ module.exports = {
     setAdminStatus,
     getTransferableCourses,
     transferCourse,
-    resetUserPassword
+    resetUserPassword,
+    restoreClassBackup
 };

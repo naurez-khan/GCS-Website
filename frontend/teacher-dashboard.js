@@ -1821,7 +1821,32 @@ function renderCreationRosterPreview() {
         return;
     }
     const namesEnabled = document.getElementById("student_name_enabled").checked;
-    preview.innerHTML = `<strong>${importedCreationRoster.length} students found</strong><span>${namesEnabled ? "Roll numbers and names will be imported." : "Only roll numbers will be imported."}</span>`;
+    const seen = new Set();
+    const valid = [];
+    const invalidRollRows = [];
+    const duplicateRows = [];
+    const missingNameRows = [];
+    importedCreationRoster.forEach((row, index) => {
+        const roll = Number(row.roll_number);
+        const rowNumber = index + 2;
+        if (!Number.isInteger(roll) || roll < 0) invalidRollRows.push(rowNumber);
+        else if (seen.has(roll)) duplicateRows.push(rowNumber);
+        else {
+            seen.add(roll);
+            if (namesEnabled && !row.name) missingNameRows.push(rowNumber);
+            else valid.push(row);
+        }
+    });
+    const issueCount = invalidRollRows.length + duplicateRows.length + missingNameRows.length;
+    preview.innerHTML = `
+        <div class="import-validation-summary ${issueCount ? "has-errors" : "is-valid"}">
+            <strong>${valid.length} valid students</strong>
+            <span>${importedCreationRoster.length} data rows found</span>
+            ${invalidRollRows.length ? `<span>Invalid roll number rows: ${invalidRollRows.join(", ")}</span>` : ""}
+            ${duplicateRows.length ? `<span>Duplicate roll number rows: ${duplicateRows.join(", ")}</span>` : ""}
+            ${missingNameRows.length ? `<span>Missing name rows: ${missingNameRows.join(", ")}</span>` : ""}
+            ${issueCount ? "<b>Fix these rows before creating the class.</b>" : `<b>${namesEnabled ? "Roll numbers and names are ready." : "Roll numbers are ready."}</b>`}
+        </div>`;
 }
 
 function readManualRoster() {

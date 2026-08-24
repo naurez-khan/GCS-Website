@@ -74,6 +74,7 @@ const markAttendance = async (req, res) => {
             SELECT id
             FROM students
             WHERE course_id = $1
+            AND deleted_at IS NULL
             ORDER BY roll_number
             `,
             [courseId]
@@ -268,6 +269,7 @@ const getAttendance = async (req, res) => {
                 ON a.student_id = s.id
 
             WHERE a.course_id = $1
+            AND s.deleted_at IS NULL
 
             ORDER BY
                 a.attendance_date DESC,
@@ -325,7 +327,7 @@ const updateAttendance = async (req, res) => {
             `SELECT a.id, a.student_id, a.status
              FROM attendance a
              JOIN students s ON s.id = a.student_id AND s.course_id = a.course_id
-             WHERE a.course_id = $1 AND a.attendance_date = $2
+             WHERE a.course_id = $1 AND a.attendance_date = $2 AND s.deleted_at IS NULL
              FOR UPDATE`,
             [courseId, date]
         );
