@@ -1208,6 +1208,11 @@ tbody tr:hover td {
     .portal-main.two-column .table-wrap table {
         min-width: 680px;
     }
+    .teacher-dashboard-page .welcome {
+        background: linear-gradient(135deg, var(--brand-bright), var(--brand-dark)) !important;
+        border-color: var(--brand-dark) !important;
+        box-shadow: 0 12px 28px rgba(119, 4, 16, .2) !important;
+    }
 
 }
 
