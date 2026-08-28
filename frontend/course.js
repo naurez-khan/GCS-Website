@@ -4142,15 +4142,35 @@ document.getElementById("saveStudentImportBtn")?.addEventListener("click", async
 
 function attendanceDateKey(value) { return String(value || "").slice(0, 10); }
 
+function compareStudentRollNumbers(first, second) {
+    return String(first.roll_number || "").localeCompare(
+        String(second.roll_number || ""),
+        undefined,
+        { numeric: true, sensitivity: "base" }
+    );
+}
+
 function renderAttendanceEditor() {
     const date = document.getElementById("attendanceEditDate").value;
-    const records = currentAttendanceRecords.filter(record => attendanceDateKey(record.attendance_date) === date);
-    document.getElementById("attendanceEditList").innerHTML = records.map(record => `
+    const recordsByStudentId = new Map(
+        currentAttendanceRecords
+            .filter(record => attendanceDateKey(record.attendance_date) === date)
+            .map(record => [Number(record.student_id), record])
+    );
+    const roster = [...students].sort(compareStudentRollNumbers);
+    document.getElementById("attendanceEditList").innerHTML = roster.map(student => {
+        const record = recordsByStudentId.get(Number(student.id));
+        const status = record?.status || "absent";
+        const studentName = currentCourse?.student_name_enabled
+            ? (student.name || record?.student_name || `Student ${student.roll_number}`)
+            : `Student ${student.roll_number}`;
+        return `
         <div class="attendance-row">
-            <div class="roll-number">${escapeHtml(record.roll_number)}</div>
-            <div class="student-name">${escapeHtml(record.student_name || `Student ${record.roll_number}`)}</div>
-            <button type="button" class="attendance-status-btn edit-attendance-status ${record.status}" data-student-id="${record.student_id}" data-status="${record.status}">${record.status === "present" ? "Present" : (record.status === "leave" ? "Leave" : "Absent")}</button>
-        </div>`).join("");
+            <div class="roll-number">${escapeHtml(student.roll_number)}</div>
+            <div class="student-name">${escapeHtml(studentName)}</div>
+            <button type="button" class="attendance-status-btn edit-attendance-status ${status}" data-student-id="${student.id}" data-status="${status}">${status === "present" ? "Present" : (status === "leave" ? "Leave" : "Absent")}</button>
+        </div>`;
+    }).join("");
     document.querySelectorAll(".edit-attendance-status").forEach(button => button.addEventListener("click", () => {
         const statuses = ["present", "absent", "leave"];
         const next = statuses[(statuses.indexOf(button.dataset.status) + 1) % statuses.length];

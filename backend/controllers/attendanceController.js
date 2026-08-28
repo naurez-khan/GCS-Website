@@ -332,6 +332,12 @@ const updateAttendance = async (req, res) => {
             return res.status(404).json({ success: false, message: "Course not found or access denied" });
         }
 
+        const roster = await client.query(
+            `SELECT id FROM students
+             WHERE course_id = $1 AND deleted_at IS NULL`,
+            [courseId]
+        );
+
         const current = await client.query(
             `SELECT a.id, a.student_id, a.status
              FROM attendance a
@@ -345,16 +351,18 @@ const updateAttendance = async (req, res) => {
             return res.status(404).json({ success: false, message: "No attendance was recorded for this date" });
         }
 
-        const validIds = new Set(current.rows.map(row => Number(row.student_id)));
+        const validIds = new Set(roster.rows.map(row => Number(row.id)));
         if (absentIds.some(id => !validIds.has(id)) || [...statusMap.keys()].some(id => !validIds.has(id))) {
             await client.query("ROLLBACK");
             return res.status(400).json({ success: false, message: "One or more students are invalid for this class" });
         }
 
         const absentSet = new Set(absentIds);
+        const recordedIds = new Set(current.rows.map(row => Number(row.student_id)));
         let changed = 0;
         for (const record of current.rows) {
             const newStatus = statusMap.size ? statusMap.get(Number(record.student_id)) : (absentSet.has(Number(record.student_id)) ? "absent" : "present");
+            if (!newStatus) continue;
             if (record.status === newStatus) continue;
             await client.query(
                 `INSERT INTO attendance_audit_logs
@@ -367,6 +375,19 @@ const updateAttendance = async (req, res) => {
                 [newStatus, record.id]
             );
             changed += 1;
+        }
+
+        if (statusMap.size) {
+            for (const [studentId, status] of statusMap) {
+                if (recordedIds.has(studentId)) continue;
+                await client.query(
+                    `INSERT INTO attendance
+                     (course_id, student_id, attendance_date, status)
+                     VALUES ($1, $2, $3, $4)`,
+                    [courseId, studentId, date, status]
+                );
+                changed += 1;
+            }
         }
 
         await client.query("COMMIT");

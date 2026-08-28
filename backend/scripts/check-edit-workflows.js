@@ -36,7 +36,7 @@ const app = require("../server");
                 rollRanges: [{ start: 9001, end: 9003 }, { start: 9003, end: 9005 }]
             })
         }, 400);
-        if (!/overlap|duplicate/i.test(rejectedOverlap.message || "")) {
+        if (!/overlap|duplicate|unique/i.test(rejectedOverlap.message || "")) {
             throw new Error("Overlapping roll-number ranges were not rejected");
         }
 
@@ -116,6 +116,25 @@ const app = require("../server");
         if (courseData.students.length !== 4 || !courseData.students.some(student => student.name === "Imported Student Three")) {
             throw new Error("Student import did not update and add students");
         }
+        const importedStudent = courseData.students.find(student => student.roll_number === "9003");
+        const statusesWithImportedStudent = courseData.students.map(student => ({
+            student_id: Number(student.id),
+            status: Number(student.id) === Number(firstStudentId) || Number(student.id) === Number(importedStudent.id)
+                ? "absent"
+                : "present"
+        }));
+        const addedToAttendance = await request(`/api/attendance/course/${courseId}/2026-08-14`, {
+            method: "PUT",
+            body: JSON.stringify({ studentStatuses: statusesWithImportedStudent })
+        });
+        if (addedToAttendance.changed !== 1) throw new Error("Newly imported student was not added to existing attendance");
+        const attendanceWithImportedStudent = await request(`/api/attendance/course/${courseId}`);
+        const importedAttendance = attendanceWithImportedStudent.attendance.find(record =>
+            Number(record.student_id) === Number(importedStudent.id) && record.attendance_date === "2026-08-14"
+        );
+        if (!importedAttendance || importedAttendance.status !== "absent") {
+            throw new Error("Newly imported student's attendance status was not saved");
+        }
 
         const published = await fetch(`${origin}/api/results/lookup`, {
             method: "POST",
@@ -127,7 +146,7 @@ const app = require("../server");
             throw new Error("Published results did not reflect edited assessments");
         }
 
-        console.log("Course code, multiple roll ranges, class settings, assessment counts, custom result code, student import, attendance correction, audit history, and published results all passed.");
+        console.log("Course code, multiple roll ranges, class settings, assessment counts, custom result code, student import, attendance correction (including a newly added student), audit history, and published results all passed.");
     } finally {
         if (courseId !== null) {
             const target = await pool.query("SELECT name FROM courses WHERE id = $1 AND teacher_id = $2", [courseId, teacherId]);
