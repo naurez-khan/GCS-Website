@@ -1241,14 +1241,6 @@ tbody tr:hover td {
     animation-delay: var(--class-card-delay, 0ms);
 }
 
-body.course-workflow main.container {
-    animation: coursePageEnterFromRight .28s cubic-bezier(.2, .8, .25, 1) both;
-}
-
-body.course-page-exit-left main.container {
-    pointer-events: none;
-    animation: coursePageExitLeft .23s ease-in both;
-}
 
 button.is-loading {
     cursor: wait !important;
@@ -1279,16 +1271,6 @@ button.is-loading::before {
     to { opacity: 1; transform: translateY(0); }
 }
 
-@keyframes coursePageEnterFromRight {
-    from { opacity: 0; transform: translateX(38px); }
-    to { opacity: 1; transform: translateX(0); }
-}
-
-@keyframes coursePageExitLeft {
-    from { opacity: 1; transform: translateX(0); }
-    to { opacity: 0; transform: translateX(-38px); }
-}
-
 @keyframes buttonSpinner {
     to { transform: rotate(360deg); }
 }
@@ -1296,8 +1278,6 @@ button.is-loading::before {
 @media (prefers-reduced-motion: reduce) {
     .gold-line-reveal::after,
     .class-card-enter,
-    body.course-workflow main.container,
-    body.course-page-exit-left main.container,
     button.is-loading::before,
     .attendance-status-btn.status-icon-pop::before {
         animation: none !important;

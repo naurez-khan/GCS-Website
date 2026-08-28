@@ -17,21 +17,8 @@ const returnToCourseHub = () => {
     window.location.href = `/course.html?id=${encodeURIComponent(courseId || "")}`;
 };
 
-let courseNavigationPending = false;
 function navigateFromCourseHub(url) {
-    if (courseNavigationPending) return;
-
-    const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-    if (coursePageAction !== "hub" || reduceMotion) {
-        window.location.href = url;
-        return;
-    }
-
-    courseNavigationPending = true;
-    document.body.classList.add("course-page-exit-left");
-    window.setTimeout(() => {
-        window.location.href = url;
-    }, 230);
+    window.location.href = url;
 }
 
 function pulseAttendanceStatus(button) {
@@ -2409,11 +2396,11 @@ function displayAttendanceSummary(
     }
 
 
-    if (attendance.length === 0) {
+    if (students.length === 0) {
 
         attendanceSummary.innerHTML = `
             <p>
-                No attendance records found.
+                No students found.
             </p>
         `;
 
@@ -2423,6 +2410,21 @@ function displayAttendanceSummary(
 
 
     const studentStats = {};
+
+    students.forEach(student => {
+        const key = student.roll_number;
+        studentStats[key] = {
+            roll_number: student.roll_number,
+            name: student.name,
+            present: 0,
+            total: 0,
+            records: []
+        };
+    });
+
+    const totalLecturesDelivered = new Set(
+        attendance.map(record => attendanceDateKey(record.attendance_date))
+    ).size;
 
 
     attendance.forEach(record => {
@@ -2559,9 +2561,9 @@ function displayAttendanceSummary(
     rows.forEach((student, index) => {
 
         const percentage =
-            student.total > 0
+            totalLecturesDelivered > 0
                 ? (
-                    (student.present / student.total) * 100
+                    (student.present / totalLecturesDelivered) * 100
                   ).toFixed(1)
                 : "0.0";
 
@@ -2592,6 +2594,9 @@ function displayAttendanceSummary(
             <tr
                 class="summary-row"
                 data-target="${detailsId}"
+                tabindex="0"
+                role="button"
+                aria-expanded="false"
             >
 
                 <td>
@@ -2653,6 +2658,25 @@ function displayAttendanceSummary(
             >
 
                 <td colspan="${columnCount}">
+
+                    <div class="student-attendance-totals" aria-label="Attendance totals for roll number ${escapeHtml(String(student.roll_number))}">
+                        <div>
+                            <strong>${totalLecturesDelivered}</strong>
+                            <span>Lectures Delivered</span>
+                        </div>
+                        <div class="present-total">
+                            <strong>${student.present}</strong>
+                            <span>Total Present</span>
+                        </div>
+                        <div class="absent-total">
+                            <strong>${Math.max(totalLecturesDelivered - student.present, 0)}</strong>
+                            <span>Total Absent</span>
+                        </div>
+                        <div class="percentage-total">
+                            <strong>${percentage}%</strong>
+                            <span>Attendance Percentage</span>
+                        </div>
+                    </div>
 
                     <table class="student-log-table">
 
@@ -2755,10 +2779,17 @@ function displayAttendanceSummary(
                         targetId
                     );
 
+                const willOpen = details.classList.contains("hidden");
+                document.querySelectorAll("#attendanceSummary .summary-details-row").forEach(panel => {
+                    panel.classList.add("hidden");
+                });
+                document.querySelectorAll("#attendanceSummary .summary-row").forEach(summaryRow => {
+                    summaryRow.setAttribute("aria-expanded", "false");
+                });
 
-                details.classList.toggle(
-                    "hidden"
-                );
+                if (willOpen) details.classList.remove("hidden");
+
+                row.setAttribute("aria-expanded", String(willOpen));
 
 
                 const arrowCell =
@@ -2780,6 +2811,12 @@ function displayAttendanceSummary(
 
             }
         );
+
+        row.addEventListener("keydown", event => {
+            if (event.key !== "Enter" && event.key !== " ") return;
+            event.preventDefault();
+            row.click();
+        });
 
     });
 

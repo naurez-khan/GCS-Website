@@ -1697,3 +1697,182 @@ body {
         transform: scale(1) rotate(0);
     }
 }
+
+@media (max-width: 700px) {
+    #attendanceSummary .summary-table-wrapper {
+        overflow-x: hidden;
+    }
+
+    #attendanceSummary .summary-table {
+        width: 100%;
+        min-width: 0;
+        table-layout: fixed;
+    }
+
+    #attendanceSummary .summary-table th,
+    #attendanceSummary .summary-table td {
+        padding: 8px 6px;
+        font-size: 12px;
+        white-space: normal;
+        overflow-wrap: anywhere;
+    }
+
+    #attendanceSummary .summary-table th:first-child,
+    #attendanceSummary .summary-table td:first-child {
+        position: static;
+        min-width: 0;
+        box-shadow: none;
+    }
+
+    #attendanceSummary .summary-table th:nth-child(1) { width: 42%; }
+    #attendanceSummary .summary-table th:nth-child(2) { width: 25%; }
+    #attendanceSummary .summary-table th:nth-child(3) { width: 33%; }
+}
+
+/* Roll-number-first attendance history */
+#attendanceSummary .summary-table-wrapper {
+    overflow: visible;
+    border: 0;
+    background: transparent;
+}
+
+#attendanceSummary .summary-table {
+    display: block;
+    width: 100%;
+    min-width: 0;
+}
+
+#attendanceSummary .summary-table thead {
+    display: none;
+}
+
+#attendanceSummary .summary-table tbody {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(105px, 1fr));
+    gap: 10px;
+}
+
+#attendanceSummary .summary-row {
+    display: block;
+    min-width: 0;
+}
+
+#attendanceSummary .summary-row td {
+    display: none;
+}
+
+#attendanceSummary .summary-row td:first-child {
+    display: flex;
+    position: static;
+    align-items: center;
+    justify-content: space-between;
+    min-width: 0;
+    padding: 12px 14px;
+    border: 1px solid rgba(142, 11, 18, .2);
+    border-radius: 11px;
+    background: rgba(255, 255, 255, .94) !important;
+    box-shadow: 0 5px 14px rgba(66, 3, 8, .07);
+    color: #7e0d16;
+    font-weight: 700;
+    transition: border-color .18s ease, background-color .18s ease, transform .18s ease;
+}
+
+#attendanceSummary .summary-row td:first-child::after {
+    content: "›";
+    color: #a90c19;
+    font-size: 20px;
+    line-height: 1;
+}
+
+#attendanceSummary .summary-row:hover td:first-child,
+#attendanceSummary .summary-row:focus-visible td:first-child,
+#attendanceSummary .summary-row[aria-expanded="true"] td:first-child {
+    border-color: #a90c19;
+    background: #fff3f3 !important;
+    transform: translateY(-1px);
+}
+
+#attendanceSummary .summary-row:focus-visible {
+    outline: none;
+}
+
+#attendanceSummary .summary-details-row {
+    display: block;
+    grid-column: 1 / -1;
+}
+
+#attendanceSummary .summary-details-row.hidden {
+    display: none;
+}
+
+#attendanceSummary .summary-details-row > td {
+    display: block;
+    width: 100%;
+    padding: 14px !important;
+    border: 1px solid rgba(142, 11, 18, .16);
+    border-radius: 14px;
+    background: rgba(255, 252, 250, .96) !important;
+}
+
+#attendanceSummary .student-log-table {
+    display: none;
+}
+
+.student-attendance-totals {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.student-attendance-totals > div {
+    display: grid;
+    min-height: 96px;
+    place-content: center;
+    gap: 5px;
+    padding: 12px;
+    border-radius: 12px;
+    background: #f5f1f1;
+    text-align: center;
+}
+
+.student-attendance-totals strong {
+    color: #7e0d16;
+    font-size: 25px;
+}
+
+.student-attendance-totals span {
+    color: #675d60;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.student-attendance-totals .present-total { background: #e8f8ed; }
+.student-attendance-totals .present-total strong { color: #18723a; }
+.student-attendance-totals .absent-total { background: #fdeced; }
+.student-attendance-totals .percentage-total { background: #fff6dc; }
+.student-attendance-totals .percentage-total strong { color: #76500b; }
+
+@media (max-width: 700px) {
+    #attendanceSummary .summary-table tbody {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 8px;
+    }
+
+    #attendanceSummary .summary-row td:first-child {
+        padding: 10px 11px;
+        font-size: 12px;
+    }
+
+    .student-attendance-totals {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+    }
+
+    .student-attendance-totals > div {
+        min-height: 88px;
+        padding: 9px;
+    }
+
+    .student-attendance-totals strong { font-size: 22px; }
+    .student-attendance-totals span { font-size: 11px; }
+}
