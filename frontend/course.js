@@ -1067,6 +1067,20 @@ holidayForm?.addEventListener("submit", async event => {
         return;
     }
 
+    const rangeStart = new Date(`${payload.holiday_from}T00:00:00Z`);
+    const rangeEnd = new Date(`${payload.holiday_to}T00:00:00Z`);
+    let containsWorkingDay = false;
+    for (const day = new Date(rangeStart); day <= rangeEnd; day.setUTCDate(day.getUTCDate() + 1)) {
+        if (day.getUTCDay() !== 0) {
+            containsWorkingDay = true;
+            break;
+        }
+    }
+    if (!containsWorkingDay) {
+        setHolidayMessage("This date is Sunday. Sundays are already excluded automatically.", "error");
+        return;
+    }
+
     submitButton.disabled = true;
     setHolidayMessage(editingHolidayId ? "Updating holiday..." : "Saving holiday...");
     try {
@@ -2651,7 +2665,9 @@ async function loadAttendanceHistory() {
         if (coursePageAction === "attendance") renderAttendanceList();
 
 
-        restoreTodayAttendanceSummary();
+        if (coursePageAction === "attendance") {
+            restoreSelectedAttendance();
+        }
 
 
         displayAttendanceSummary(
@@ -2669,7 +2685,7 @@ async function loadAttendanceHistory() {
 
         attendanceSummary.innerHTML = `
             <p class="error">
-                Could not connect to server.
+                Could not display attendance history. Please refresh and try again.
             </p>
         `;
 
