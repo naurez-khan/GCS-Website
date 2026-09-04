@@ -16,7 +16,7 @@
 
     <link
         rel="stylesheet"
-        href="/course.css?v=20260828-1"
+        href="/course.css?v=20260904-4"
     >
     <link rel="stylesheet" href="/brand.css?v=20260824-33">
     <script defer src="/ui-icons.js?v=20260824-3"></script>
@@ -249,6 +249,16 @@
                         Date:
                         <strong id="attendanceDate"></strong>
                     </p>
+                    <div id="missedAttendanceControls" class="missed-attendance-controls hidden">
+                        <button id="openMissedAttendanceBtn" class="missed-attendance-btn" type="button" aria-expanded="false">
+                            Mark Previous Attendance
+                        </button>
+                        <div id="missedAttendanceMenu" class="missed-attendance-menu hidden" aria-label="Previous dates without attendance"></div>
+                        <button id="returnToTodayBtn" class="return-today-btn hidden" type="button">
+                            Return to Today
+                        </button>
+                    </div>
+
 
                 </div>
 
@@ -490,7 +500,7 @@
          COURSE JAVASCRIPT
     ========================= -->
 
-    <script src="/course.js?v=20260829-1"></script>
+    <script src="/course.js?v=20260904-2"></script>
 
 </body>
 

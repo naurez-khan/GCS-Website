@@ -72,16 +72,37 @@ const app = require("../server");
             throw new Error("Separate roll-number ranges were not created correctly");
         }
         const firstStudentId = courseData.students[0].id;
+        const todayParts = Object.fromEntries(
+            new Intl.DateTimeFormat("en-CA", {
+                timeZone: "Asia/Karachi", year: "numeric", month: "2-digit", day: "2-digit"
+            }).formatToParts(new Date()).map(part => [part.type, part.value])
+        );
+        const today = `${todayParts.year}-${todayParts.month}-${todayParts.day}`;
+        const dateBeforeToday = days => {
+            const value = new Date(`${today}T00:00:00Z`);
+            value.setUTCDate(value.getUTCDate() - days);
+            return value.toISOString().slice(0, 10);
+        };
+        const firstAttendanceDate = dateBeforeToday(2);
+        const missedAttendanceDate = dateBeforeToday(1);
 
         await request("/api/attendance/mark", {
             method: "POST",
-            body: JSON.stringify({ courseId, date: "2026-08-14", absentStudentIds: [] })
+            body: JSON.stringify({ courseId, date: today, absentStudentIds: [] })
         }, 201);
         const savedAttendance = await request(`/api/attendance/course/${courseId}`);
-        if (!savedAttendance.attendance.length || savedAttendance.attendance.some(record => record.attendance_date !== "2026-08-14")) {
+        if (!savedAttendance.attendance.length || savedAttendance.attendance.some(record => record.attendance_date !== today)) {
             throw new Error("Attendance dates shifted during API serialization");
         }
-        const corrected = await request(`/api/attendance/course/${courseId}/2026-08-14`, {
+        await pool.query(
+            "UPDATE attendance SET attendance_date = $1 WHERE course_id = $2 AND attendance_date = $3",
+            [firstAttendanceDate, courseId, today]
+        );
+        await request("/api/attendance/mark", {
+            method: "POST",
+            body: JSON.stringify({ courseId, date: missedAttendanceDate, absentStudentIds: [] })
+        }, 201);
+        const corrected = await request(`/api/attendance/course/${courseId}/${firstAttendanceDate}`, {
             method: "PUT",
             body: JSON.stringify({ absentStudentIds: [firstStudentId] })
         });
@@ -123,14 +144,14 @@ const app = require("../server");
                 ? "absent"
                 : "present"
         }));
-        const addedToAttendance = await request(`/api/attendance/course/${courseId}/2026-08-14`, {
+        const addedToAttendance = await request(`/api/attendance/course/${courseId}/${firstAttendanceDate}`, {
             method: "PUT",
             body: JSON.stringify({ studentStatuses: statusesWithImportedStudent })
         });
         if (addedToAttendance.changed !== 1) throw new Error("Newly imported student was not added to existing attendance");
         const attendanceWithImportedStudent = await request(`/api/attendance/course/${courseId}`);
         const importedAttendance = attendanceWithImportedStudent.attendance.find(record =>
-            Number(record.student_id) === Number(importedStudent.id) && record.attendance_date === "2026-08-14"
+            Number(record.student_id) === Number(importedStudent.id) && record.attendance_date === firstAttendanceDate
         );
         if (!importedAttendance || importedAttendance.status !== "absent") {
             throw new Error("Newly imported student's attendance status was not saved");
@@ -146,7 +167,7 @@ const app = require("../server");
             throw new Error("Published results did not reflect edited assessments");
         }
 
-        console.log("Course code, multiple roll ranges, class settings, assessment counts, custom result code, student import, attendance correction (including a newly added student), audit history, and published results all passed.");
+        console.log("Course code, missed-date attendance, multiple roll ranges, class settings, assessment counts, custom result code, student import, attendance correction (including a newly added student), audit history, and published results all passed.");
     } finally {
         if (courseId !== null) {
             const target = await pool.query("SELECT name FROM courses WHERE id = $1 AND teacher_id = $2", [courseId, teacherId]);

@@ -65,6 +65,18 @@ const attendanceSection =
 const attendanceDate =
     document.getElementById("attendanceDate");
 
+const missedAttendanceControls =
+    document.getElementById("missedAttendanceControls");
+
+const openMissedAttendanceBtn =
+    document.getElementById("openMissedAttendanceBtn");
+
+const missedAttendanceMenu =
+    document.getElementById("missedAttendanceMenu");
+
+const returnToTodayBtn =
+    document.getElementById("returnToTodayBtn");
+
 const attendanceList =
     document.getElementById("attendanceList");
 
@@ -151,6 +163,8 @@ let courseMonthlyTests = [];
 let assignmentMarks = [];
 
 let quizMarks = [];
+let selectedAttendanceDate = null;
+
 let monthlyTestMarks = [];
 
 let currentAttendanceRecords = [];
@@ -276,7 +290,7 @@ async function loadCourse() {
             currentCourse.attendance_enabled !== false
         ) {
 
-            loadAttendanceHistory();
+            await loadAttendanceHistory();
 
         }
 
@@ -792,8 +806,8 @@ if (attendanceBtn) {
                 getTodayDate();
 
 
-            attendanceDate.textContent =
-                formatDateForDisplay(today);
+            selectedAttendanceDate = today;
+            attendanceDate.textContent = formatDateForDisplay(selectedAttendanceDate);
 
 
             renderAttendanceList();
@@ -901,7 +915,7 @@ function renderAttendanceList() {
 
     });
 
-    restoreTodayAttendanceSummary();
+    restoreSelectedAttendance();
 
 }
 
@@ -917,10 +931,80 @@ function displaySavedAttendanceTotals(presentTotal, absentTotal, leaveTotal = 0)
     summary.classList.remove("hidden");
 }
 
-function restoreTodayAttendanceSummary(animateStudentId = null) {
+function getMissingPastAttendanceDates() {
+    const completedDates = new Set(
+        currentAttendanceRecords
+            .filter(record => record.status !== "leave")
+            .map(record => attendanceDateKey(record.attendance_date))
+    );
+    if (!completedDates.size) return [];
+
+    const firstRecordedDate = [...completedDates].sort()[0];
+    const yesterday = new Date(`${getTodayDate()}T00:00:00Z`);
+    yesterday.setUTCDate(yesterday.getUTCDate() - 1);
+    const cursor = new Date(`${firstRecordedDate}T00:00:00Z`);
+    const missingDates = [];
+
+    while (cursor <= yesterday) {
+        const date = cursor.toISOString().slice(0, 10);
+        if (!completedDates.has(date)) missingDates.push(date);
+        cursor.setUTCDate(cursor.getUTCDate() + 1);
+    }
+    return missingDates.reverse();
+}
+
+function closeMissedAttendanceMenu() {
+    missedAttendanceMenu?.classList.add("hidden");
+    openMissedAttendanceBtn?.setAttribute("aria-expanded", "false");
+}
+
+function selectAttendanceDate(date) {
+    selectedAttendanceDate = date;
+    if (attendanceDate) attendanceDate.textContent = formatDateForDisplay(date);
+    returnToTodayBtn?.classList.toggle("hidden", date === getTodayDate());
+    closeMissedAttendanceMenu();
+    showAttendanceMessage("", "");
+    renderAttendanceList();
+}
+
+function updateMissedAttendanceControls() {
+    if (!missedAttendanceControls || !missedAttendanceMenu) return;
+    if (!selectedAttendanceDate) selectedAttendanceDate = getTodayDate();
+
+    const missingDates = getMissingPastAttendanceDates();
+    const isPastDateSelected = selectedAttendanceDate !== getTodayDate();
+    missedAttendanceControls.classList.remove("hidden");
+    returnToTodayBtn?.classList.toggle("hidden", !isPastDateSelected);
+    missedAttendanceMenu.innerHTML = missingDates.length
+        ? missingDates.map(date => `
+            <button type="button" data-missed-attendance-date="${date}">
+                ${formatDateForDisplay(date)}
+            </button>
+        `).join("")
+        : '<p class="missed-attendance-empty">No previous dates are available yet. Mark today’s attendance first.</p>';
+}
+
+openMissedAttendanceBtn?.addEventListener("click", () => {
+    const willOpen = missedAttendanceMenu?.classList.contains("hidden");
+    missedAttendanceMenu?.classList.toggle("hidden", !willOpen);
+    openMissedAttendanceBtn.setAttribute("aria-expanded", String(willOpen));
+});
+
+missedAttendanceMenu?.addEventListener("click", event => {
+    const dateButton = event.target.closest("[data-missed-attendance-date]");
+    if (dateButton) selectAttendanceDate(dateButton.dataset.missedAttendanceDate);
+});
+
+returnToTodayBtn?.addEventListener("click", () => selectAttendanceDate(getTodayDate()));
+
+document.addEventListener("click", event => {
+    if (!missedAttendanceControls?.contains(event.target)) closeMissedAttendanceMenu();
+});
+
+function restoreSelectedAttendance(animateStudentId = null) {
     const summary = document.getElementById("attendanceSavedSummary");
     if (!summary) return;
-    const todayRecords = currentAttendanceRecords.filter(record => record.attendance_date === getTodayDate());
+    const todayRecords = currentAttendanceRecords.filter(record => attendanceDateKey(record.attendance_date) === selectedAttendanceDate);
     if (!todayRecords.length) {
         summary.classList.add("hidden");
         return;
@@ -1006,7 +1090,7 @@ async function saveAttendance() {
             Number(courseId),
 
         date:
-            getTodayDate(),
+            selectedAttendanceDate || getTodayDate(),
 
         absentStudentIds:
             absentStudentIds
@@ -1097,7 +1181,11 @@ async function saveAttendance() {
         }
 
 
-        loadAttendanceHistory();
+        const savedDate = selectedAttendanceDate;
+        await loadAttendanceHistory();
+        if (savedDate !== getTodayDate()) {
+            selectAttendanceDate(getTodayDate());
+        }
 
 
     } catch (error) {
@@ -2353,6 +2441,9 @@ async function loadAttendanceHistory() {
             data.attendance || [];
 
         syncAttendanceExportMonth();
+        updateMissedAttendanceControls();
+        if (coursePageAction === "attendance") renderAttendanceList();
+
 
         restoreTodayAttendanceSummary();
 
@@ -4278,7 +4369,7 @@ studentLeaveForm?.addEventListener("submit", async event => {
         setPanelMessage("leaveMessage", data.message, "success");
         await loadAttendanceHistory();
         const leaveStudent = students.find(student => String(student.roll_number) === leaveRollNumber);
-        restoreTodayAttendanceSummary(leaveStudent?.id ?? null);
+        restoreSelectedAttendance(leaveStudent?.id ?? null);
     } catch (error) {
         setPanelMessage("leaveMessage", error.message, "error");
     } finally {
@@ -4360,7 +4451,8 @@ async function initializeCoursePage() {
     if (coursePageAction === "import") studentImportSection?.classList.remove("hidden");
     if (coursePageAction === "attendance" && currentCourse?.attendance_enabled !== false) {
         attendanceSection?.classList.remove("hidden");
-        attendanceDate.textContent = formatDateForDisplay(getTodayDate());
+        selectedAttendanceDate = getTodayDate();
+        attendanceDate.textContent = formatDateForDisplay(selectedAttendanceDate);
         renderAttendanceList();
     }
     if (coursePageAction === "marks") {
