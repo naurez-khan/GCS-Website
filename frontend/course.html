@@ -16,7 +16,7 @@
 
     <link
         rel="stylesheet"
-        href="/course.css?v=20260904-4"
+        href="/course.css?v=20260904-7"
     >
     <link rel="stylesheet" href="/brand.css?v=20260824-33">
     <script defer src="/ui-icons.js?v=20260824-3"></script>
@@ -257,6 +257,9 @@
                         <button id="returnToTodayBtn" class="return-today-btn hidden" type="button">
                             Return to Today
                         </button>
+                        <button id="openHolidayBtn" class="holiday-btn" type="button" aria-expanded="false">
+                            Add Public Holiday
+                        </button>
                     </div>
 
 
@@ -265,7 +268,31 @@
             </div>
 
             <div id="attendanceSavedSummary" class="attendance-saved-summary hidden" aria-live="polite"></div>
+                    <div id="holidayPanel" class="holiday-panel hidden">
+                        <form id="holidayForm" class="holiday-form">
+                            <h3 id="holidayFormTitle">Add Public Holiday</h3>
+                            <label>Holiday From<input id="holidayFrom" type="date" required></label>
+                            <label>Holiday To<input id="holidayTo" type="date" required></label>
+                            <label>Holiday name<input id="holidayName" maxlength="150" required placeholder="e.g. Independence Day"></label>
+                            <div class="holiday-form-actions">
+                                <button class="holiday-save-btn" type="submit">Save Holiday</button>
+                                <button id="cancelHolidayBtn" class="secondary-btn" type="button">Cancel</button>
+                            </div>
+                            <div id="holidayMessage" class="message" role="status" aria-live="polite"></div>
+                        </form>
+                        <div class="holiday-list-wrap">
+                            <h3>Saved Holidays</h3>
+                            <div id="holidayList" class="holiday-list"></div>
+                        </div>
+                    </div>
 
+
+
+            <div id="attendanceHolidayNotice" class="attendance-holiday-notice hidden" role="status">
+                <h3 id="attendanceHolidayTitle">Today is a public holiday</h3>
+                <p id="attendanceHolidayName"></p>
+                <button id="editHolidaysBtn" class="holiday-edit-btn" type="button">Edit Holidays</button>
+            </div>
 
             <div
                 id="attendanceList"
@@ -500,7 +527,7 @@
          COURSE JAVASCRIPT
     ========================= -->
 
-    <script src="/course.js?v=20260904-2"></script>
+    <script src="/course.js?v=20260904-6"></script>
 
 </body>
 

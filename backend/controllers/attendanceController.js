@@ -78,6 +78,22 @@ const markAttendance = async (req, res) => {
         }
 
 
+        if (new Date(`${date}T00:00:00Z`).getUTCDay() === 0) {
+            await client.query("ROLLBACK");
+            return res.status(400).json({ success: false, message: "Attendance cannot be marked on Sunday" });
+        }
+        const holiday = await client.query(
+            "SELECT name FROM course_holidays WHERE course_id = $1 AND holiday_date = $2",
+            [courseId, date]
+        );
+        if (holiday.rows.length) {
+            await client.query("ROLLBACK");
+            return res.status(400).json({
+                success: false,
+                message: `${holiday.rows[0].name} is a public holiday`
+            });
+        }
+
         // Get all students in this course
 
         const studentsResult = await client.query(
@@ -470,9 +486,118 @@ const getAttendanceAudit = async (req, res) => {
     }
 };
 
+const getCourseHolidays = async (req, res) => {
+    try {
+        const courseId = Number(req.params.courseId);
+        const result = await pool.query(
+            `SELECT h.id, TO_CHAR(h.holiday_date, 'YYYY-MM-DD') AS holiday_date, h.name
+             FROM course_holidays h JOIN courses c ON c.id = h.course_id
+             WHERE h.course_id = $1 AND c.teacher_id = $2 ORDER BY h.holiday_date`,
+            [courseId, req.user.id]
+        );
+        res.json({ success: true, holidays: result.rows });
+    } catch (error) {
+        console.error("Get holidays error:", error);
+        res.status(500).json({ success: false, message: "Server error" });
+    }
+};
+
+const createCourseHoliday = async (req, res) => {
+    try {
+        const courseId = Number(req.params.courseId);
+        const holidayFrom = String(req.body.holiday_from || req.body.holiday_date || "");
+        const holidayTo = String(req.body.holiday_to || holidayFrom);
+        const name = String(req.body.name || "").trim();
+        const validDate = value => /^\d{4}-\d{2}-\d{2}$/.test(value);
+
+        if (!validDate(holidayFrom) || !validDate(holidayTo) || holidayTo < holidayFrom || !name || name.length > 150) {
+            return res.status(400).json({ success: false, message: "A valid holiday range and name are required" });
+        }
+
+        const access = await pool.query(
+            "SELECT id FROM courses WHERE id = $1 AND teacher_id = $2",
+            [courseId, req.user.id]
+        );
+        if (!access.rows.length) {
+            return res.status(404).json({ success: false, message: "Course not found or access denied" });
+        }
+
+        const result = await pool.query(
+            `INSERT INTO course_holidays (course_id, holiday_date, name, created_by)
+             SELECT $1, day::date, $4, $5
+             FROM generate_series($2::date, $3::date, INTERVAL '1 day') AS day
+             WHERE EXTRACT(DOW FROM day) <> 0
+             ON CONFLICT (course_id, holiday_date)
+             DO UPDATE SET name = EXCLUDED.name, updated_at = CURRENT_TIMESTAMP
+             RETURNING id, TO_CHAR(holiday_date, 'YYYY-MM-DD') AS holiday_date, name`,
+            [courseId, holidayFrom, holidayTo, name, req.user.id]
+        );
+
+        if (!result.rows.length) {
+            return res.status(400).json({ success: false, message: "The selected range contains only Sundays" });
+        }
+
+        const count = result.rows.length;
+        res.status(201).json({
+            success: true,
+            message: count === 1 ? "Public holiday saved" : `${count} public holiday days saved`,
+            holidays: result.rows
+        });
+    } catch (error) {
+        console.error("Create holiday error:", error);
+        res.status(500).json({ success: false, message: "Server error" });
+    }
+};
+
+const updateCourseHoliday = async (req, res) => {
+    try {
+        const courseId = Number(req.params.courseId);
+        const holidayId = Number(req.params.holidayId);
+        const holidayDate = String(req.body.holiday_date || "");
+        const name = String(req.body.name || "").trim();
+        if (!Number.isInteger(holidayId) || !/^\d{4}-\d{2}-\d{2}$/.test(holidayDate) || !name || name.length > 150) {
+            return res.status(400).json({ success: false, message: "A valid date and holiday name are required" });
+        }
+        if (new Date(`${holidayDate}T00:00:00Z`).getUTCDay() === 0) {
+            return res.status(400).json({ success: false, message: "Sundays are already excluded automatically" });
+        }
+        const result = await pool.query(
+            `UPDATE course_holidays h SET holiday_date = $3, name = $4, updated_at = CURRENT_TIMESTAMP
+             FROM courses c WHERE h.id = $2 AND h.course_id = $1 AND c.id = h.course_id AND c.teacher_id = $5
+             RETURNING h.id, TO_CHAR(h.holiday_date, 'YYYY-MM-DD') AS holiday_date, h.name`,
+            [courseId, holidayId, holidayDate, name, req.user.id]
+        );
+        if (!result.rows.length) return res.status(404).json({ success: false, message: "Holiday not found or access denied" });
+        res.json({ success: true, message: "Public holiday updated", holiday: result.rows[0] });
+    } catch (error) {
+        if (error.code === "23505") return res.status(409).json({ success: false, message: "A holiday already exists on this date" });
+        console.error("Update holiday error:", error);
+        res.status(500).json({ success: false, message: "Server error" });
+    }
+};
+
+const deleteCourseHoliday = async (req, res) => {
+    try {
+        const result = await pool.query(
+            `DELETE FROM course_holidays h USING courses c
+             WHERE h.id = $2 AND h.course_id = $1 AND c.id = h.course_id AND c.teacher_id = $3 RETURNING h.id`,
+            [Number(req.params.courseId), Number(req.params.holidayId), req.user.id]
+        );
+        if (!result.rows.length) return res.status(404).json({ success: false, message: "Holiday not found or access denied" });
+        res.json({ success: true, message: "Public holiday removed" });
+    } catch (error) {
+        console.error("Delete holiday error:", error);
+        res.status(500).json({ success: false, message: "Server error" });
+    }
+};
+
 module.exports = {
     markAttendance,
     getAttendance,
     updateAttendance,
-    getAttendanceAudit
+    getAttendanceAudit,
+    getCourseHolidays,
+    createCourseHoliday,
+    updateCourseHoliday,
+    deleteCourseHoliday
 };

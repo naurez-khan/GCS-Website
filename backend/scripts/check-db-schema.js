@@ -7,6 +7,7 @@ const expected = {
     students: ["id", "course_id", "roll_number", "midterm_marks", "final_marks", "december_test_marks", "preboard_marks", "updated_at"],
     attendance: ["id", "course_id", "student_id", "attendance_date", "status", "updated_at"],
     attendance_audit_logs: ["id", "course_id", "student_id", "attendance_date", "old_status", "new_status", "changed_by", "changed_at"],
+    course_holidays: ["id", "course_id", "holiday_date", "name", "created_by", "created_at", "updated_at"],
     assignments: ["id", "course_id", "assignment_number", "name", "max_marks", "assessment_type", "month_number", "updated_at"],
     quizzes: ["id", "course_id", "quiz_number", "name", "max_marks", "updated_at"],
     assignment_marks: ["id", "assignment_id", "student_id", "marks"],

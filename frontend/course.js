@@ -77,6 +77,23 @@ const missedAttendanceMenu =
 const returnToTodayBtn =
     document.getElementById("returnToTodayBtn");
 
+const openHolidayBtn = document.getElementById("openHolidayBtn");
+const holidayPanel = document.getElementById("holidayPanel");
+const holidayForm = document.getElementById("holidayForm");
+const holidayFormTitle = document.getElementById("holidayFormTitle");
+const holidayFrom = document.getElementById("holidayFrom");
+const holidayTo = document.getElementById("holidayTo");
+const holidayName = document.getElementById("holidayName");
+const cancelHolidayBtn = document.getElementById("cancelHolidayBtn");
+const holidayMessage = document.getElementById("holidayMessage");
+const holidayList = document.getElementById("holidayList");
+const attendanceHolidayNotice = document.getElementById("attendanceHolidayNotice");
+const attendanceHolidayTitle = document.getElementById("attendanceHolidayTitle");
+const attendanceHolidayName = document.getElementById("attendanceHolidayName");
+const editHolidaysBtn = document.getElementById("editHolidaysBtn");
+const attendanceActions = document.querySelector(".attendance-actions");
+const leaveControls = document.querySelector(".leave-controls");
+
 const attendanceList =
     document.getElementById("attendanceList");
 
@@ -168,6 +185,8 @@ let selectedAttendanceDate = null;
 let monthlyTestMarks = [];
 
 let currentAttendanceRecords = [];
+let currentCourseHolidays = [];
+let editingHolidayId = null;
 
 let pendingStudentImport = [];
 
@@ -290,6 +309,7 @@ async function loadCourse() {
             currentCourse.attendance_enabled !== false
         ) {
 
+            await loadCourseHolidays();
             await loadAttendanceHistory();
 
         }
@@ -916,6 +936,7 @@ function renderAttendanceList() {
     });
 
     restoreSelectedAttendance();
+    applyHolidayAttendanceState();
 
 }
 
@@ -930,6 +951,188 @@ function displaySavedAttendanceTotals(presentTotal, absentTotal, leaveTotal = 0)
         <div class="leave-total"><strong>${leaveTotal}</strong><span>Leave</span></div>`;
     summary.classList.remove("hidden");
 }
+
+function setHolidayMessage(text = "", type = "") {
+    if (!holidayMessage) return;
+    holidayMessage.textContent = text;
+    holidayMessage.className = type ? `message ${type}` : "message";
+}
+
+function resetHolidayForm() {
+    editingHolidayId = null;
+    holidayForm?.reset();
+    if (holidayFrom) holidayFrom.value = getTodayDate();
+    if (holidayTo) holidayTo.value = getTodayDate();
+    if (holidayFormTitle) holidayFormTitle.textContent = "Add Public Holiday";
+    setHolidayMessage();
+}
+
+function renderHolidayList() {
+    if (!holidayList) return;
+    holidayList.innerHTML = currentCourseHolidays.map(holiday => `
+        <div class="holiday-list-item">
+            <div>
+                <strong>${escapeHtml(holiday.name)}</strong>
+                <span>${formatDateForDisplay(holiday.holiday_date)}</span>
+            </div>
+            <div class="holiday-list-actions">
+                <button type="button" data-edit-holiday="${holiday.id}">Edit</button>
+                <button type="button" data-delete-holiday="${holiday.id}">Remove</button>
+            </div>
+        </div>
+    `).join("");
+}
+
+function getHolidayForDate(date) {
+    return currentCourseHolidays.find(holiday => attendanceDateKey(holiday.holiday_date) === date) || null;
+}
+
+function applyHolidayAttendanceState() {
+    if (!attendanceHolidayNotice || !selectedAttendanceDate) return false;
+    const holiday = getHolidayForDate(selectedAttendanceDate);
+    const isHoliday = Boolean(holiday);
+
+    attendanceHolidayNotice.classList.toggle("hidden", !isHoliday);
+    attendanceList?.classList.toggle("hidden", isHoliday);
+    attendanceActions?.classList.toggle("hidden", isHoliday);
+    leaveControls?.classList.toggle("hidden", isHoliday);
+
+    if (isHoliday) {
+        document.getElementById("attendanceSavedSummary")?.classList.add("hidden");
+        document.getElementById("studentLeaveForm")?.classList.add("hidden");
+        if (attendanceHolidayTitle) {
+            attendanceHolidayTitle.textContent = selectedAttendanceDate === getTodayDate()
+                ? "Today is a public holiday"
+                : "This date is a public holiday";
+        }
+        if (attendanceHolidayName) {
+            attendanceHolidayName.textContent = `${holiday.name} · ${formatDateForDisplay(selectedAttendanceDate)}`;
+        }
+    }
+    return isHoliday;
+}
+
+editHolidaysBtn?.addEventListener("click", openHolidayPanel);
+
+async function loadCourseHolidays() {
+    if (!courseId || !openHolidayBtn) return;
+    try {
+        const response = await fetch(`/api/attendance/course/${courseId}/holidays`, {
+            credentials: "include"
+        });
+        const data = await response.json();
+        if (!response.ok || !data.success) throw new Error(data.message || "Could not load holidays");
+        currentCourseHolidays = data.holidays || [];
+        renderHolidayList();
+        updateMissedAttendanceControls();
+        applyHolidayAttendanceState();
+    } catch (error) {
+        console.error("Load holidays error:", error);
+        setHolidayMessage(error.message, "error");
+    }
+}
+
+function openHolidayPanel() {
+    closeMissedAttendanceMenu();
+    resetHolidayForm();
+    holidayPanel?.classList.remove("hidden");
+    openHolidayBtn?.setAttribute("aria-expanded", "true");
+    holidayFrom?.focus();
+    holidayPanel?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+function closeHolidayPanel() {
+    holidayPanel?.classList.add("hidden");
+    openHolidayBtn?.setAttribute("aria-expanded", "false");
+    resetHolidayForm();
+}
+
+openHolidayBtn?.addEventListener("click", openHolidayPanel);
+cancelHolidayBtn?.addEventListener("click", closeHolidayPanel);
+
+holidayForm?.addEventListener("submit", async event => {
+    event.preventDefault();
+    const submitButton = holidayForm.querySelector('[type="submit"]');
+    const payload = {
+        holiday_from: holidayFrom?.value,
+        holiday_to: holidayTo?.value,
+        name: holidayName?.value.trim()
+    };
+    if (!payload.holiday_from || !payload.holiday_to || !payload.name) {
+        setHolidayMessage("Choose both dates and enter the holiday name.", "error");
+        return;
+    }
+    if (payload.holiday_to < payload.holiday_from) {
+        setHolidayMessage("Holiday To cannot be before Holiday From.", "error");
+        return;
+    }
+
+    submitButton.disabled = true;
+    setHolidayMessage(editingHolidayId ? "Updating holiday..." : "Saving holiday...");
+    try {
+        const url = editingHolidayId
+            ? `/api/attendance/course/${courseId}/holidays/${editingHolidayId}`
+            : `/api/attendance/course/${courseId}/holidays`;
+        const requestPayload = editingHolidayId
+            ? { holiday_date: payload.holiday_from, name: payload.name }
+            : payload;
+        const response = await fetch(url, {
+            method: editingHolidayId ? "PUT" : "POST",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(requestPayload)
+        });
+        const contentType = response.headers.get("content-type") || "";
+        const data = contentType.includes("application/json") ? await response.json() : null;
+        if (!response.ok || !data?.success) {
+            throw new Error(data?.message || "Holiday service is unavailable. Restart the server and try again.");
+        }
+        await loadCourseHolidays();
+        resetHolidayForm();
+        setHolidayMessage(data.message || "Public holiday saved.", "success");
+    } catch (error) {
+        setHolidayMessage(error.message, "error");
+    } finally {
+        submitButton.disabled = false;
+    }
+});
+holidayList?.addEventListener("click", async event => {
+    const editButton = event.target.closest("[data-edit-holiday]");
+    const deleteButton = event.target.closest("[data-delete-holiday]");
+
+    if (editButton) {
+        const holiday = currentCourseHolidays.find(item => Number(item.id) === Number(editButton.dataset.editHoliday));
+        if (!holiday) return;
+        editingHolidayId = holiday.id;
+        holidayFrom.value = attendanceDateKey(holiday.holiday_date);
+        holidayTo.value = attendanceDateKey(holiday.holiday_date);
+        holidayTo.disabled = true;
+        holidayName.value = holiday.name;
+        holidayFormTitle.textContent = "Edit Public Holiday";
+        setHolidayMessage();
+        holidayFrom.focus();
+        return;
+    }
+
+    if (deleteButton) {
+        const holiday = currentCourseHolidays.find(item => Number(item.id) === Number(deleteButton.dataset.deleteHoliday));
+        if (!holiday || !window.confirm(`Remove ${holiday.name}?`)) return;
+        deleteButton.disabled = true;
+        try {
+            const response = await fetch(`/api/attendance/course/${courseId}/holidays/${holiday.id}`, {
+                method: "DELETE",
+                credentials: "include"
+            });
+            const data = await response.json();
+            if (!response.ok || !data.success) throw new Error(data.message || "Could not remove holiday");
+            await loadCourseHolidays();
+            setHolidayMessage(data.message || "Public holiday removed.", "success");
+        } catch (error) {
+            setHolidayMessage(error.message, "error");
+            deleteButton.disabled = false;
+        }
+    }
+});
 
 function getMissingPastAttendanceDates() {
     const completedDates = new Set(
@@ -947,7 +1150,9 @@ function getMissingPastAttendanceDates() {
 
     while (cursor <= yesterday) {
         const date = cursor.toISOString().slice(0, 10);
-        if (!completedDates.has(date)) missingDates.push(date);
+        const isSunday = cursor.getUTCDay() === 0;
+        const isHoliday = currentCourseHolidays.some(holiday => attendanceDateKey(holiday.holiday_date) === date);
+        if (!isSunday && !isHoliday && !completedDates.has(date)) missingDates.push(date);
         cursor.setUTCDate(cursor.getUTCDate() + 1);
     }
     return missingDates.reverse();
@@ -965,6 +1170,7 @@ function selectAttendanceDate(date) {
     closeMissedAttendanceMenu();
     showAttendanceMessage("", "");
     renderAttendanceList();
+    applyHolidayAttendanceState();
 }
 
 function updateMissedAttendanceControls() {

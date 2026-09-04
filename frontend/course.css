@@ -196,12 +196,15 @@ body {
 
 .missed-attendance-controls.hidden,
 .missed-attendance-menu.hidden,
-.return-today-btn.hidden {
+.return-today-btn.hidden,
+.holiday-panel.hidden {
     display: none;
 }
 
 .missed-attendance-btn,
-.return-today-btn {
+.return-today-btn,
+.holiday-btn {
+    flex: 1 1 220px;
     min-height: 42px;
     border-radius: 11px;
     padding: 9px 14px;
@@ -223,6 +226,179 @@ body {
     color: #7e0d16;
 }
 
+.holiday-btn {
+    border: 1px solid #d4a72c;
+    background: #fff;
+    color: #7e0d16;
+    box-shadow: 0 7px 18px rgba(65, 2, 8, .08);
+}
+.holiday-btn:hover,
+.holiday-btn:focus-visible {
+    background: #fff7f6;
+    border-color: #bd8f16;
+}
+.holiday-panel {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(240px, .8fr);
+    gap: 18px;
+    margin: 18px 0 22px;
+    padding: 20px;
+    border: 1px solid rgba(142, 9, 20, .22);
+    border-radius: 18px;
+    background: #fffaf0;
+    box-shadow: 0 12px 28px rgba(65, 2, 8, .1);
+}
+.holiday-form,
+.holiday-list-wrap {
+    display: grid;
+    align-content: start;
+    gap: 13px;
+}
+.holiday-form h3,
+.holiday-list-wrap h3 {
+    margin: 0;
+    color: #7e0d16;
+    font-size: 20px;
+}
+.holiday-form label {
+    display: grid;
+    gap: 6px;
+    color: #4b3d42;
+    font-weight: 700;
+}
+.holiday-form input {
+    width: 100%;
+    min-height: 46px;
+    border: 1px solid rgba(142, 9, 20, .28);
+    border-radius: 11px;
+    background: #fff;
+    color: #27191d;
+    padding: 10px 12px;
+    font: inherit;
+}
+.holiday-form input:focus {
+    outline: 3px solid rgba(212, 167, 44, .24);
+    border-color: #b98b12;
+}
+.holiday-form-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+.holiday-save-btn,
+.holiday-form-actions .secondary-btn {
+    min-height: 46px;
+    border-radius: 11px;
+    padding: 10px 14px;
+    font: inherit;
+    font-weight: 750;
+    cursor: pointer;
+}
+.holiday-save-btn {
+    border: 1px solid #8e0914;
+    background: #a80716;
+    color: #fff;
+}
+.holiday-form-actions .secondary-btn {
+    border: 1px solid rgba(142, 9, 20, .35);
+    background: #fff;
+    color: #7e0d16;
+}
+.holiday-list {
+    display: grid;
+    gap: 8px;
+}
+.attendance-holiday-notice {
+    display: grid;
+    justify-items: center;
+    gap: 10px;
+    margin: 22px 0;
+    padding: 30px 20px;
+    border: 1px solid rgba(212, 167, 44, .55);
+    border-radius: 18px;
+    background: #fff8d6;
+    text-align: center;
+    box-shadow: 0 12px 28px rgba(65, 2, 8, .08);
+}
+
+.attendance-holiday-notice.hidden {
+    display: none;
+}
+
+.attendance-list.hidden,
+.attendance-actions.hidden,
+.leave-controls.hidden {
+    display: none !important;
+}
+
+.attendance-holiday-notice h3 {
+    margin: 0;
+    color: #7e0d16;
+    font-size: 25px;
+}
+
+.attendance-holiday-notice p {
+    margin: 0;
+    color: #5e4f37;
+    font-weight: 700;
+}
+
+.holiday-edit-btn {
+    min-height: 46px;
+    margin-top: 5px;
+    border: 1px solid #8e0914;
+    border-radius: 11px;
+    background: #fff;
+    color: #7e0d16;
+    padding: 10px 22px;
+    font: inherit;
+    font-weight: 750;
+    cursor: pointer;
+}
+
+.holiday-list-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 11px 12px;
+    border: 1px solid rgba(142, 9, 20, .18);
+    border-radius: 11px;
+    background: #fff;
+}
+
+.holiday-list-item > div:first-child {
+    display: grid;
+    gap: 2px;
+}
+
+.holiday-list-item span {
+    color: #76686d;
+    font-size: 13px;
+}
+
+.holiday-list-actions {
+    display: flex;
+    gap: 6px;
+}
+
+.holiday-list-actions button {
+    border: 1px solid rgba(142, 9, 20, .3);
+    border-radius: 8px;
+    background: #fff;
+    color: #7e0d16;
+    padding: 6px 8px;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.holiday-list:empty::after {
+    content: "No public holidays added.";
+    color: #76686d;
+    font-size: 14px;
+}
 .missed-attendance-menu {
     position: absolute;
     z-index: 30;
@@ -271,9 +447,25 @@ body {
     .attendance-header > div,
     .missed-attendance-controls,
     .missed-attendance-btn,
+    .holiday-btn,
     .return-today-btn,
     .missed-attendance-menu {
         width: 100%;
+    }
+
+    .holiday-btn,
+    .missed-attendance-btn,
+    .return-today-btn {
+        flex-basis: 100%;
+    }
+
+    .holiday-panel {
+        grid-template-columns: 1fr;
+        padding: 16px;
+    }
+
+    .holiday-form-actions {
+        grid-template-columns: 1fr;
     }
 }
 
