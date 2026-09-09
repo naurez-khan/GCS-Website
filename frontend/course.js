@@ -906,7 +906,7 @@ function renderAttendanceList() {
         const studentDisplay =
             showStudentName
                 ? (student.name || "Not added")
-                : `Student ${student.roll_number}`;
+                : "";
 
         const previousWeek = previousWeekAttendanceForStudent(student.id);
         const statusLabels = { present: "Present", absent: "Absent", leave: "Leave", none: "No attendance" };
@@ -928,7 +928,7 @@ function renderAttendanceList() {
             </div>
 
             <div class="attendance-student-details">
-                <div class="student-name">${escapeHtml(studentDisplay)}</div>
+                ${studentDisplay ? `<div class="student-name">${escapeHtml(studentDisplay)}</div>` : ""}
                 <span class="last-week-marker" aria-label="Last 7 days. ${escapeHtml(previousWeekDetails)}">
                     <span class="last-week-label">Last 7</span>
                     <span class="last-week-dots" aria-hidden="true">${previousWeekDots}</span>
