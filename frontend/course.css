@@ -811,28 +811,31 @@ body {
 .import-validation-summary.has-errors { color: #8f111a; border: 1px solid #efb2b7; background: #fff1f2; }
 .import-validation-summary strong { font-size: 18px; }
 
-.settings-roll-rows { display: grid; gap: 10px; margin: 12px 0 16px; }
-
-.settings-roll-row {
+.settings-roll-bulk-grid {
     display: grid;
-    grid-template-columns: minmax(150px, .65fr) minmax(180px, 1fr) auto;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 12px;
-    align-items: end;
-    padding: 12px;
-    border-radius: 10px;
-    background: rgba(255, 255, 255, 0.7);
+    margin: 12px 0;
 }
 
-.settings-roll-row label { display: grid; gap: 6px; font-weight: 700; }
-.settings-roll-row input {
+.settings-roll-bulk-grid label { display: grid; align-content: start; gap: 7px; font-weight: 700; }
+.settings-roll-bulk-grid textarea {
     width: 100%;
-    padding: 10px 11px;
+    min-height: 104px;
+    padding: 12px;
     border: 1px solid rgba(162, 12, 22, 0.22);
-    border-radius: 8px;
+    border-radius: 10px;
     font: inherit;
+    resize: vertical;
 }
 
-.settings-roll-row .roll-name-field[hidden] { display: none; }
+.settings-roll-bulk-grid textarea:focus {
+    outline: 3px solid rgba(184, 15, 24, .12);
+    border-color: #b80f18;
+}
+
+.settings-roll-bulk-grid small { color: #74676a; font-weight: 500; line-height: 1.4; }
+.settings-roll-count { margin: 0 0 14px; color: #74676a; font-size: 14px; font-weight: 700; }
 
 .settings-roll-save {
     display: flex;
@@ -842,14 +845,13 @@ body {
 }
 
 .settings-roll-save .message { flex: 1 1 260px; margin: 0; }
-.remove-settings-student { color: #a20c16; border-color: rgba(162, 12, 22, 0.35); }
 .panel-actions .message,
 .attendance-actions .message,
 .marks-actions .message { flex: 1 1 260px; margin: 0; }
 
 @media (max-width: 700px) {
     .settings-roll-heading { flex-direction: column; }
-    .settings-roll-row { grid-template-columns: 1fr; }
+    .settings-roll-bulk-grid { grid-template-columns: 1fr; }
     .settings-roll-save > * { width: 100%; }
 }
 
@@ -959,6 +961,39 @@ body {
 .attendance-row:hover {
     background: #f9fafb;
 }
+
+.attendance-student-details {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 7px 10px;
+    min-width: 0;
+}
+
+.last-week-marker {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: #677085;
+    font-size: 11px;
+    font-weight: 800;
+    line-height: 1;
+    white-space: nowrap;
+}
+
+.last-week-label { font-size: 10px; text-transform: uppercase; letter-spacing: .03em; }
+.last-week-dots { display: inline-flex; align-items: center; gap: 4px; }
+.last-week-dot {
+    width: 9px;
+    height: 9px;
+    border: 1px solid rgba(39, 25, 27, .12);
+    border-radius: 50%;
+    background: #cbd1da;
+    box-shadow: 0 1px 2px rgba(39, 25, 27, .12);
+}
+.last-week-dot.present { background: #1f9d57; }
+.last-week-dot.absent { background: #d62d3a; }
+.last-week-dot.leave { background: #2878e3; }
 
 .attendance-count-marker {
     display: flex;
@@ -1909,9 +1944,13 @@ body {
         grid-row: 1;
     }
 
-    .attendance-row .student-name {
+    .attendance-row .attendance-student-details {
         grid-column: 1;
         grid-row: 2;
+        min-width: 0;
+    }
+
+    .attendance-row .student-name {
         min-width: 0;
         overflow: hidden;
         text-overflow: ellipsis;

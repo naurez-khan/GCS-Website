@@ -859,6 +859,31 @@ if (attendanceBtn) {
 // ATTENDANCE LIST
 // =========================
 
+function previousWeekAttendanceForStudent(studentId) {
+    const referenceDate = new Date(`${selectedAttendanceDate}T00:00:00Z`);
+    if (Number.isNaN(referenceDate.getTime())) return [];
+
+    const rangeStart = new Date(referenceDate);
+    rangeStart.setUTCDate(rangeStart.getUTCDate() - 7);
+    const statusesByDate = new Map();
+
+    currentAttendanceRecords.forEach(record => {
+        if (Number(record.student_id) !== Number(studentId)) return;
+        const date = attendanceDateKey(record.attendance_date);
+        const status = String(record.status || "").toLowerCase();
+        if (["present", "absent", "leave"].includes(status)) {
+            statusesByDate.set(date, status);
+        }
+    });
+
+    return Array.from({ length: 7 }, (_, index) => {
+        const date = new Date(rangeStart);
+        date.setUTCDate(date.getUTCDate() + index);
+        const dateKey = date.toISOString().slice(0, 10);
+        return { date: dateKey, status: statusesByDate.get(dateKey) || "none" };
+    });
+}
+
 function renderAttendanceList() {
 
     attendanceList.innerHTML = "";
@@ -883,6 +908,18 @@ function renderAttendanceList() {
                 ? (student.name || "Not added")
                 : `Student ${student.roll_number}`;
 
+        const previousWeek = previousWeekAttendanceForStudent(student.id);
+        const statusLabels = { present: "Present", absent: "Absent", leave: "Leave", none: "No attendance" };
+        const previousWeekDetails = previousWeek
+            .map(day => `${formatDateForDisplay(day.date)}: ${statusLabels[day.status]}`)
+            .join(", ");
+        const previousWeekDots = previousWeek.map(day => `
+            <span
+                class="last-week-dot ${day.status}"
+                title="${escapeHtml(`${formatDateForDisplay(day.date)}: ${statusLabels[day.status]}`)}"
+            ></span>
+        `).join("");
+
 
         row.innerHTML = `
 
@@ -890,8 +927,12 @@ function renderAttendanceList() {
                 ${escapeHtml(student.roll_number)}
             </div>
 
-            <div class="student-name">
-                ${escapeHtml(studentDisplay)}
+            <div class="attendance-student-details">
+                <div class="student-name">${escapeHtml(studentDisplay)}</div>
+                <span class="last-week-marker" aria-label="Last 7 days. ${escapeHtml(previousWeekDetails)}">
+                    <span class="last-week-label">Last 7</span>
+                    <span class="last-week-dots" aria-hidden="true">${previousWeekDots}</span>
+                </span>
             </div>
 
             <div>
@@ -4163,53 +4204,69 @@ function setPanelMessage(elementId, text, type) {
     element.className = text ? `message ${type}` : "message";
 }
 
-function settingsRollRowHtml(student = {}) {
-    const studentId = Number(student.id) || "";
-    const isExisting = Boolean(studentId);
-    const showName = currentCourse?.student_name_enabled === true;
-    return `<div class="settings-roll-row" data-student-id="${studentId}">
-        <label>Roll Number
-            <input class="settings-roll-number" type="number" min="0" max="2147483647" step="1" value="${escapeHtml(student.roll_number ?? "")}" placeholder="e.g. 101">
-        </label>
-        <label class="roll-name-field" ${showName ? "" : "hidden"}>Student Name
-            <input class="settings-roll-name" type="text" maxlength="150" value="${escapeHtml(student.name || "")}" placeholder="Student name">
-        </label>
-        <button class="secondary-btn remove-settings-student" type="button">${isExisting ? "Remove Student" : "Remove"}</button>
-    </div>`;
-}
-
-let settingsRemovedStudentIds = [];
-
 function renderSettingsRollEditor() {
-    const rows = document.getElementById("settingsRollRows");
-    if (!rows) return;
-    rows.innerHTML = students
-        .slice()
-        .sort((first, second) => Number(first.roll_number) - Number(second.roll_number))
-        .map(settingsRollRowHtml)
-        .join("");
-    settingsRemovedStudentIds = [];
+    const addInput = document.getElementById("settingsAddRolls");
+    const removeInput = document.getElementById("settingsRemoveRolls");
+    if (addInput) addInput.value = "";
+    if (removeInput) removeInput.value = "";
+    const count = document.getElementById("settingsRollCount");
+    if (count) count.textContent = `${students.length} active student${students.length === 1 ? "" : "s"} in this class`;
 }
 
-function readSettingsRollNumbers() {
-    const rows = [...document.querySelectorAll("#settingsRollRows .settings-roll-row")];
-    const entries = rows.map(row => ({
-        student_id: row.dataset.studentId ? Number(row.dataset.studentId) : null,
-        roll_number: Number(row.querySelector(".settings-roll-number").value),
-        name: row.querySelector(".settings-roll-name").value.trim()
-    }));
-    if (!entries.length || entries.length > 500 || entries.some(entry =>
-        !Number.isSafeInteger(entry.roll_number) || entry.roll_number < 0 || entry.roll_number > 2147483647
-    )) {
-        throw new Error("Enter between 1 and 500 valid whole roll numbers");
+function parseSettingsRollList(value, action) {
+    const text = String(value || "").trim();
+    if (!text) return [];
+    const tokens = text.split(/[\s,]+/).filter(Boolean);
+    if (tokens.some(token => !/^\d+$/.test(token))) {
+        throw new Error(`${action} roll numbers must be whole numbers separated by commas`);
     }
-    if (new Set(entries.map(entry => entry.roll_number)).size !== entries.length) {
-        throw new Error("Each roll number must be unique");
+    const rolls = tokens.map(Number);
+    if (rolls.some(roll => !Number.isSafeInteger(roll) || roll < 0 || roll > 2147483647)) {
+        throw new Error(`${action} roll numbers must be between 0 and 2147483647`);
     }
-    if (currentCourse?.student_name_enabled === true && entries.some(entry => entry.student_id === null && !entry.name)) {
-        throw new Error("Enter a student name for each new roll number");
+    if (new Set(rolls).size !== rolls.length) {
+        throw new Error(`Remove duplicate roll numbers from the ${action.toLowerCase()} list`);
     }
-    return entries;
+    return rolls;
+}
+
+function buildSettingsStudentChanges() {
+    const addRolls = parseSettingsRollList(document.getElementById("settingsAddRolls")?.value, "Add");
+    const removeRolls = parseSettingsRollList(document.getElementById("settingsRemoveRolls")?.value, "Remove");
+    if (!addRolls.length && !removeRolls.length) {
+        throw new Error("Enter at least one roll number to add or remove");
+    }
+
+    const activeByRoll = new Map(students.map(student => [Number(student.roll_number), student]));
+    const alreadyActive = addRolls.filter(roll => activeByRoll.has(roll));
+    if (alreadyActive.length) throw new Error(`Already in this class: ${alreadyActive.join(", ")}`);
+    const missing = removeRolls.filter(roll => !activeByRoll.has(roll));
+    if (missing.length) throw new Error(`Not found in this class: ${missing.join(", ")}`);
+    const overlap = addRolls.filter(roll => removeRolls.includes(roll));
+    if (overlap.length) throw new Error(`A roll number cannot be added and removed together: ${overlap.join(", ")}`);
+
+    const removeSet = new Set(removeRolls);
+    const remainingStudents = students.filter(student => !removeSet.has(Number(student.roll_number)));
+    if (!remainingStudents.length) throw new Error("A class must keep at least one active student");
+    if (remainingStudents.length + addRolls.length > 500) throw new Error("A class cannot contain more than 500 active students");
+
+    return {
+        students: [
+            ...remainingStudents.map(student => ({
+                student_id: Number(student.id),
+                roll_number: Number(student.roll_number),
+                name: student.name || ""
+            })),
+            ...addRolls.map(roll => ({
+                student_id: null,
+                roll_number: roll,
+                name: currentCourse?.student_name_enabled === true ? `Student ${roll}` : ""
+            }))
+        ],
+        removedStudentIds: removeRolls.map(roll => Number(activeByRoll.get(roll).id)),
+        addedCount: addRolls.length,
+        removedCount: removeRolls.length
+    };
 }
 
 const COURSE_MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -4348,26 +4405,6 @@ document.getElementById("settingsMonthlyTestRows")?.addEventListener("click", ev
     if (button) button.closest(".settings-monthly-test-row").remove();
 });
 
-document.getElementById("addSettingsRollBtn")?.addEventListener("click", () => {
-    const rows = document.getElementById("settingsRollRows");
-    rows.insertAdjacentHTML("beforeend", settingsRollRowHtml());
-    rows.lastElementChild?.querySelector(".settings-roll-number")?.focus();
-});
-
-document.getElementById("settingsRollRows")?.addEventListener("click", event => {
-    const removeButton = event.target.closest(".remove-settings-student");
-    if (!removeButton) return;
-    const row = removeButton.closest(".settings-roll-row");
-    const studentId = Number(row.dataset.studentId);
-    if (studentId) {
-        const rollNumber = row.querySelector(".settings-roll-number")?.value || "";
-        if (!window.confirm(`Remove student roll number ${rollNumber}? They will disappear from the class after saving, but can be restored later with attendance and marks intact.`)) return;
-        settingsRemovedStudentIds.push(studentId);
-    }
-    row.remove();
-    setPanelMessage("settingsRollMessage", studentId ? "Student marked for removal. Press Save Roll Numbers to confirm; they can be restored later." : "", studentId ? "error" : "");
-});
-
 async function loadRemovedStudents() {
     const list = document.getElementById("removedStudentsList");
     try {
@@ -4412,23 +4449,26 @@ document.getElementById("removedStudentsList")?.addEventListener("click", async 
 
 document.getElementById("saveSettingsRollsBtn")?.addEventListener("click", async () => {
     const button = document.getElementById("saveSettingsRollsBtn");
-    let editedStudents;
+    let changes;
     try {
-        editedStudents = readSettingsRollNumbers();
+        changes = buildSettingsStudentChanges();
     } catch (error) {
         setPanelMessage("settingsRollMessage", error.message, "error");
         return;
     }
+    if (changes.removedCount && !window.confirm(
+        `Remove ${changes.removedCount} student${changes.removedCount === 1 ? "" : "s"}? Their attendance and marks will be preserved and they can be restored later.`
+    )) return;
 
     button.disabled = true;
-    button.textContent = "Saving…";
+    button.textContent = "Applying…";
     setPanelMessage("settingsRollMessage", "", "");
     try {
         const response = await fetch(`/api/courses/${courseId}/students/roll-numbers`, {
             method: "PUT",
             credentials: "include",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ students: editedStudents, removed_student_ids: settingsRemovedStudentIds })
+            body: JSON.stringify({ students: changes.students, removed_student_ids: changes.removedStudentIds })
         });
         const data = await response.json();
         if (!response.ok || !data.success) throw new Error(data.message || "Could not update roll numbers");
@@ -4437,12 +4477,15 @@ document.getElementById("saveSettingsRollsBtn")?.addEventListener("click", async
         displayCourse(currentCourse);
         displayStudents(students);
         renderSettingsRollEditor();
-        setPanelMessage("settingsRollMessage", data.message, "success");
+        const updates = [];
+        if (changes.addedCount) updates.push(`${changes.addedCount} added`);
+        if (changes.removedCount) updates.push(`${changes.removedCount} removed`);
+        setPanelMessage("settingsRollMessage", `Student changes saved: ${updates.join(" and ")}.`, "success");
     } catch (error) {
         setPanelMessage("settingsRollMessage", error.message, "error");
     } finally {
         button.disabled = false;
-        button.textContent = "Save Roll Numbers";
+        button.textContent = "Apply Student Changes";
     }
 });
 

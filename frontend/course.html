@@ -16,7 +16,7 @@
 
     <link
         rel="stylesheet"
-        href="/course.css?v=20260909-2"
+        href="/course.css?v=20260909-4"
     >
     <link rel="stylesheet" href="/brand.css?v=20260824-33">
     <script defer src="/ui-icons.js?v=20260824-3"></script>
@@ -190,9 +190,8 @@
             </div>
             <div class="settings-roll-editor">
                 <div class="settings-roll-heading">
-                    <div><h3>Roll Numbers</h3><p>Edit existing numbers or add new students. Saved students keep their attendance and marks.</p></div>
+                    <div><h3>Manage Students</h3><p>Add or remove students by entering their roll numbers separated by commas.</p></div>
                     <div class="settings-roll-heading-actions">
-                        <button id="addSettingsRollBtn" class="secondary-btn" type="button">+ Add Roll Number</button>
                         <button id="showRemovedStudentsBtn" class="secondary-btn" type="button">Restore Students</button>
                     </div>
                 </div>
@@ -201,9 +200,21 @@
                     <p>Restoring a student also restores their saved attendance and marks.</p>
                     <div id="removedStudentsList"></div>
                 </div>
-                <div id="settingsRollRows" class="settings-roll-rows"></div>
+                <div class="settings-roll-bulk-grid">
+                    <label>
+                        Add new students
+                        <textarea id="settingsAddRolls" rows="3" placeholder="e.g. 1901, 1902, 1903"></textarea>
+                        <small>Only enter roll numbers that are not already in the class.</small>
+                    </label>
+                    <label>
+                        Remove students
+                        <textarea id="settingsRemoveRolls" rows="3" placeholder="e.g. 1851, 1852"></textarea>
+                        <small>Removed students can be restored later with their records intact.</small>
+                    </label>
+                </div>
+                <p class="settings-roll-count" id="settingsRollCount"></p>
                 <div class="settings-roll-save">
-                    <button id="saveSettingsRollsBtn" class="primary-btn" type="button">Save Roll Numbers</button>
+                    <button id="saveSettingsRollsBtn" class="primary-btn" type="button">Apply Student Changes</button>
                     <div id="settingsRollMessage" class="message" role="status" aria-live="polite"></div>
                 </div>
             </div>
@@ -588,7 +599,7 @@
          COURSE JAVASCRIPT
     ========================= -->
 
-    <script src="/course.js?v=20260909-2"></script>
+    <script src="/course.js?v=20260909-4"></script>
 
 </body>
 
