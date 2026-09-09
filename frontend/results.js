@@ -22,7 +22,7 @@ function renderResult(result) {
             <tr><td>Preboard</td><td>${score(result.preboard?.marks)}</td><td>100</td></tr>`);
     }
     if (result.midterm) rows.push(`<tr><td>Midterm</td><td>${score(result.midterm.marks)}</td><td>${score(result.midterm.maxMarks)}</td></tr>`);
-    if (result.final) rows.push(`<tr><td>Final exam</td><td>${score(result.final.marks)}</td><td>${score(result.final.maxMarks)}</td></tr>`);
+    if (result.final) rows.push(`<tr><td>Sessional</td><td>${score(result.final.marks)}</td><td>${score(result.final.maxMarks)}</td></tr>`);
 
     resultPanel.innerHTML = `
         <div class="result-heading"><div><p class="eyebrow">PUBLISHED RESULT</p><h2>${escapeHtml(result.course.name)}</h2></div>

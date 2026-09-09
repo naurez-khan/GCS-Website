@@ -483,7 +483,7 @@ const restoreClassBackup = async (req, res) => {
         const restoredName = `${String(sourceCourse.name || "Restored Class").slice(0, 135)} (Restored)`;
         const courseResult = await client.query(
             `INSERT INTO courses (
-                name, course_code, class_type, intermediate_year, class_shift, roll_entry_mode,
+                name, course_code, class_type, intermediate_year, class_shift, roll_entry_mode, roll_number_type,
                 program, semester, section, teacher_id, roll_start, roll_end,
                 course_name_enabled, program_enabled, semester_enabled, section_enabled,
                 roll_number_enabled, student_name_enabled, attendance_enabled,
@@ -491,11 +491,12 @@ const restoreClassBackup = async (req, res) => {
                 midterm_enabled, final_enabled, results_enabled, monthly_tests_enabled,
                 midterm_max_marks, final_max_marks
              ) VALUES (
-                $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29
+                $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30
              ) RETURNING *`,
             [
                 restoredName, sourceCourse.course_code || null, sourceCourse.class_type || "bachelors",
                 sourceCourse.intermediate_year || null, sourceCourse.class_shift || "morning", sourceCourse.roll_entry_mode || "manual",
+                sourceCourse.roll_number_type === "government_college" ? "government_college" : "pu",
                 sourceCourse.program || null, sourceCourse.semester || null, sourceCourse.section || null, teacherId,
                 Math.min(...activeRolls), Math.max(...activeRolls),
                 sourceCourse.course_name_enabled !== false, sourceCourse.program_enabled !== false,

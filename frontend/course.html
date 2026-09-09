@@ -16,7 +16,7 @@
 
     <link
         rel="stylesheet"
-        href="/course.css?v=20260909-4"
+        href="/course.css?v=20260909-5"
     >
     <link rel="stylesheet" href="/brand.css?v=20260824-33">
     <script defer src="/ui-icons.js?v=20260824-3"></script>
@@ -166,6 +166,11 @@
                 <label id="settingsSemesterLabel">Semester<input id="settingsSemester" maxlength="50" placeholder="e.g. 3rd"></label>
                 <label>Section<input id="settingsSection" maxlength="20"></label>
                 <label>Shift<select id="settingsClassShift"><option value="morning">Morning</option><option value="evening">Evening</option></select></label>
+                <fieldset id="settingsRollNumberTypeField" class="settings-radio-group">
+                    <legend>Roll number type</legend>
+                    <label><input type="radio" name="settingsRollNumberType" value="pu"> PU Roll Numbers</label>
+                    <label><input type="radio" name="settingsRollNumberType" value="government_college"> Govt. College Roll Numbers</label>
+                </fieldset>
                 <label class="setting-check"><input id="settingsResultsEnabled" type="checkbox"> Publish student results</label>
                 <label>Student Result Code<input id="settingsResultCode" minlength="4" maxlength="24" pattern="[A-Za-z0-9-]+" placeholder="e.g. calculus-2026"></label>
                 <label id="settingsAssignmentsToggle" class="setting-check"><input id="settingsAssignmentsEnabled" type="checkbox"> Assignments enabled</label>
@@ -185,8 +190,11 @@
                 </div>
                 <label id="settingsMidtermToggle" class="setting-check"><input id="settingsMidtermEnabled" type="checkbox"> Midterm enabled</label>
                 <label id="settingsMidtermMaxLabel">Midterm Maximum Marks<input id="settingsMidtermMax" type="number" min="0.01" step="0.01"></label>
-                <label id="settingsFinalToggle" class="setting-check"><input id="settingsFinalEnabled" type="checkbox"> Final exam enabled</label>
-                <label id="settingsFinalMaxLabel">Final Maximum Marks<input id="settingsFinalMax" type="number" min="0.01" step="0.01"></label>
+                <label id="settingsFinalToggle" class="setting-check"><input id="settingsFinalEnabled" type="checkbox"> Sessional enabled</label>
+                <div id="settingsFinalMaxLabel" class="settings-fixed-assessments">
+                    <div><span>Sessional Maximum Marks</span><strong>15 marks</strong></div>
+                    <input id="settingsFinalMax" type="hidden" value="15">
+                </div>
             </div>
             <div class="settings-roll-editor">
                 <div class="settings-roll-heading">
@@ -591,7 +599,8 @@
 
     <script src="/vendor/xlsx.full.min.js"></script>
     <script src="/vendor/exceljs.min.js"></script>
-    <script src="/attendance-register.js?v=20260824-1"></script>
+    <script src="/award-list.js?v=20260909-2"></script>
+    <script src="/attendance-register.js?v=20260909-2"></script>
     <script src="/absent-register.js?v=20260909-1"></script>
 
 
@@ -599,7 +608,7 @@
          COURSE JAVASCRIPT
     ========================= -->
 
-    <script src="/course.js?v=20260909-5"></script>
+    <script src="/course.js?v=20260909-7"></script>
 
 </body>
 

@@ -252,9 +252,9 @@
     }
 
     const attendanceStatusColors = Object.freeze({
-        P: "FF2563EB",
+        P: "FF16A34A",
         A: "FFDC2626",
-        L: "FF16A34A"
+        L: "FF2563EB"
     });
 
     function attendanceStatusColor(value) {

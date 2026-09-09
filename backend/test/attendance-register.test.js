@@ -64,9 +64,9 @@ test("uses BS program and course details in the printed header", () => {
     assert.equal(spec.rows[0][6], "Section/Sem 5");
 
 test("uses distinct Excel font colors for attendance statuses", () => {
-    assert.equal(attendanceStatusColor("P"), "FF2563EB");
+    assert.equal(attendanceStatusColor("P"), "FF16A34A");
     assert.equal(attendanceStatusColor("A"), "FFDC2626");
-    assert.equal(attendanceStatusColor("L"), "FF16A34A");
+    assert.equal(attendanceStatusColor("L"), "FF2563EB");
     assert.equal(attendanceStatusColor(""), null);
 });
     assert.equal(spec.rows[0][14], "Subject Graph Theory");

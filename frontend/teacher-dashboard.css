@@ -636,6 +636,20 @@ body {
 .fixed-intermediate-assessments span { font-weight: 800; }
 .fixed-intermediate-assessments strong { color: #8f111a; font-size: 13px; text-align: right; }
 
+.fixed-assessment-value {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 14px;
+    border: 1px solid #e2c6c8;
+    border-radius: 10px;
+    background: #fff;
+}
+
+.fixed-assessment-value span { font-weight: 700; }
+.fixed-assessment-value strong { color: #8f111a; white-space: nowrap; }
+
 .class-level-panel {
     margin: 12px 0 18px;
     padding: 16px;
@@ -742,6 +756,62 @@ body {
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 8px;
     margin-bottom: 14px;
+}
+
+.roll-number-type {
+    margin: 0 0 16px;
+    padding: 14px;
+    border: 1px solid #e2c6c8;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, .72);
+}
+
+.roll-number-type legend {
+    padding: 0 5px;
+    color: #7f1017;
+    font-size: 13px;
+    font-weight: 800;
+}
+
+.roll-number-type-options {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.roll-number-type-options label {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    min-height: 48px;
+    margin: 0;
+    padding: 10px 12px;
+    border: 1px solid #d8b7ba;
+    border-radius: 10px;
+    background: #fff;
+    color: #4d3033;
+    cursor: pointer;
+}
+
+.conditional-field .roll-number-type-options input {
+    flex: 0 0 auto;
+    width: 18px;
+    height: 18px;
+    margin: 0;
+    padding: 0;
+    accent-color: #a70d18;
+}
+
+.roll-number-type-options span {
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.35;
+}
+
+.roll-number-type-options label:has(input:checked) {
+    border-color: #a70d18;
+    background: #fff7f7;
+    box-shadow: 0 5px 14px rgba(143, 17, 26, .1);
 }
 
 .roll-mode-tabs label {
@@ -1195,6 +1265,10 @@ input[type="number"]::-webkit-outer-spin-button {
     }
 
     .roll-mode-tabs {
+        grid-template-columns: 1fr;
+    }
+
+    .roll-number-type-options {
         grid-template-columns: 1fr;
     }
 

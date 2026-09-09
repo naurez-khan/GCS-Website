@@ -76,7 +76,7 @@ const getStudentResult = async (req, res) => {
         quizResult.rows.forEach(item => addScore(item.marks, item.max_marks));
         monthlyTestResult.rows.forEach(item => addScore(item.marks, item.max_marks));
         if (student.midterm_enabled) addScore(student.midterm_marks, student.midterm_max_marks);
-        if (student.final_enabled) addScore(student.final_marks, student.final_max_marks);
+        if (student.final_enabled) addScore(student.final_marks, student.class_type === "intermediate" ? student.final_max_marks : 15);
         if (student.class_type === "intermediate") {
             addScore(student.december_test_marks, 100);
             addScore(student.preboard_marks, 100);
@@ -125,7 +125,7 @@ const getStudentResult = async (req, res) => {
                     ? { marks: student.preboard_marks, maxMarks: 100 }
                     : null,
                 midterm: student.midterm_enabled ? { marks: student.midterm_marks, maxMarks: student.midterm_max_marks } : null,
-                final: student.final_enabled ? { marks: student.final_marks, maxMarks: student.final_max_marks } : null,
+                final: student.final_enabled ? { marks: student.final_marks, maxMarks: student.class_type === "intermediate" ? student.final_max_marks : 15 } : null,
                 summary: {
                     earned,
                     maximum,

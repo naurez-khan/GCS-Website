@@ -1,5 +1,6 @@
 const pool = require("../config/db");
 const crypto = require("node:crypto");
+const { backfillStudentAbsences } = require("../services/attendanceBackfill");
 
 
 // =========================
@@ -23,6 +24,7 @@ const createCourse = async (req, res) => {
             rollRanges,
             roll_numbers,
             roll_entry_mode,
+            roll_number_type,
             class_type,
             intermediate_year,
             class_shift,
@@ -155,6 +157,9 @@ const createCourse = async (req, res) => {
         const classShift = String(class_shift || "morning").trim().toLowerCase();
         const cleanCourseCode = classType === "intermediate" ? null : requestedCourseCode;
         const rollEntryMode = ["range", "manual", "excel"].includes(roll_entry_mode) ? roll_entry_mode : "range";
+        const rollNumberType = classType === "bachelors" && roll_number_type === "government_college"
+            ? "government_college"
+            : "pu";
         if (!["bachelors", "intermediate"].includes(classType) || (classType === "intermediate" && !["1st_year", "2nd_year"].includes(intermediateYear))) {
             return res.status(400).json({ success: false, message: "Choose a valid class level and Intermediate year" });
         }
@@ -315,16 +320,7 @@ const createCourse = async (req, res) => {
 
         if (finalEnabled) {
 
-            finalMaxMarks = Number(final_max_marks);
-
-            if (Number.isNaN(finalMaxMarks) || finalMaxMarks <= 0) {
-
-                return res.status(400).json({
-                    success: false,
-                    message: "Final exam total marks must be a positive number"
-                });
-
-            }
+            finalMaxMarks = 15;
 
         }
 
@@ -392,6 +388,7 @@ const createCourse = async (req, res) => {
                     class_type,
                     intermediate_year,
                     roll_entry_mode,
+                    roll_number_type,
                     monthly_tests_enabled,
                     class_shift
                 )
@@ -401,7 +398,7 @@ const createCourse = async (req, res) => {
                     $1, $2, $3, $4, $5, $6, $7, $8,
                     $9, $10, $11, $12, $13, $14,
                     $15, $16, $17, $18, $19, $20, $21, $22,
-                    $23, $24, $25, $26, $27, $28, $29, $30
+                    $23, $24, $25, $26, $27, $28, $29, $30, $31
                 )
 
                 RETURNING *
@@ -438,6 +435,7 @@ const createCourse = async (req, res) => {
                     classType,
                     intermediateYear,
                     rollEntryMode,
+                    rollNumberType,
                     monthlyTestsEnabled,
                     classShift
                 ]
@@ -591,6 +589,7 @@ const getMyCourses = async (req, res) => {
                     intermediate_year,
                     class_shift,
                     roll_entry_mode,
+                    roll_number_type,
                     program,
                     semester,
                     section,
@@ -700,6 +699,7 @@ const getCourseStudents = async (
                     intermediate_year,
                     class_shift,
                     roll_entry_mode,
+                    roll_number_type,
                     program,
                     semester,
                     section,
@@ -945,6 +945,7 @@ const updateCourseRollNumbers = async (req, res) => {
             );
         }
 
+        const newStudentIds = [];
         for (const item of cleaned) {
             if (item.studentId !== null) {
                 const existing = existingById.get(item.studentId);
@@ -959,13 +960,17 @@ const updateCourseRollNumbers = async (req, res) => {
                     ]
                 );
             } else {
-                await client.query(
+                const insertedStudent = await client.query(
                     `INSERT INTO students (course_id, roll_number, name, program, semester)
-                     VALUES ($1,$2,$3,$4,$5)`,
+                     VALUES ($1,$2,$3,$4,$5)
+                     RETURNING id`,
                     [courseId, item.rollText, course.student_name_enabled ? item.name : null, course.program, course.semester]
                 );
+                newStudentIds.push(Number(insertedStudent.rows[0].id));
             }
         }
+
+        const backfilledAttendance = await backfillStudentAbsences(client, courseId, newStudentIds);
 
         const updatedCourse = await client.query(
             `UPDATE courses SET
@@ -986,6 +991,7 @@ const updateCourseRollNumbers = async (req, res) => {
             message: removedStudentIds.length
                 ? `${removedStudentIds.length} student${removedStudentIds.length === 1 ? "" : "s"} removed and roll numbers updated successfully`
                 : "Roll numbers updated successfully",
+            backfilled_attendance: backfilledAttendance,
             course: updatedCourse.rows[0],
             students: updatedStudents.rows
         });
@@ -1537,6 +1543,7 @@ const getCourseMarks = async (
                     intermediate_year,
                     class_shift,
                     roll_entry_mode,
+                    roll_number_type,
                     program,
                     semester,
                     section,
@@ -2204,7 +2211,7 @@ const updateCourseMarks = async (
 
 
         // =========================
-        // FINAL MARKS
+        // SESSIONAL MARKS (stored in the legacy final_marks column)
         // =========================
 
         for (const mark of finalMarks) {
@@ -2221,7 +2228,7 @@ const updateCourseMarks = async (
             ) {
 
                 throw new Error(
-                    "Each final mark must include student_id and marks"
+                    "Each sessional mark must include student_id and marks"
                 );
 
             }
@@ -2261,16 +2268,16 @@ const updateCourseMarks = async (
             ) {
 
                 throw new Error(
-                    "Final marks must be non-negative numbers"
+                    "Sessional marks must be non-negative numbers"
                 );
 
             }
 
             if (
-                courseResult.rows[0].final_max_marks !== null &&
-                numericMarks > Number(courseResult.rows[0].final_max_marks)
+                courseResult.rows[0].class_type !== "intermediate" &&
+                numericMarks > 15
             ) {
-                throw new Error("Final marks cannot exceed maximum marks");
+                throw new Error("Sessional marks cannot exceed 15");
             }
 
 
@@ -2569,6 +2576,9 @@ const updateCourseSettings = async (req, res) => {
         const cleanCourseCode = classType === "intermediate" ? null : requestedCourseCode;
         const intermediateYear = classType === "intermediate" ? String(req.body.intermediate_year || "").trim() : null;
         const classShift = String(req.body.class_shift || "morning").trim().toLowerCase();
+        const rollNumberType = classType === "bachelors" && req.body.roll_number_type === "government_college"
+            ? "government_college"
+            : "pu";
         const cleanProgram = classType === "intermediate" ? "Intermediate" : (String(req.body.program || "").trim() || null);
         const cleanSemester = classType === "intermediate"
             ? (intermediateYear === "2nd_year" ? "2nd Year" : "1st Year")
@@ -2589,7 +2599,7 @@ const updateCourseSettings = async (req, res) => {
         const assignmentMax = assignmentsEnabled ? Number(req.body.assignment_max_marks) : null;
         const quizMax = quizzesEnabled ? Number(req.body.quiz_max_marks) : null;
         const midtermMax = midtermEnabled ? Number(req.body.midterm_max_marks) : null;
-        const finalMax = finalEnabled ? Number(req.body.final_max_marks) : null;
+        const finalMax = finalEnabled ? 15 : null;
 
         if (!cleanName || cleanName.length > 150 || (cleanCourseCode && cleanCourseCode.length > 50) || (cleanSection && cleanSection.length > 20) || (cleanProgram && cleanProgram.length > 100) || (cleanSemester && cleanSemester.length > 50)) {
             return res.status(400).json({ success: false, message: "Enter a valid course name, course code, and section" });
@@ -2614,9 +2624,6 @@ const updateCourseSettings = async (req, res) => {
         }
         if (midtermEnabled && (!Number.isFinite(midtermMax) || midtermMax <= 0)) {
             return res.status(400).json({ success: false, message: "Midterm maximum marks are invalid" });
-        }
-        if (finalEnabled && (!Number.isFinite(finalMax) || finalMax <= 0)) {
-            return res.status(400).json({ success: false, message: "Final maximum marks are invalid" });
         }
 
         await client.query("BEGIN");
@@ -2714,7 +2721,7 @@ const updateCourseSettings = async (req, res) => {
         }
         if (finalEnabled) {
             const excessive = await client.query("SELECT 1 FROM students WHERE course_id = $1 AND deleted_at IS NULL AND final_marks > $2 LIMIT 1", [courseId, finalMax]);
-            if (excessive.rows.length) throw Object.assign(new Error("Final maximum cannot be lower than marks already entered"), { status: 409 });
+            if (excessive.rows.length) throw Object.assign(new Error("Sessional marks already entered exceed the fixed maximum of 15"), { status: 409 });
         }
 
         const updated = await client.query(
@@ -2723,12 +2730,13 @@ const updateCourseSettings = async (req, res) => {
                     results_enabled=$10, midterm_max_marks=$11, final_max_marks=$12, result_code=$13,
                     class_type=$14, intermediate_year=$15, program=$16, semester=$17,
                     program_enabled=$18, semester_enabled=$19, monthly_tests_enabled=$20, class_shift=$21,
+                    roll_number_type=$22,
                     updated_at=CURRENT_TIMESTAMP
-             WHERE id=$22 RETURNING *`,
+             WHERE id=$23 RETURNING *`,
             [cleanName, cleanCourseCode, cleanSection, assignmentsEnabled, assignmentCount, quizzesEnabled, quizCount,
              midtermEnabled, finalEnabled, resultsEnabled, midtermMax, finalMax, resultCode,
              classType, intermediateYear, cleanProgram, cleanSemester,
-             programEnabledForUpdate, semesterEnabledForUpdate, monthlyTestsEnabled, classShift, courseId]
+             programEnabledForUpdate, semesterEnabledForUpdate, monthlyTestsEnabled, classShift, rollNumberType, courseId]
         );
         await client.query(
             "UPDATE students SET program=$1, semester=$2, updated_at=CURRENT_TIMESTAMP WHERE course_id=$3 AND deleted_at IS NULL",
@@ -2781,15 +2789,28 @@ const importStudents = async (req, res) => {
         }
         const course = courseResult.rows[0];
 
+        const existingRollsResult = await client.query(
+            "SELECT roll_number FROM students WHERE course_id = $1 AND deleted_at IS NULL FOR UPDATE",
+            [courseId]
+        );
+        const existingRolls = new Set(existingRollsResult.rows.map(student => String(Number(student.roll_number))));
+        const newStudentIds = [];
+
         for (const student of cleaned) {
-            await client.query(
+            const savedStudent = await client.query(
                 `INSERT INTO students (course_id, roll_number, name, program, semester)
                  VALUES ($1, $2, $3, $4, $5)
                  ON CONFLICT (course_id, roll_number) WHERE deleted_at IS NULL
-                 DO UPDATE SET name = EXCLUDED.name, updated_at = CURRENT_TIMESTAMP`,
+                 DO UPDATE SET name = EXCLUDED.name, updated_at = CURRENT_TIMESTAMP
+                 RETURNING id`,
                 [courseId, student.rollNumber, student.name, course.program, course.semester]
             );
+            if (!existingRolls.has(student.rollNumber)) {
+                newStudentIds.push(Number(savedStudent.rows[0].id));
+            }
         }
+
+        const backfilledAttendance = await backfillStudentAbsences(client, courseId, newStudentIds);
 
         const totalResult = await client.query("SELECT COUNT(*)::INTEGER AS total FROM students WHERE course_id = $1 AND deleted_at IS NULL", [courseId]);
         if (totalResult.rows[0].total > 500) {
@@ -2805,7 +2826,13 @@ const importStudents = async (req, res) => {
         );
 
         await client.query("COMMIT");
-        res.json({ success: true, message: `${cleaned.length} student rows imported successfully`, imported: cleaned.length, total: totalResult.rows[0].total });
+        res.json({
+            success: true,
+            message: `${cleaned.length} student rows imported successfully`,
+            imported: cleaned.length,
+            total: totalResult.rows[0].total,
+            backfilled_attendance: backfilledAttendance
+        });
     } catch (error) {
         await client.query("ROLLBACK");
         console.error("Import students error:", error);

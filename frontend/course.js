@@ -541,6 +541,13 @@ function applyMarksSetting(course) {
         course.midterm_enabled === true ||
         course.final_enabled === true;
 
+    const marksExportLabel = downloadMarksExcelBtn?.querySelector("span");
+    if (marksExportLabel) {
+        marksExportLabel.textContent = course.class_type === "intermediate"
+            ? "Download Excel"
+            : "Download Award List";
+    }
+
 
     if (marksBtn) {
 
@@ -860,11 +867,15 @@ if (attendanceBtn) {
 // =========================
 
 function previousWeekAttendanceForStudent(studentId) {
-    const referenceDate = new Date(`${selectedAttendanceDate}T00:00:00Z`);
-    if (Number.isNaN(referenceDate.getTime())) return [];
-
-    const rangeStart = new Date(referenceDate);
-    rangeStart.setUTCDate(rangeStart.getUTCDate() - 7);
+    const lectureDates = [...new Set(currentAttendanceRecords
+        .filter(record => {
+            const status = String(record.status || "").toLowerCase();
+            const date = attendanceDateKey(record.attendance_date);
+            return ["present", "absent"].includes(status) && date < selectedAttendanceDate;
+        })
+        .map(record => attendanceDateKey(record.attendance_date)))]
+        .sort()
+        .slice(-7);
     const statusesByDate = new Map();
 
     currentAttendanceRecords.forEach(record => {
@@ -876,12 +887,14 @@ function previousWeekAttendanceForStudent(studentId) {
         }
     });
 
-    return Array.from({ length: 7 }, (_, index) => {
-        const date = new Date(rangeStart);
-        date.setUTCDate(date.getUTCDate() + index);
-        const dateKey = date.toISOString().slice(0, 10);
-        return { date: dateKey, status: statusesByDate.get(dateKey) || "none" };
-    });
+    const recordedDays = lectureDates.map(date => ({
+        date,
+        status: statusesByDate.get(date) || "none"
+    }));
+    return [
+        ...Array.from({ length: 7 - recordedDays.length }, () => ({ date: "", status: "none" })),
+        ...recordedDays
+    ];
 }
 
 function renderAttendanceList() {
@@ -911,12 +924,14 @@ function renderAttendanceList() {
         const previousWeek = previousWeekAttendanceForStudent(student.id);
         const statusLabels = { present: "Present", absent: "Absent", leave: "Leave", none: "No attendance" };
         const previousWeekDetails = previousWeek
-            .map(day => `${formatDateForDisplay(day.date)}: ${statusLabels[day.status]}`)
+            .map(day => day.date
+                ? `${formatDateForDisplay(day.date)}: ${statusLabels[day.status]}`
+                : "No earlier recorded lecture")
             .join(", ");
         const previousWeekDots = previousWeek.map(day => `
             <span
                 class="last-week-dot ${day.status}"
-                title="${escapeHtml(`${formatDateForDisplay(day.date)}: ${statusLabels[day.status]}`)}"
+                title="${escapeHtml(day.date ? `${formatDateForDisplay(day.date)}: ${statusLabels[day.status]}` : "No earlier recorded lecture")}"
             ></span>
         `).join("");
 
@@ -929,7 +944,7 @@ function renderAttendanceList() {
 
             <div class="attendance-student-details">
                 ${studentDisplay ? `<div class="student-name">${escapeHtml(studentDisplay)}</div>` : ""}
-                <span class="last-week-marker" aria-label="Last 7 days. ${escapeHtml(previousWeekDetails)}">
+                <span class="last-week-marker" aria-label="Last 7 recorded lectures. ${escapeHtml(previousWeekDetails)}">
                     <span class="last-week-label">Last 7</span>
                     <span class="last-week-dots" aria-hidden="true">${previousWeekDots}</span>
                 </span>
@@ -1834,7 +1849,7 @@ function renderMarksTable() {
         html += `
 
                         <th>
-                            Final Exam
+                            Sessional
                         </th>
 
         `;
@@ -2043,7 +2058,7 @@ function renderMarksTable() {
                         class="mark-input final-mark"
                         data-student-id="${student.id}"
                         min="0"
-                        max="${currentCourse.final_max_marks}"
+                        max="15"
                         step="0.01"
                         value="${
                             student.final_marks !== null &&
@@ -3232,9 +3247,11 @@ if (downloadMarksExcelBtn) {
 }
 
 
-function downloadMarksExcel() {
+async function downloadMarksExcel() {
 
-    if (typeof XLSX === "undefined") {
+    const isIntermediate = currentCourse?.class_type === "intermediate";
+
+    if (isIntermediate && typeof XLSX === "undefined") {
 
         alert(
             "Excel export library failed to load. Check your internet connection."
@@ -3254,7 +3271,35 @@ function downloadMarksExcel() {
 
     }
 
-    const isIntermediate = currentCourse?.class_type === "intermediate";
+    if (!isIntermediate) {
+        if (typeof ExcelJS === "undefined" || typeof AwardList === "undefined") {
+            alert("Excel export library failed to load. Refresh the page and try again.");
+            return;
+        }
+        try {
+            const spec = AwardList.buildAwardListSpec({
+                students,
+                course: currentCourse || {},
+                teacherName: teacherName?.textContent || ""
+            });
+            const workbook = AwardList.createWorkbook(ExcelJS, spec);
+            const buffer = await workbook.xlsx.writeBuffer();
+            const blob = new Blob([buffer], {
+                type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.href = url;
+            link.download = spec.filename;
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            URL.revokeObjectURL(url);
+        } catch (error) {
+            alert(error.message || "Could not create the award-list workbook.");
+        }
+        return;
+    }
 
     if (
         !isIntermediate &&
@@ -3329,7 +3374,7 @@ function downloadMarksExcel() {
 
     if (showFinal) {
 
-        header.push("Final Exam");
+        header.push("Sessional");
 
     }
 
@@ -4313,6 +4358,8 @@ function syncSettingsInputs() {
     document.getElementById("settingsCourseCodeLabel").hidden = intermediate;
     document.getElementById("settingsProgramLabel").hidden = intermediate;
     document.getElementById("settingsSemesterLabel").hidden = intermediate;
+    document.getElementById("settingsRollNumberTypeField").hidden = intermediate;
+    document.getElementById("settingsRollNumberTypeField").hidden = intermediate;
     document.getElementById("settingsMonthlyTestsToggle").hidden = !intermediate;
     document.getElementById("settingsIntermediateFixedAssessments").hidden = !intermediate;
     [
@@ -4342,6 +4389,9 @@ async function openClassSettings() {
     document.getElementById("settingsClassType").value = currentCourse.class_type || "bachelors";
     document.getElementById("settingsIntermediateYear").value = currentCourse.intermediate_year || "1st_year";
     document.getElementById("settingsClassShift").value = currentCourse.class_shift || "morning";
+    const selectedRollNumberType = currentCourse.roll_number_type === "government_college" ? "government_college" : "pu";
+    const rollNumberTypeInput = document.querySelector(`input[name="settingsRollNumberType"][value="${selectedRollNumberType}"]`);
+    if (rollNumberTypeInput) rollNumberTypeInput.checked = true;
     document.getElementById("settingsProgram").value = currentCourse.program || "";
     document.getElementById("settingsSemester").value = currentCourse.semester || "";
     document.getElementById("settingsSection").value = currentCourse.section || "";
@@ -4355,7 +4405,7 @@ async function openClassSettings() {
     document.getElementById("settingsAssignmentCount").value = currentCourse.assignment_count || 1;
     document.getElementById("settingsQuizCount").value = currentCourse.quiz_count || 1;
     document.getElementById("settingsMidtermMax").value = currentCourse.midterm_max_marks || 30;
-    document.getElementById("settingsFinalMax").value = currentCourse.final_max_marks || 50;
+    document.getElementById("settingsFinalMax").value = 15;
 
     let assessmentLoadError = "";
     try {
@@ -4498,6 +4548,9 @@ document.getElementById("saveClassSettingsBtn")?.addEventListener("click", async
         course_code: value("settingsClassType") === "intermediate" ? "" : value("settingsCourseCode").trim(),
         class_type: value("settingsClassType"),
         class_shift: value("settingsClassShift"),
+        roll_number_type: value("settingsClassType") === "intermediate"
+            ? "pu"
+            : (document.querySelector('input[name="settingsRollNumberType"]:checked')?.value || "pu"),
         intermediate_year: value("settingsIntermediateYear"),
         program: value("settingsProgram").trim(),
         semester: value("settingsSemester").trim(),
@@ -4515,7 +4568,7 @@ document.getElementById("saveClassSettingsBtn")?.addEventListener("click", async
         midterm_enabled: checked("settingsMidtermEnabled"),
         midterm_max_marks: Number(value("settingsMidtermMax")),
         final_enabled: checked("settingsFinalEnabled"),
-        final_max_marks: Number(value("settingsFinalMax"))
+        final_max_marks: 15
     };
     if (payload.monthly_tests_enabled && (
         !payload.monthly_tests.length ||

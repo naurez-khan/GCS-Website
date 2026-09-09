@@ -985,6 +985,20 @@ function showAddCourseForm() {
                 class="conditional-field"
             >
 
+                <fieldset id="bachelorsRollNumberType" class="roll-number-type" hidden>
+                    <legend>Roll number type</legend>
+                    <div class="roll-number-type-options">
+                        <label>
+                            <input type="radio" name="bachelorsRollNumberType" value="pu" checked>
+                            <span>PU Roll Numbers</span>
+                        </label>
+                        <label>
+                            <input type="radio" name="bachelorsRollNumberType" value="government_college">
+                            <span>Govt. College Roll Numbers</span>
+                        </label>
+                    </div>
+                </fieldset>
+
                 <div class="roll-mode-tabs" role="radiogroup" aria-label="Roll number entry method">
                     <label><input type="radio" name="rollEntryMode" value="range" checked><span>Add Range</span></label>
                     <label><input type="radio" name="rollEntryMode" value="manual"><span>Add Manually</span></label>
@@ -1255,13 +1269,13 @@ function showAddCourseForm() {
 
             </div>
 
-            <!-- FINAL EXAM -->
+            <!-- SESSIONAL -->
 
             <div id="bachelorsFinalFeature">
 
             ${createSwitch(
                 "final_enabled",
-                "Final Exam",
+                "Sessional",
                 false
             )}
 
@@ -1270,15 +1284,11 @@ function showAddCourseForm() {
                 class="conditional-field"
                 style="display: none;"
             >
-                <label>Final Exam Maximum Marks</label>
-                <input
-                    type="number"
-                    id="finalMaxMarks"
-                    min="0.01"
-                    step="0.01"
-                    value="50"
-                    placeholder="e.g. 50"
-                >
+                <div class="fixed-assessment-value">
+                    <span>Sessional Maximum Marks</span>
+                    <strong>15 marks</strong>
+                </div>
+                <input type="hidden" id="finalMaxMarks" value="15">
             </div>
 
 
@@ -1529,6 +1539,7 @@ function setupClassTypeFields() {
         selected.hidden = !hasSelection;
         document.getElementById("bachelorsPanel").hidden = !hasSelection || intermediate;
         document.getElementById("intermediatePanel").hidden = !hasSelection || !intermediate;
+        document.getElementById("bachelorsRollNumberType").hidden = !hasSelection || intermediate;
         document.getElementById("monthlyTestsFeature").hidden = !hasSelection || !intermediate;
         document.getElementById("courseCodeField").hidden = intermediate;
         bachelorsFeatureIds.forEach(id => { document.getElementById(id).hidden = !hasSelection || intermediate; });
@@ -2063,6 +2074,9 @@ async function createCourse() {
     const classShift = isIntermediate
         ? document.getElementById("intermediateShift").value
         : document.getElementById("bachelorsShift").value;
+    const rollNumberType = isIntermediate
+        ? "pu"
+        : (document.querySelector('input[name="bachelorsRollNumberType"]:checked')?.value || "pu");
 
 
     const assignmentCount =
@@ -2236,7 +2250,7 @@ async function createCourse() {
     }
 
     if (finalEnabled && (!Number.isFinite(finalMaxMarks) || finalMaxMarks <= 0)) {
-        message.textContent = "Please enter positive maximum marks for the final exam.";
+        message.textContent = "Sessional marks must be set to 15.";
         message.className = "form-message error";
         return;
     }
@@ -2276,6 +2290,9 @@ async function createCourse() {
 
         roll_entry_mode:
             rollEntryMode,
+
+        roll_number_type:
+            rollNumberType,
 
         class_type:
             classType,

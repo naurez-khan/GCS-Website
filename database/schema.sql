@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS courses (
     intermediate_year VARCHAR(20) CHECK (intermediate_year IS NULL OR intermediate_year IN ('1st_year', '2nd_year')),
     class_shift VARCHAR(10) NOT NULL DEFAULT 'morning' CHECK (class_shift IN ('morning', 'evening')),
     roll_entry_mode VARCHAR(20) NOT NULL DEFAULT 'range' CHECK (roll_entry_mode IN ('range', 'manual', 'excel')),
+    roll_number_type VARCHAR(30) NOT NULL DEFAULT 'pu' CHECK (roll_number_type IN ('pu', 'government_college')),
     program VARCHAR(100),
     semester VARCHAR(50),
     section VARCHAR(20),
