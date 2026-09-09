@@ -163,6 +163,18 @@ const downloadMarksExcelBtn =
 const attendanceExportMonth =
     document.getElementById("attendanceExportMonth");
 
+const monthlyExportPanel = document.getElementById("monthlyExportPanel");
+const downloadMonthlyExcelBtn = document.getElementById("downloadMonthlyExcelBtn");
+const cancelMonthlyExportBtn = document.getElementById("cancelMonthlyExportBtn");
+
+const openAbsentExportBtn = document.getElementById("openAbsentExportBtn");
+const absentExportPanel = document.getElementById("absentExportPanel");
+const absentExportFrom = document.getElementById("absentExportFrom");
+const absentExportTo = document.getElementById("absentExportTo");
+const downloadAbsentExcelBtn = document.getElementById("downloadAbsentExcelBtn");
+const cancelAbsentExportBtn = document.getElementById("cancelAbsentExportBtn");
+const absentExportMessage = document.getElementById("absentExportMessage");
+
 
 // =========================
 // GLOBAL DATA
@@ -3141,12 +3153,27 @@ function displayAttendanceSummary(
 // =========================
 
 if (downloadExcelBtn) {
+    downloadExcelBtn.addEventListener("click", openMonthlyExportPanel);
+}
 
-    downloadExcelBtn.addEventListener(
-        "click",
-        downloadMonthlyAttendanceRegister
-    );
+if (downloadMonthlyExcelBtn) {
+    downloadMonthlyExcelBtn.addEventListener("click", downloadMonthlyAttendanceRegister);
+}
 
+if (cancelMonthlyExportBtn) {
+    cancelMonthlyExportBtn.addEventListener("click", closeMonthlyExportPanel);
+}
+
+if (openAbsentExportBtn) {
+    openAbsentExportBtn.addEventListener("click", openAbsentExportPanel);
+}
+
+if (cancelAbsentExportBtn) {
+    cancelAbsentExportBtn.addEventListener("click", closeAbsentExportPanel);
+}
+
+if (downloadAbsentExcelBtn) {
+    downloadAbsentExcelBtn.addEventListener("click", downloadAbsentStudentsRegister);
 }
 
 
@@ -3895,10 +3922,15 @@ async function downloadMonthlyAttendanceRegister() {
     }
 
     syncAttendanceExportMonth();
-    const originalButtonText = downloadExcelBtn?.textContent;
-    if (downloadExcelBtn) {
-        downloadExcelBtn.disabled = true;
-        downloadExcelBtn.textContent = "Preparing Excel…";
+    if (!attendanceExportMonth?.value) {
+        attendanceExportMonth?.focus();
+        return;
+    }
+    const buttonLabel = downloadMonthlyExcelBtn?.querySelector("span");
+    const originalButtonText = buttonLabel?.textContent;
+    if (downloadMonthlyExcelBtn) {
+        downloadMonthlyExcelBtn.disabled = true;
+        if (buttonLabel) buttonLabel.textContent = "Preparing Excel…";
     }
 
     try {
@@ -3997,10 +4029,126 @@ async function downloadMonthlyAttendanceRegister() {
         console.error("Attendance register export error:", error);
         alert(error.message || "Could not create the attendance register.");
     } finally {
-        if (downloadExcelBtn) {
-            downloadExcelBtn.disabled = false;
-            downloadExcelBtn.textContent = originalButtonText;
+        if (downloadMonthlyExcelBtn) {
+            downloadMonthlyExcelBtn.disabled = false;
+            if (buttonLabel) buttonLabel.textContent = originalButtonText;
         }
+    }
+}
+
+function openMonthlyExportPanel() {
+    if (!currentAttendanceRecords.length) {
+        alert("No attendance records to export yet.");
+        return;
+    }
+
+    syncAttendanceExportMonth();
+    closeAbsentExportPanel();
+    monthlyExportPanel?.classList.remove("hidden");
+    downloadExcelBtn?.setAttribute("aria-expanded", "true");
+    attendanceExportMonth?.focus();
+}
+
+function closeMonthlyExportPanel() {
+    monthlyExportPanel?.classList.add("hidden");
+    downloadExcelBtn?.setAttribute("aria-expanded", "false");
+}
+
+function savedAttendanceDates() {
+    return [...new Set(currentAttendanceRecords
+        .filter(record => {
+            const status = String(record.status || "").toLowerCase();
+            return status === "present" || status === "absent";
+        })
+        .map(record => attendanceDateKey(record.attendance_date))
+        .filter(date => /^\d{4}-\d{2}-\d{2}$/.test(date)))]
+        .sort();
+}
+
+function setAbsentExportMessage(text, type = "") {
+    if (!absentExportMessage) return;
+    absentExportMessage.textContent = text;
+    absentExportMessage.className = text && type ? `message ${type}` : "message";
+}
+
+function openAbsentExportPanel() {
+    const dates = savedAttendanceDates();
+    if (!dates.length) {
+        alert("No saved attendance is available to export yet.");
+        return;
+    }
+
+    syncAttendanceExportMonth();
+    const selectedMonth = attendanceExportMonth?.value;
+    const monthDates = selectedMonth
+        ? dates.filter(date => date.startsWith(`${selectedMonth}-`))
+        : [];
+    const defaultDates = monthDates.length ? monthDates : dates.slice(-5);
+
+    absentExportFrom.min = dates[0];
+    absentExportFrom.max = dates[dates.length - 1];
+    absentExportTo.min = dates[0];
+    absentExportTo.max = dates[dates.length - 1];
+    absentExportFrom.value = defaultDates[0];
+    absentExportTo.value = defaultDates[defaultDates.length - 1];
+    closeMonthlyExportPanel();
+    absentExportPanel.classList.remove("hidden");
+    openAbsentExportBtn.setAttribute("aria-expanded", "true");
+    setAbsentExportMessage("");
+    absentExportFrom.focus();
+}
+
+function closeAbsentExportPanel() {
+    absentExportPanel?.classList.add("hidden");
+    openAbsentExportBtn?.setAttribute("aria-expanded", "false");
+    setAbsentExportMessage("");
+}
+
+async function downloadAbsentStudentsRegister() {
+    if (typeof ExcelJS === "undefined" || typeof AbsentRegister === "undefined") {
+        setAbsentExportMessage("The Excel export could not load. Refresh the page and try again.", "error");
+        return;
+    }
+
+    const originalText = downloadAbsentExcelBtn.textContent;
+    downloadAbsentExcelBtn.disabled = true;
+    downloadAbsentExcelBtn.textContent = "Preparing Excel...";
+    setAbsentExportMessage("");
+
+    try {
+        const reportSpec = AbsentRegister.buildAbsentStudentsRegister({
+            students,
+            records: currentAttendanceRecords,
+            course: currentCourse,
+            teacherName: teacherName?.textContent || "",
+            fromDate: absentExportFrom.value,
+            toDate: absentExportTo.value
+        });
+
+        const workbook = AbsentRegister.createWorkbook(ExcelJS, reportSpec);
+
+        const buffer = await workbook.xlsx.writeBuffer();
+        const blob = new Blob([buffer], {
+            type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = reportSpec.filename;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        setAbsentExportMessage(
+            `${reportSpec.recordedDates.length} attendance date${reportSpec.recordedDates.length === 1 ? "" : "s"} exported.`,
+            "success"
+        );
+    } catch (error) {
+        console.error("Absent students register export error:", error);
+        setAbsentExportMessage(error.message || "Could not create the absent students register.", "error");
+    } finally {
+        downloadAbsentExcelBtn.disabled = false;
+        downloadAbsentExcelBtn.textContent = originalText;
     }
 }
 

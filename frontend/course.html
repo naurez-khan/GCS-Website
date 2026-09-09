@@ -16,7 +16,7 @@
 
     <link
         rel="stylesheet"
-        href="/course.css?v=20260904-7"
+        href="/course.css?v=20260909-2"
     >
     <link rel="stylesheet" href="/brand.css?v=20260824-33">
     <script defer src="/ui-icons.js?v=20260824-3"></script>
@@ -458,23 +458,83 @@
                     Edit Attendance
                 </button>
 
-                <label class="attendance-export-month">
-                    Export month
-                    <input id="attendanceExportMonth" type="month">
-                </label>
-
                 <button
                     id="downloadExcelBtn"
                     class="primary-btn excel-btn"
                     type="button"
+                    aria-expanded="false"
+                    aria-controls="monthlyExportPanel"
                 >
                     <svg class="excel-icon" viewBox="0 0 24 24" aria-hidden="true">
                         <path d="M4 3h10a2 2 0 0 1 2 2v2h4v14H8v-3H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z" fill="currentColor"/>
                         <path d="M16 9v3h2V9h-2Zm0 5v3h2v-3h-2Zm-6-5 1.45 2.5L13 9h2l-2.45 4L15 17h-2l-1.55-2.55L10 17H8l2.4-4L8 9h2Z" fill="#217346"/>
                     </svg>
-                    <span>Download Excel</span>
+                    <span>Download Monthly Attendance</span>
                 </button>
 
+                <button
+                    id="openAbsentExportBtn"
+                    class="primary-btn excel-btn absent-export-open-btn"
+                    type="button"
+                    aria-expanded="false"
+                    aria-controls="absentExportPanel"
+                >
+                    <svg class="excel-icon" viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M4 3h10a2 2 0 0 1 2 2v2h4v14H8v-3H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z" fill="currentColor"/>
+                        <path d="M16 9v3h2V9h-2Zm0 5v3h2v-3h-2Zm-6-5 1.45 2.5L13 9h2l-2.45 4L15 17h-2l-1.55-2.55L10 17H8l2.4-4L8 9h2Z" fill="#217346"/>
+                    </svg>
+                    <span>Absent Students Excel</span>
+                </button>
+
+            </div>
+
+            <div id="monthlyExportPanel" class="attendance-editor export-panel monthly-export-panel hidden">
+                <div class="export-panel-heading">
+                    <h3>Monthly Attendance Excel</h3>
+                    <p>Choose the month you want to include in the attendance workbook.</p>
+                </div>
+
+                <label class="attendance-export-month">
+                    Export month
+                    <input id="attendanceExportMonth" type="month" required>
+                </label>
+
+                <div class="panel-actions export-panel-actions">
+                    <button id="downloadMonthlyExcelBtn" class="primary-btn excel-btn" type="button">
+                        <svg class="excel-icon" viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M4 3h10a2 2 0 0 1 2 2v2h4v14H8v-3H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z" fill="currentColor"/>
+                            <path d="M16 9v3h2V9h-2Zm0 5v3h2v-3h-2Zm-6-5 1.45 2.5L13 9h2l-2.45 4L15 17h-2l-1.55-2.55L10 17H8l2.4-4L8 9h2Z" fill="#217346"/>
+                        </svg>
+                        <span>Download Monthly Attendance</span>
+                    </button>
+                    <button id="cancelMonthlyExportBtn" class="secondary-btn" type="button">Cancel</button>
+                </div>
+            </div>
+
+            <div id="absentExportPanel" class="attendance-editor export-panel absent-export-panel hidden">
+                <div class="export-panel-heading">
+                    <h3>Absent Students Register</h3>
+                    <p>Choose the dates to include. Only dates with saved attendance will be exported.</p>
+                </div>
+
+                <div class="settings-grid absent-export-dates">
+                    <label>
+                        From date
+                        <input id="absentExportFrom" type="date">
+                    </label>
+                    <label>
+                        To date
+                        <input id="absentExportTo" type="date">
+                    </label>
+                </div>
+
+                <div class="panel-actions export-panel-actions absent-export-actions">
+                    <button id="downloadAbsentExcelBtn" class="primary-btn excel-btn" type="button">
+                        Download Absent Students
+                    </button>
+                    <button id="cancelAbsentExportBtn" class="secondary-btn" type="button">Cancel</button>
+                </div>
+                <div id="absentExportMessage" class="message" role="status" aria-live="polite"></div>
             </div>
 
             <div id="attendanceEditor" class="attendance-editor hidden">
@@ -521,13 +581,14 @@
     <script src="/vendor/xlsx.full.min.js"></script>
     <script src="/vendor/exceljs.min.js"></script>
     <script src="/attendance-register.js?v=20260824-1"></script>
+    <script src="/absent-register.js?v=20260909-1"></script>
 
 
     <!-- =========================
          COURSE JAVASCRIPT
     ========================= -->
 
-    <script src="/course.js?v=20260904-8"></script>
+    <script src="/course.js?v=20260909-2"></script>
 
 </body>
 

@@ -232,6 +232,83 @@ body {
     color: #7e0d16;
     box-shadow: 0 7px 18px rgba(65, 2, 8, .08);
 }
+
+/* =========================
+   ATTENDANCE EXCEL EXPORTS
+========================= */
+
+.history-section .section-title {
+    flex-wrap: wrap;
+}
+
+.absent-export-open-btn,
+#downloadExcelBtn {
+    white-space: nowrap;
+}
+
+.export-panel {
+    margin-top: 4px;
+    border-color: rgba(142, 9, 20, .28);
+    background: #fff;
+    box-shadow: 0 12px 28px rgba(54, 8, 13, .08);
+}
+
+.export-panel.hidden {
+    display: none;
+}
+
+.export-panel-heading {
+    margin-bottom: 18px;
+}
+
+.export-panel-heading h3 {
+    margin: 0 0 6px;
+    color: #7e0d16;
+    font-size: 21px;
+}
+
+.export-panel-heading p {
+    margin: 0;
+    color: #6b7280;
+    font-size: 14px;
+}
+
+.absent-export-dates input {
+    min-height: 46px;
+    border-color: rgba(142, 9, 20, .25);
+    border-radius: 11px;
+    color: #27191b;
+}
+
+.absent-export-dates input:focus {
+    outline: 3px solid rgba(184, 15, 24, .14);
+    border-color: #b80f18;
+}
+
+.export-panel-actions {
+    margin-top: 18px;
+}
+
+.export-panel-actions .excel-btn {
+    background: #187d4c;
+}
+
+.export-panel-actions .excel-btn:hover {
+    background: #12663d;
+}
+
+@media (max-width: 700px) {
+    .absent-export-open-btn,
+    #downloadExcelBtn,
+    .export-panel-actions button {
+        width: 100%;
+    }
+
+    .absent-export-dates,
+    .export-panel-actions {
+        grid-template-columns: 1fr;
+    }
+}
 .holiday-btn:hover,
 .holiday-btn:focus-visible {
     background: #fff7f6;
@@ -588,22 +665,26 @@ body {
 }
 
 .attendance-export-month {
-    display: inline-flex;
-    align-items: center;
+    display: grid;
     gap: 8px;
-    color: #6b7280;
-    font-size: 13px;
+    color: #374151;
+    font-size: 14px;
     font-weight: 700;
 }
 
 .attendance-export-month input {
-    width: auto;
-    min-width: 150px;
-    padding: 9px 10px;
-    border: 1px solid #d1d5db;
-    border-radius: 8px;
+    width: 100%;
+    min-height: 46px;
+    padding: 10px 12px;
+    border: 1px solid rgba(142, 9, 20, .25);
+    border-radius: 11px;
     background: #fff;
     color: #1f2937;
+}
+
+.attendance-export-month input:focus {
+    outline: 3px solid rgba(184, 15, 24, .14);
+    border-color: #b80f18;
 }
 
 .settings-panel,
@@ -1709,12 +1790,6 @@ body {
         min-width: 0;
         padding: 10px 8px;
         white-space: normal;
-    }
-
-    .attendance-export-month {
-        display: grid;
-        grid-template-columns: auto minmax(0, 1fr);
-        width: 100%;
     }
 
     .attendance-export-month input {
