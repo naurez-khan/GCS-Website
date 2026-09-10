@@ -24,6 +24,7 @@ const {
     authenticate,
     teacherOnly
 } = require("../middleware/authMiddleware");
+const { requireApprovedCourse } = require("../middleware/courseApprovalMiddleware");
 
 const router = express.Router();
 
@@ -48,6 +49,14 @@ router.get(
     "/my",
     getMyCourses
 );
+
+// Teachers may remove a pending or rejected class, but cannot use its features.
+router.delete(
+    "/:courseId",
+    deleteCourse
+);
+
+router.use("/:courseId", requireApprovedCourse);
 
 
 // =========================
@@ -131,16 +140,6 @@ router.get(
 router.put(
     "/:courseId/marks",
     updateCourseMarks
-);
-
-
-// =========================
-// DELETE COURSE
-// =========================
-
-router.delete(
-    "/:courseId",
-    deleteCourse
 );
 
 

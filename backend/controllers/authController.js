@@ -136,7 +136,16 @@ const getCurrentUser = async (req, res) => {
         if (!user || !user.is_active) {
             return res.status(401).json({ success: false, message: "Account is unavailable" });
         }
-        res.json({ success: true, user });
+        let actingAsTeacher = null;
+        const actingTeacherId = Number(req.user.acting_as_teacher_id);
+        if (user.role === "admin" && Number.isInteger(actingTeacherId) && actingTeacherId > 0) {
+            const teacherResult = await pool.query(
+                "SELECT id, name, email, role, is_active FROM users WHERE id = $1 AND role = 'teacher' AND is_active = TRUE",
+                [actingTeacherId]
+            );
+            actingAsTeacher = teacherResult.rows[0] || null;
+        }
+        res.json({ success: true, user, acting_as_teacher: actingAsTeacher });
     } catch (error) {
         console.error("Current user error:", error);
         res.status(500).json({ success: false, message: "Server error" });

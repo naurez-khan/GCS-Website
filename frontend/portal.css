@@ -39,6 +39,12 @@ th,td { padding:13px 12px; border-bottom:1px solid var(--line); text-align:left;
 th { font-size:12px; letter-spacing:.035em; text-transform:uppercase; color:#67585a; background:#fbf5f4; }
 .status { padding:5px 8px; border-radius:999px; font-size:12px; font-weight:750; }
 .status.active { background:#e9f7ef; color:#146c43; }.status.inactive { background:#fdecec; color:#9b1c1c; }
+.approval-panel { grid-column:1 / -1; }
+.approval-actions { display:flex; flex-wrap:wrap; gap:8px; }
+.approval-actions button { padding:7px 11px; font-size:12px; white-space:nowrap; }
+.approval-actions .approve { color:#fff; border-color:#146c43; background:#18834f; }
+.approval-class { display:grid; gap:3px; min-width:145px; }
+.approval-class small,.approval-details { color:var(--muted); font-size:12px; }
 .lookup-form { grid-template-columns:1fr 1fr auto; align-items:end; margin-top:28px; }
 .result-heading { margin-bottom:20px; }.result-score { text-align:right; }.result-score strong { display:block; color:#a50d15; font-size:32px; }.result-score span { color:var(--muted); }
 .result-meta { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin:20px 0; }

@@ -539,7 +539,7 @@ const createCourse = async (req, res) => {
 
         res.status(201).json({
             success: true,
-            message: "Course created successfully",
+            message: "Class created and sent for administrator approval",
             course: course
         });
 
@@ -590,6 +590,9 @@ const getMyCourses = async (req, res) => {
                     class_shift,
                     roll_entry_mode,
                     roll_number_type,
+                    approval_status,
+                    approved_by,
+                    approved_at,
                     program,
                     semester,
                     section,

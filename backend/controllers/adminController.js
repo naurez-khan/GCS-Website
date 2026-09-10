@@ -178,6 +178,61 @@ const getTransferableCourses = async (req, res) => {
     }
 };
 
+const getPendingCourseApprovals = async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT c.id, c.name, c.course_code, c.class_type, c.program, c.semester,
+                    c.section, c.class_shift, c.approval_status, c.created_at,
+                    u.id AS teacher_id, u.name AS teacher_name, u.email AS teacher_email,
+                    COUNT(s.id) FILTER (WHERE s.deleted_at IS NULL)::int AS student_count
+             FROM courses c
+             JOIN users u ON u.id = c.teacher_id AND u.role = 'teacher'
+             LEFT JOIN students s ON s.course_id = c.id
+             WHERE c.approval_status = 'pending'
+             GROUP BY c.id, u.id, u.name, u.email
+             ORDER BY c.created_at ASC`
+        );
+        res.json({ success: true, courses: result.rows });
+    } catch (error) {
+        console.error("Get course approvals error:", error);
+        res.status(500).json({ success: false, message: "Server error" });
+    }
+};
+
+const setCourseApprovalStatus = async (req, res) => {
+    try {
+        const courseId = Number(req.params.courseId);
+        const status = String(req.body.status || "").trim().toLowerCase();
+        if (!Number.isInteger(courseId) || courseId < 1 || !["approved", "rejected"].includes(status)) {
+            return res.status(400).json({ success: false, message: "Choose a valid class approval action" });
+        }
+        const result = await pool.query(
+            `UPDATE courses
+             SET approval_status = $1::varchar,
+                 approved_by = CASE WHEN $1::varchar = 'approved' THEN $2::integer ELSE NULL::integer END,
+                 approved_at = CASE WHEN $1::varchar = 'approved' THEN CURRENT_TIMESTAMP ELSE NULL END,
+                 updated_at = CURRENT_TIMESTAMP
+             WHERE id = $3 AND approval_status = 'pending'
+             RETURNING id, name, approval_status, approved_at`,
+            [status, req.user.id, courseId]
+        );
+        const course = result.rows[0];
+        if (!course) {
+            return res.status(404).json({ success: false, message: "Pending class request not found" });
+        }
+        res.json({
+            success: true,
+            message: status === "approved"
+                ? `${course.name} approved successfully.`
+                : `${course.name} rejected.`,
+            course
+        });
+    } catch (error) {
+        console.error("Set course approval status error:", error);
+        res.status(500).json({ success: false, message: "Server error" });
+    }
+};
+
 const transferCourse = async (req, res) => {
     const client = await pool.connect();
     try {
@@ -489,9 +544,9 @@ const restoreClassBackup = async (req, res) => {
                 roll_number_enabled, student_name_enabled, attendance_enabled,
                 assignments_enabled, assignment_count, quizzes_enabled, quiz_count,
                 midterm_enabled, final_enabled, results_enabled, monthly_tests_enabled,
-                midterm_max_marks, final_max_marks
+                midterm_max_marks, final_max_marks, approval_status, approved_by, approved_at
              ) VALUES (
-                $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30
+                $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33
              ) RETURNING *`,
             [
                 restoredName, sourceCourse.course_code || null, sourceCourse.class_type || "bachelors",
@@ -506,7 +561,8 @@ const restoreClassBackup = async (req, res) => {
                 Number(sourceCourse.assignment_count) || 0, sourceCourse.quizzes_enabled === true,
                 Number(sourceCourse.quiz_count) || 0, sourceCourse.midterm_enabled === true,
                 sourceCourse.final_enabled === true, false, sourceCourse.monthly_tests_enabled === true,
-                sourceCourse.midterm_max_marks || null, sourceCourse.final_max_marks || null
+                sourceCourse.midterm_max_marks || null, sourceCourse.final_max_marks || null,
+                "approved", req.user.id, new Date()
             ]
         );
         const newCourse = courseResult.rows[0];
@@ -603,6 +659,8 @@ module.exports = {
     setTeacherStatus,
     setAdminStatus,
     getTransferableCourses,
+    getPendingCourseApprovals,
+    setCourseApprovalStatus,
     transferCourse,
     resetUserPassword,
     restoreClassBackup

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Department Administration</title>
     <link rel="icon" type="image/png" href="/assets/department-logo.png">
-    <link rel="stylesheet" href="/portal.css?v=20260824-1">
+    <link rel="stylesheet" href="/portal.css?v=20260910-1">
     <link rel="stylesheet" href="/brand.css?v=20260824-33">
     <script defer src="/ui-icons.js?v=20260824-3"></script>
 </head>
@@ -22,6 +22,22 @@
     </header>
 
     <main class="portal-main two-column">
+        <section class="panel approval-panel">
+            <div class="panel-heading">
+                <div>
+                    <h1>Class Approval Requests</h1>
+                    <p class="muted">Review new classes before teachers can use attendance, marks, exports, or results.</p>
+                </div>
+                <button id="refreshApprovalsBtn" type="button">Refresh</button>
+            </div>
+            <div id="approvalMessage" class="notice hidden" role="status" aria-live="polite"></div>
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th>Class</th><th>Teacher</th><th>Details</th><th>Students</th><th>Created</th><th>Decision</th></tr></thead>
+                    <tbody id="approvalRows"><tr><td colspan="6">Loading…</td></tr></tbody>
+                </table>
+            </div>
+        </section>
         <section class="panel">
             <h1>Add a teacher</h1>
             <p class="muted">Create an account that can manage classes, attendance, and marks.</p>
@@ -141,6 +157,6 @@
             </div>
         </section>
     </main>
-    <script src="/admin.js?v=20260824-2"></script>
+    <script src="/admin.js?v=20260910-2"></script>
 </body>
 </html>

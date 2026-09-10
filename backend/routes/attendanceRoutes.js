@@ -16,6 +16,7 @@ const {
     authenticate,
     teacherOnly
 } = require("../middleware/authMiddleware");
+const { requireApprovedCourse } = require("../middleware/courseApprovalMiddleware");
 
 const router = express.Router();
 
@@ -28,6 +29,7 @@ router.use(authenticate, teacherOnly);
 
 router.post(
     "/mark",
+    requireApprovedCourse,
     markAttendance
 );
 
@@ -35,6 +37,8 @@ router.post(
 // =========================
 // GET COURSE ATTENDANCE
 // =========================
+
+router.use("/course/:courseId", requireApprovedCourse);
 
 router.get(
     "/course/:courseId",

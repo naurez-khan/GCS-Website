@@ -47,20 +47,7 @@ let importedCreationRoster = [];
 // LOAD TEACHER INFORMATION
 // =========================
 
-function loadTeacherInfo() {
-
-    const teacher =
-        JSON.parse(
-            localStorage.getItem("teacher")
-        );
-
-    if (!teacher) {
-
-        window.location.href =
-            "/test-login.html";
-
-        return;
-    }
+function displayTeacherInfo(teacher, isAdminView = false) {
 
     teacherName.textContent =
         teacher.name;
@@ -68,12 +55,55 @@ function loadTeacherInfo() {
     welcomeName.textContent =
         teacher.name;
 
-    if (teacher.adminView === true && localStorage.getItem("adminSession")) {
+    returnAdminBtn.hidden = !isAdminView;
+    changePasswordBtn.hidden = isAdminView;
+    adminViewNotice.hidden = !isAdminView;
+
+    if (isAdminView) {
         returnAdminBtn.hidden = false;
-        changePasswordBtn.hidden = true;
-        adminViewNotice.hidden = false;
         adminViewNotice.textContent = `Administrator view: you are managing ${teacher.name}'s dashboard.`;
     }
+}
+
+async function loadTeacherInfo() {
+    try {
+        const response = await fetch("/api/auth/me", { credentials: "include", cache: "no-store" });
+        const data = await response.json();
+        if (!response.ok || !data.success) {
+            localStorage.removeItem("teacher");
+            localStorage.removeItem("adminSession");
+            window.location.replace("/test-login.html");
+            return false;
+        }
+
+        if (data.user.role === "teacher") {
+            localStorage.setItem("teacher", JSON.stringify(data.user));
+            localStorage.removeItem("adminSession");
+            displayTeacherInfo(data.user, false);
+            return true;
+        }
+
+        if (data.user.role === "admin" && data.acting_as_teacher) {
+            const teacher = { ...data.acting_as_teacher, adminView: true };
+            localStorage.setItem("adminSession", JSON.stringify(data.user));
+            localStorage.setItem("teacher", JSON.stringify(teacher));
+            displayTeacherInfo(teacher, true);
+            return true;
+        }
+
+        localStorage.setItem("teacher", JSON.stringify(data.user));
+        localStorage.removeItem("adminSession");
+        window.location.replace("/admin.html");
+        return false;
+    } catch (error) {
+        console.error("Load teacher identity error:", error);
+        coursesContainer.innerHTML = '<p class="error">Could not verify the current login. Please refresh and try again.</p>';
+        return false;
+    }
+}
+
+async function refreshTeacherDashboard() {
+    if (await loadTeacherInfo()) await loadCourses();
 }
 
 
@@ -132,6 +162,19 @@ async function loadCourses() {
     }
 }
 
+window.addEventListener("focus", () => {
+    if (!document.hidden) refreshTeacherDashboard();
+});
+
+document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) refreshTeacherDashboard();
+});
+
+if ("BroadcastChannel" in window) {
+    const approvalUpdates = new BroadcastChannel("course-approval-updates");
+    approvalUpdates.addEventListener("message", () => loadCourses());
+}
+
 
 // =========================
 // DISPLAY COURSES
@@ -158,8 +201,13 @@ function displayCourses(courses) {
         const card =
             document.createElement("div");
 
+        const approvalStatus = ["pending", "approved", "rejected"].includes(course.approval_status)
+            ? course.approval_status
+            : "approved";
+        const isApproved = approvalStatus === "approved";
+
         card.className =
-            "course-card class-card-enter";
+            `course-card class-card-enter approval-${approvalStatus}`;
 
         card.style.setProperty(
             "--class-card-delay",
@@ -273,6 +321,8 @@ function displayCourses(courses) {
 
         card.innerHTML = `
 
+            ${!isApproved ? `<div class="course-approval-badge ${approvalStatus}">${approvalStatus === "rejected" ? "Rejected" : "Pending Admin Approval"}</div>` : ""}
+
             <h3>
                 ${escapeHtml(courseName)}
             </h3>
@@ -290,11 +340,15 @@ function displayCourses(courses) {
                 <button
                     class="open-course-btn"
                     onclick="openCourse(${course.id})"
+                    ${isApproved ? "" : "disabled"}
+                    title="${isApproved ? "Open class" : (approvalStatus === "rejected" ? "This class was rejected by an administrator" : "Waiting for administrator approval")}"
                 >
-                    Open Class
+                    ${isApproved ? "Open Class" : (approvalStatus === "rejected" ? "Class Rejected" : "Awaiting Approval")}
                 </button>
 
             </div>
+
+            ${!isApproved ? `<p class="course-approval-note">${approvalStatus === "rejected" ? "This class cannot be used. You may delete it and create a corrected request." : "Attendance, marks, exports and results will unlock after approval."}</p>` : ""}
 
         `;
 
@@ -2497,7 +2551,7 @@ async function createCourse() {
 
 
         message.textContent =
-            "Class created successfully!";
+            data.message || "Class created and sent for administrator approval.";
 
         message.className =
             "form-message success";
@@ -2559,6 +2613,4 @@ async function createCourse() {
 // START
 // =========================
 
-loadTeacherInfo();
-
-loadCourses();
+refreshTeacherDashboard();

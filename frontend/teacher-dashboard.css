@@ -279,6 +279,49 @@ body {
     background: #374151;
 }
 
+.course-card.approval-pending {
+    border-color: #e7b84a;
+    background: #fffdf5;
+}
+
+.course-card.approval-rejected {
+    border-color: #e8a1a6;
+    background: #fff8f8;
+}
+
+.course-approval-badge {
+    align-self: flex-start;
+    margin-bottom: 12px;
+    padding: 6px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: .02em;
+}
+
+.course-approval-badge.pending {
+    color: #7a4b00;
+    background: #fff0bd;
+}
+
+.course-approval-badge.rejected {
+    color: #951923;
+    background: #fde1e3;
+}
+
+.course-approval-note {
+    margin: 11px 0 0;
+    color: #74686a;
+    font-size: 12px;
+    line-height: 1.45;
+}
+
+.open-course-btn:disabled {
+    color: #6f6264;
+    background: #eee8e8;
+    box-shadow: none;
+}
+
 .delete-course-btn {
     border: none;
 

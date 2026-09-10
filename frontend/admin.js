@@ -26,6 +26,8 @@ const confirmTeacherAccountBtn = document.getElementById("confirmTeacherAccountB
 const adminAccountPanel = document.getElementById("adminAccountPanel");
 const adminAccountSelect = document.getElementById("adminAccountSelect");
 const confirmAdminAccountBtn = document.getElementById("confirmAdminAccountBtn");
+const approvalRows = document.getElementById("approvalRows");
+const approvalMessage = document.getElementById("approvalMessage");
 let currentTeachers = [];
 let currentAdmins = [];
 let transferableCourses = [];
@@ -165,6 +167,59 @@ function courseLabel(course) {
     const details = [course.course_code, course.section].filter(Boolean).join(" · ");
     return `${course.name}${details ? ` — ${details}` : ""}`;
 }
+
+async function loadCourseApprovals() {
+    try {
+        const data = await api("/api/admin/course-approvals");
+        approvalRows.innerHTML = data.courses.length ? data.courses.map(course => {
+            const level = course.class_type === "intermediate" ? "Intermediate" : "Bachelors";
+            const details = [level, course.program, course.semester, course.section, course.class_shift]
+                .filter(Boolean).join(" · ");
+            return `<tr>
+                <td><span class="approval-class"><strong>${escapeHtml(course.name)}</strong><small>${escapeHtml(course.course_code || "No course code")}</small></span></td>
+                <td>${escapeHtml(course.teacher_name)}<br><span class="approval-details">${escapeHtml(course.teacher_email)}</span></td>
+                <td><span class="approval-details">${escapeHtml(details)}</span></td>
+                <td>${Number(course.student_count)}</td>
+                <td>${escapeHtml(new Date(course.created_at).toLocaleDateString())}</td>
+                <td><div class="approval-actions">
+                    <button type="button" class="approve" data-course-approval="${Number(course.id)}" data-status="approved">Approve</button>
+                    <button type="button" class="danger" data-course-approval="${Number(course.id)}" data-status="rejected">Reject</button>
+                </div></td>
+            </tr>`;
+        }).join("") : '<tr><td colspan="6">No classes are waiting for approval.</td></tr>';
+    } catch (error) {
+        approvalRows.innerHTML = `<tr><td colspan="6">${escapeHtml(error.message)}</td></tr>`;
+    }
+}
+
+approvalRows.addEventListener("click", async event => {
+    const button = event.target.closest("[data-course-approval]");
+    if (!button) return;
+    const status = button.dataset.status;
+    const action = status === "approved" ? "approve" : "reject";
+    if (!window.confirm(`${action === "approve" ? "Approve" : "Reject"} this class request?`)) return;
+    button.disabled = true;
+    try {
+        const data = await api(`/api/admin/courses/${button.dataset.courseApproval}/approval`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ status })
+        });
+        showMessage(approvalMessage, data.message, "success");
+        if ("BroadcastChannel" in window) {
+            const approvalUpdates = new BroadcastChannel("course-approval-updates");
+            approvalUpdates.postMessage({ courseId: Number(button.dataset.courseApproval), status });
+            approvalUpdates.close();
+        }
+        await loadCourseApprovals();
+        await loadTransferableCourses();
+    } catch (error) {
+        showMessage(approvalMessage, error.message, "error");
+        button.disabled = false;
+    }
+});
+
+document.getElementById("refreshApprovalsBtn").addEventListener("click", loadCourseApprovals);
 
 function updateTransferChoices() {
     const sourceId = Number(transferFromTeacher.value);
@@ -430,7 +485,7 @@ adminForm.addEventListener("submit", async event => {
     }
 });
 
-document.getElementById("refreshBtn").addEventListener("click", () => Promise.all([loadTeachers(), loadAdmins()]));
+document.getElementById("refreshBtn").addEventListener("click", () => Promise.all([loadTeachers(), loadAdmins(), loadCourseApprovals()]));
 document.getElementById("logoutBtn").addEventListener("click", async () => {
     await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
     localStorage.removeItem("teacher");
@@ -452,7 +507,7 @@ async function initializeAdminPage() {
         localStorage.setItem("teacher", JSON.stringify(currentAdmin));
         localStorage.removeItem("adminSession");
         document.getElementById("adminName").textContent = currentAdmin.name || "Administrator";
-        await Promise.all([loadTeachers(), loadAdmins()]);
+        await Promise.all([loadTeachers(), loadAdmins(), loadCourseApprovals()]);
         updateResetPasswordAccounts();
         await loadTransferableCourses();
     } catch (error) {

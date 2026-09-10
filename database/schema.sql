@@ -26,6 +26,9 @@ CREATE TABLE IF NOT EXISTS courses (
     class_shift VARCHAR(10) NOT NULL DEFAULT 'morning' CHECK (class_shift IN ('morning', 'evening')),
     roll_entry_mode VARCHAR(20) NOT NULL DEFAULT 'range' CHECK (roll_entry_mode IN ('range', 'manual', 'excel')),
     roll_number_type VARCHAR(30) NOT NULL DEFAULT 'pu' CHECK (roll_number_type IN ('pu', 'government_college')),
+    approval_status VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (approval_status IN ('pending', 'approved', 'rejected')),
+    approved_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    approved_at TIMESTAMPTZ,
     program VARCHAR(100),
     semester VARCHAR(50),
     section VARCHAR(20),
@@ -58,6 +61,7 @@ CREATE TABLE IF NOT EXISTS courses (
 CREATE UNIQUE INDEX IF NOT EXISTS courses_result_code_unique ON courses(result_code);
 CREATE UNIQUE INDEX IF NOT EXISTS courses_result_code_lower_unique ON courses(LOWER(result_code));
 CREATE INDEX IF NOT EXISTS courses_teacher_idx ON courses(teacher_id);
+CREATE INDEX IF NOT EXISTS courses_approval_status_idx ON courses(approval_status, created_at DESC);
 
 CREATE TABLE IF NOT EXISTS students (
     id SERIAL PRIMARY KEY,

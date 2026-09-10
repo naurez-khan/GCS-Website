@@ -3,7 +3,7 @@ const pool = require("../config/db");
 
 const expected = {
     users: ["id", "name", "email", "password_hash", "role", "is_active"],
-    courses: ["id", "name", "course_code", "class_type", "intermediate_year", "class_shift", "roll_entry_mode", "roll_number_type", "monthly_tests_enabled", "teacher_id", "roll_start", "roll_end", "result_code", "updated_at"],
+    courses: ["id", "name", "course_code", "class_type", "intermediate_year", "class_shift", "roll_entry_mode", "roll_number_type", "approval_status", "approved_by", "approved_at", "monthly_tests_enabled", "teacher_id", "roll_start", "roll_end", "result_code", "updated_at"],
     students: ["id", "course_id", "roll_number", "midterm_marks", "final_marks", "december_test_marks", "preboard_marks", "updated_at"],
     attendance: ["id", "course_id", "student_id", "attendance_date", "status", "updated_at"],
     attendance_audit_logs: ["id", "course_id", "student_id", "attendance_date", "old_status", "new_status", "changed_by", "changed_at"],

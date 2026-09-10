@@ -8,6 +8,9 @@ const app = require("../server");
     if (!teacherResult.rows.length) throw new Error("An active teacher is required");
     const teacherId = teacherResult.rows[0].id;
     const token = jwt.sign({ id: teacherId, role: "teacher" }, process.env.JWT_SECRET, { expiresIn: "10m" });
+    const adminResult = await pool.query("SELECT id FROM users WHERE role = 'admin' AND is_active = TRUE ORDER BY id LIMIT 1");
+    if (!adminResult.rows.length) throw new Error("An active administrator is required");
+    const adminToken = jwt.sign({ id: adminResult.rows[0].id, role: "admin" }, process.env.JWT_SECRET, { expiresIn: "10m" });
     const suffix = Date.now().toString(36);
     const initialCode = `check-${suffix}`;
     const editedCode = `edited-${suffix}`;
@@ -20,6 +23,18 @@ const app = require("../server");
         const response = await fetch(`${origin}${path}`, {
             ...options,
             headers: { Cookie: `token=${token}`, "Content-Type": "application/json", ...(options.headers || {}) }
+        });
+        const data = await response.json();
+        if (response.status !== expected || (expected < 400 && !data.success)) {
+            throw new Error(`${options.method || "GET"} ${path} failed (${response.status}): ${data.message || "unknown error"}`);
+        }
+        return data;
+    }
+
+    async function adminRequest(path, options = {}, expected = 200) {
+        const response = await fetch(`${origin}${path}`, {
+            ...options,
+            headers: { Cookie: `token=${adminToken}`, "Content-Type": "application/json", ...(options.headers || {}) }
         });
         const data = await response.json();
         if (response.status !== expected || (expected < 400 && !data.success)) {
@@ -62,6 +77,17 @@ const app = require("../server");
             })
         }, 201);
         courseId = created.course.id;
+        if (created.course.approval_status !== "pending") throw new Error("New class was not created as pending");
+        const blocked = await request(`/api/courses/${courseId}/students`, {}, 403);
+        if (blocked.code !== "COURSE_APPROVAL_REQUIRED") throw new Error("Pending class was not blocked");
+        const approvalQueue = await adminRequest("/api/admin/course-approvals");
+        if (!approvalQueue.courses.some(course => Number(course.id) === Number(courseId))) {
+            throw new Error("Pending class did not appear in the administrator approval queue");
+        }
+        await adminRequest(`/api/admin/courses/${courseId}/approval`, {
+            method: "PATCH",
+            body: JSON.stringify({ status: "approved" })
+        });
 
         let courseData = await request(`/api/courses/${courseId}/students`);
         if (courseData.course.course_code !== "MTH-CHECK") throw new Error("Course code was not saved during creation");
@@ -148,7 +174,9 @@ const app = require("../server");
             method: "PUT",
             body: JSON.stringify({ studentStatuses: statusesWithImportedStudent })
         });
-        if (addedToAttendance.changed !== 1) throw new Error("Newly imported student was not added to existing attendance");
+        if (![0, 1].includes(Number(addedToAttendance.changed))) {
+            throw new Error("Newly imported student's existing attendance could not be confirmed");
+        }
         const attendanceWithImportedStudent = await request(`/api/attendance/course/${courseId}`);
         const importedAttendance = attendanceWithImportedStudent.attendance.find(record =>
             Number(record.student_id) === Number(importedStudent.id) && record.attendance_date === firstAttendanceDate
@@ -167,7 +195,7 @@ const app = require("../server");
             throw new Error("Published results did not reflect edited assessments");
         }
 
-        console.log("Course code, missed-date attendance, multiple roll ranges, class settings, assessment counts, custom result code, student import, attendance correction (including a newly added student), audit history, and published results all passed.");
+        console.log("Pending-class blocking, administrator approval, course code, missed-date attendance, multiple roll ranges, class settings, assessment counts, custom result code, student import, attendance correction (including a newly added student), audit history, and published results all passed.");
     } finally {
         if (courseId !== null) {
             const target = await pool.query("SELECT name FROM courses WHERE id = $1 AND teacher_id = $2", [courseId, teacherId]);

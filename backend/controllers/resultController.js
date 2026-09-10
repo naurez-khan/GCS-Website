@@ -24,6 +24,7 @@ const getStudentResult = async (req, res) => {
               AND s.roll_number = $2
               AND s.deleted_at IS NULL
               AND c.results_enabled = TRUE
+              AND c.approval_status = 'approved'
             `,
             [resultCode, rollNumber]
         );

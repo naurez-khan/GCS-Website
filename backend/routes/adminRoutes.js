@@ -10,6 +10,8 @@ const {
     setTeacherStatus,
     setAdminStatus,
     getTransferableCourses,
+    getPendingCourseApprovals,
+    setCourseApprovalStatus,
     transferCourse,
     resetUserPassword,
     restoreClassBackup
@@ -49,6 +51,8 @@ router.post("/stop-viewing-teacher", authenticate, adminOnly, stopViewingTeacher
 router.patch("/teachers/:teacherId/status", authenticate, adminOnly, setTeacherStatus);
 router.patch("/admins/:adminId/status", authenticate, adminOnly, setAdminStatus);
 router.get("/courses", authenticate, adminOnly, getTransferableCourses);
+router.get("/course-approvals", authenticate, adminOnly, getPendingCourseApprovals);
+router.patch("/courses/:courseId/approval", authenticate, adminOnly, setCourseApprovalStatus);
 router.patch("/courses/:courseId/transfer", authenticate, adminOnly, transferCourse);
 router.patch("/users/:userId/password", authenticate, adminOnly, resetUserPassword);
 router.post("/backups/restore", authenticate, adminOnly, restoreClassBackup);
