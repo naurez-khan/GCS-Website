@@ -8,6 +8,7 @@ const {
     viewTeacherDashboard,
     stopViewingTeacher,
     setTeacherStatus,
+    setTeacherAdminAccess,
     setAdminStatus,
     getTransferableCourses,
     getPendingCourseApprovals,
@@ -49,6 +50,7 @@ router.get("/admins", authenticate, adminOnly, getAdmins);
 router.post("/teachers/:teacherId/view", authenticate, adminOnly, viewTeacherDashboard);
 router.post("/stop-viewing-teacher", authenticate, adminOnly, stopViewingTeacher);
 router.patch("/teachers/:teacherId/status", authenticate, adminOnly, setTeacherStatus);
+router.patch("/teachers/:teacherId/admin-access", authenticate, adminOnly, setTeacherAdminAccess);
 router.patch("/admins/:adminId/status", authenticate, adminOnly, setAdminStatus);
 router.get("/courses", authenticate, adminOnly, getTransferableCourses);
 router.get("/course-approvals", authenticate, adminOnly, getPendingCourseApprovals);

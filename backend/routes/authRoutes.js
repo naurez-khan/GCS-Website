@@ -4,6 +4,7 @@ const {
     login,
     logout,
     getCurrentUser,
+    selectRole,
     changePassword
 } = require("../controllers/authController");
 
@@ -13,6 +14,7 @@ const router = express.Router();
 
 router.post("/login", login);
 router.post("/logout", logout);
+router.post("/select-role", authenticate, selectRole);
 router.get("/me", authenticate, getCurrentUser);
 router.post("/change-password", authenticate, changePassword);
 

@@ -1,6 +1,17 @@
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const pool = require("../config/db");
+const { getAvailableRoles, canUseRole } = require("../lib/roles");
+
+const setSessionCookie = (res, payload) => {
+    const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: "8h" });
+    res.cookie("token", token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        maxAge: 8 * 60 * 60 * 1000
+    });
+};
 
 
 // ==========================================
@@ -26,7 +37,7 @@ const login = async (req, res) => {
         // Find user
         const result = await pool.query(
             `
-            SELECT id, name, email, password_hash, role, is_active
+            SELECT id, name, email, password_hash, role, can_admin, is_active
             FROM users
             WHERE LOWER(email) = $1
             `,
@@ -69,26 +80,9 @@ const login = async (req, res) => {
         }
 
 
-        // Create JWT
-        const token = jwt.sign(
-            {
-                id: user.id,
-                role: user.role
-            },
-            process.env.JWT_SECRET,
-            {
-                expiresIn: "8h"
-            }
-        );
-
-
-        // Store token in HTTP-only cookie
-        res.cookie("token", token, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === "production",
-            sameSite: "lax",
-            maxAge: 8 * 60 * 60 * 1000
-        });
+        const roles = getAvailableRoles(user);
+        const activeRole = roles.length > 1 ? "pending" : roles[0];
+        setSessionCookie(res, { id: user.id, role: activeRole });
 
 
         res.json({
@@ -98,8 +92,10 @@ const login = async (req, res) => {
                 id: user.id,
                 name: user.name,
                 email: user.email,
-                role: user.role
-            }
+                role: activeRole,
+                roles
+            },
+            needs_role_selection: roles.length > 1
         });
 
 
@@ -129,25 +125,65 @@ const logout = (req, res) => {
 const getCurrentUser = async (req, res) => {
     try {
         const result = await pool.query(
-            `SELECT id, name, email, role, is_active FROM users WHERE id = $1`,
+            `SELECT id, name, email, role, can_admin, is_active FROM users WHERE id = $1`,
             [req.user.id]
         );
         const user = result.rows[0];
         if (!user || !user.is_active) {
             return res.status(401).json({ success: false, message: "Account is unavailable" });
         }
+        const roles = getAvailableRoles(user);
+        const sessionUser = { ...user, role: req.user.role, roles };
+        delete sessionUser.can_admin;
         let actingAsTeacher = null;
         const actingTeacherId = Number(req.user.acting_as_teacher_id);
-        if (user.role === "admin" && Number.isInteger(actingTeacherId) && actingTeacherId > 0) {
+        if (req.user.role === "admin" && Number.isInteger(actingTeacherId) && actingTeacherId > 0) {
             const teacherResult = await pool.query(
                 "SELECT id, name, email, role, is_active FROM users WHERE id = $1 AND role = 'teacher' AND is_active = TRUE",
                 [actingTeacherId]
             );
             actingAsTeacher = teacherResult.rows[0] || null;
         }
-        res.json({ success: true, user, acting_as_teacher: actingAsTeacher });
+        res.json({ success: true, user: sessionUser, acting_as_teacher: actingAsTeacher });
     } catch (error) {
         console.error("Current user error:", error);
+        res.status(500).json({ success: false, message: "Server error" });
+    }
+};
+
+const selectRole = async (req, res) => {
+    try {
+        const role = String(req.body.role || "");
+        if (!["teacher", "admin"].includes(role)) {
+            return res.status(400).json({ success: false, message: "Choose a valid portal" });
+        }
+
+        const result = await pool.query(
+            "SELECT id, name, email, role, can_admin, is_active FROM users WHERE id = $1",
+            [req.user.id]
+        );
+        const account = result.rows[0];
+        if (!account || !account.is_active) {
+            return res.status(401).json({ success: false, message: "Account is unavailable" });
+        }
+        if (!canUseRole(account, role)) {
+            return res.status(403).json({ success: false, message: "You do not have access to that portal" });
+        }
+
+        setSessionCookie(res, { id: account.id, role });
+        res.json({
+            success: true,
+            message: role === "admin" ? "Administration portal selected" : "Teacher workspace selected",
+            user: {
+                id: account.id,
+                name: account.name,
+                email: account.email,
+                role,
+                roles: getAvailableRoles(account)
+            }
+        });
+    } catch (error) {
+        console.error("Select role error:", error);
         res.status(500).json({ success: false, message: "Server error" });
     }
 };
@@ -200,5 +236,6 @@ module.exports = {
     login,
     logout,
     getCurrentUser,
+    selectRole,
     changePassword
 };

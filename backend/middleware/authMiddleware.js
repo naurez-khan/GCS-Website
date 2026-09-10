@@ -1,5 +1,6 @@
 const jwt = require("jsonwebtoken");
 const pool = require("../config/db");
+const { getAvailableRoles } = require("../lib/roles");
 
 
 // ==========================================
@@ -29,11 +30,13 @@ const authenticate = async (req, res, next) => {
         req.user = decoded;
 
         const accountResult = await pool.query(
-            "SELECT role, is_active FROM users WHERE id = $1",
+            "SELECT role, can_admin, is_active FROM users WHERE id = $1",
             [decoded.id]
         );
         const account = accountResult.rows[0];
-        if (!account || !account.is_active || account.role !== decoded.role) {
+        const availableRoles = getAvailableRoles(account);
+        const pendingChoice = decoded.role === "pending" && availableRoles.length > 1;
+        if (!account || !account.is_active || (!pendingChoice && !availableRoles.includes(decoded.role))) {
             return res.status(401).json({
                 success: false,
                 message: "Account is inactive or unavailable"

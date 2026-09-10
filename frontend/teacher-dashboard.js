@@ -13,6 +13,9 @@ const logoutBtn =
 const returnAdminBtn =
     document.getElementById("returnAdminBtn");
 
+const switchAdminBtn =
+    document.getElementById("switchAdminBtn");
+
 const changePasswordBtn =
     document.getElementById("changePasswordBtn");
 
@@ -79,6 +82,7 @@ async function loadTeacherInfo() {
         if (data.user.role === "teacher") {
             localStorage.setItem("teacher", JSON.stringify(data.user));
             localStorage.removeItem("adminSession");
+            switchAdminBtn.hidden = !data.user.roles?.includes("admin");
             displayTeacherInfo(data.user, false);
             return true;
         }
@@ -567,6 +571,26 @@ returnAdminBtn?.addEventListener("click", async () => {
         window.location.href = "/admin.html";
     } catch (error) {
         returnAdminBtn.disabled = false;
+        alert(error.message);
+    }
+});
+
+switchAdminBtn?.addEventListener("click", async () => {
+    switchAdminBtn.disabled = true;
+    try {
+        const response = await fetch("/api/auth/select-role", {
+            method: "POST",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ role: "admin" })
+        });
+        const data = await response.json();
+        if (!response.ok || !data.success) throw new Error(data.message || "Could not open administration");
+        localStorage.setItem("teacher", JSON.stringify(data.user));
+        localStorage.removeItem("adminSession");
+        window.location.href = "/admin.html";
+    } catch (error) {
+        switchAdminBtn.disabled = false;
         alert(error.message);
     }
 });

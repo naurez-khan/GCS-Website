@@ -88,7 +88,7 @@ const addTeacher = async (req, res) => {
             INSERT INTO users
             (name, email, password_hash, role, is_active)
             VALUES ($1, $2, $3, 'teacher', true)
-            RETURNING id, name, email, role, is_active, created_at
+            RETURNING id, name, email, role, can_admin, is_active, created_at
             `,
             [
                 cleanName,
@@ -134,6 +134,7 @@ const getTeachers = async (req, res) => {
                 name,
                 email,
                 role,
+                can_admin,
                 is_active,
                 created_at
             FROM users
@@ -372,7 +373,7 @@ const viewTeacherDashboard = async (req, res) => {
 const stopViewingTeacher = async (req, res) => {
     try {
         const result = await pool.query(
-            "SELECT id, name, email, role, is_active FROM users WHERE id = $1 AND role = 'admin'",
+            "SELECT id, name, email, role, can_admin, is_active FROM users WHERE id = $1 AND (role = 'admin' OR can_admin = TRUE)",
             [req.user.id]
         );
         const admin = result.rows[0];
@@ -389,22 +390,44 @@ const stopViewingTeacher = async (req, res) => {
 };
 
 const setTeacherStatus = async (req, res) => {
+    const client = await pool.connect();
     try {
         const teacherId = Number(req.params.teacherId);
         const isActive = req.body.is_active;
         if (!Number.isInteger(teacherId) || teacherId < 1 || typeof isActive !== "boolean") {
             return res.status(400).json({ success: false, message: "A valid teacher and status are required" });
         }
+        if (!isActive && teacherId === Number(req.user.id)) {
+            return res.status(400).json({ success: false, message: "You cannot deactivate your own account" });
+        }
 
-        const result = await pool.query(
+        await client.query("BEGIN");
+        const targetResult = await client.query(
+            "SELECT id, can_admin, is_active FROM users WHERE id = $1 AND role = 'teacher' FOR UPDATE",
+            [teacherId]
+        );
+        const target = targetResult.rows[0];
+        if (!target) {
+            await client.query("ROLLBACK");
+            return res.status(404).json({ success: false, message: "Teacher not found" });
+        }
+        if (!isActive && target.is_active && target.can_admin) {
+            const activeAdmins = await client.query(
+                "SELECT id FROM users WHERE is_active = TRUE AND (role = 'admin' OR can_admin = TRUE) FOR UPDATE"
+            );
+            if (activeAdmins.rows.length <= 1) {
+                await client.query("ROLLBACK");
+                return res.status(409).json({ success: false, message: "The final active administrator cannot be deactivated" });
+            }
+        }
+
+        const result = await client.query(
             `UPDATE users SET is_active = $1
              WHERE id = $2 AND role = 'teacher'
              RETURNING id, name, email, role, is_active, created_at`,
             [isActive, teacherId]
         );
-        if (!result.rows.length) {
-            return res.status(404).json({ success: false, message: "Teacher not found" });
-        }
+        await client.query("COMMIT");
 
         res.json({
             success: true,
@@ -412,8 +435,79 @@ const setTeacherStatus = async (req, res) => {
             teacher: result.rows[0]
         });
     } catch (error) {
+        await client.query("ROLLBACK");
         console.error("Set teacher status error:", error);
         res.status(500).json({ success: false, message: "Server error" });
+    } finally {
+        client.release();
+    }
+};
+
+const setTeacherAdminAccess = async (req, res) => {
+    const client = await pool.connect();
+    try {
+        const teacherId = Number(req.params.teacherId);
+        const canAdmin = req.body.can_admin;
+        if (!Number.isInteger(teacherId) || teacherId < 1 || typeof canAdmin !== "boolean") {
+            return res.status(400).json({ success: false, message: "A valid teacher and permission are required" });
+        }
+        if (!canAdmin && teacherId === Number(req.user.id)) {
+            return res.status(400).json({ success: false, message: "You cannot remove your own administrator access" });
+        }
+
+        await client.query("BEGIN");
+        const targetResult = await client.query(
+            "SELECT id, name, email, role, can_admin, is_active FROM users WHERE id = $1 AND role = 'teacher' FOR UPDATE",
+            [teacherId]
+        );
+        const teacher = targetResult.rows[0];
+        if (!teacher) {
+            await client.query("ROLLBACK");
+            return res.status(404).json({ success: false, message: "Teacher not found" });
+        }
+        if (canAdmin && !teacher.is_active) {
+            await client.query("ROLLBACK");
+            return res.status(409).json({ success: false, message: "Restore the teacher account before granting administrator access" });
+        }
+        if (teacher.can_admin === canAdmin) {
+            await client.query("ROLLBACK");
+            return res.json({
+                success: true,
+                message: canAdmin ? "Teacher already has administrator access" : "Teacher does not have administrator access",
+                teacher
+            });
+        }
+
+        if (!canAdmin) {
+            const activeAdmins = await client.query(
+                "SELECT id FROM users WHERE is_active = TRUE AND (role = 'admin' OR can_admin = TRUE) FOR UPDATE"
+            );
+            if (activeAdmins.rows.length <= 1) {
+                await client.query("ROLLBACK");
+                return res.status(409).json({ success: false, message: "The final active administrator cannot be removed" });
+            }
+        }
+
+        const updated = await client.query(
+            `UPDATE users SET can_admin = $1, updated_at = CURRENT_TIMESTAMP
+             WHERE id = $2 AND role = 'teacher'
+             RETURNING id, name, email, role, can_admin, is_active, created_at`,
+            [canAdmin, teacherId]
+        );
+        await client.query("COMMIT");
+        res.json({
+            success: true,
+            message: canAdmin
+                ? `${teacher.name} can now use both the Teacher and Administrator panels.`
+                : `Administrator access removed from ${teacher.name}. Their teacher access is unchanged.`,
+            teacher: updated.rows[0]
+        });
+    } catch (error) {
+        await client.query("ROLLBACK");
+        console.error("Set teacher administrator access error:", error);
+        res.status(500).json({ success: false, message: "Server error" });
+    } finally {
+        client.release();
     }
 };
 
@@ -431,7 +525,7 @@ const setAdminStatus = async (req, res) => {
 
         await client.query("BEGIN");
         const admins = await client.query(
-            "SELECT id FROM users WHERE role = 'admin' AND is_active = TRUE FOR UPDATE"
+            "SELECT id FROM users WHERE is_active = TRUE AND (role = 'admin' OR can_admin = TRUE) FOR UPDATE"
         );
         if (!isActive && admins.rows.length <= 1) {
             await client.query("ROLLBACK");
@@ -657,6 +751,7 @@ module.exports = {
     viewTeacherDashboard,
     stopViewingTeacher,
     setTeacherStatus,
+    setTeacherAdminAccess,
     setAdminStatus,
     getTransferableCourses,
     getPendingCourseApprovals,

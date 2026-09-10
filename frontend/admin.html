@@ -17,6 +17,7 @@
         </a>
         <div class="bar-actions">
             <span id="adminName"></span>
+            <button id="switchTeacherBtn" type="button" hidden>Teacher Panel</button>
             <button id="logoutBtn" class="danger">Logout</button>
         </div>
     </header>
@@ -90,7 +91,7 @@
 
         <section class="panel">
             <div class="panel-heading">
-                <div><h2>Teachers</h2><p class="muted">Current department accounts</p></div>
+                <div><h2>Teachers</h2><p class="muted">Current department accounts. Grant administrator access without creating another account.</p></div>
                 <div class="teacher-list-actions">
                     <button id="refreshBtn">Refresh</button>
                     <button id="removeTeacherBtn" class="danger">Remove Teacher</button>
@@ -111,28 +112,17 @@
             </div>
             <div class="table-wrap">
                 <table>
-                    <thead><tr><th>Name</th><th>Email</th><th>Status</th><th>Created</th></tr></thead>
-                    <tbody id="teacherRows"><tr><td colspan="4">Loading…</td></tr></tbody>
+                    <thead><tr><th>Name</th><th>Email</th><th>Status</th><th>Admin access</th><th>Created</th><th>Action</th></tr></thead>
+                    <tbody id="teacherRows"><tr><td colspan="6">Loading…</td></tr></tbody>
                 </table>
             </div>
-        </section>
-
-        <section class="panel">
-            <h2>Add an administrator</h2>
-            <p class="muted">Create another account with full administration access.</p>
-            <form id="adminForm" autocomplete="off">
-                <label>Name<input id="newAdminName" maxlength="100" autocomplete="off" required></label>
-                <label>Email<input id="newAdminEmail" type="email" maxlength="150" autocomplete="off" required></label>
-                <label>Temporary password<input id="newAdminPassword" type="password" minlength="8" autocomplete="new-password" required></label>
-                <button type="submit" class="primary">Create administrator</button>
-            </form>
-            <div id="adminMessage" class="notice hidden" role="status"></div>
         </section>
 
         <section class="panel">
             <div class="panel-heading">
                 <div><h2>Administrators</h2><p class="muted">Accounts with full portal access</p></div>
             </div>
+            <div id="adminMessage" class="notice hidden" role="status"></div>
             <div class="admin-list-actions">
                 <button id="removeAdminBtn" class="danger">Remove Administrator</button>
                 <button id="restoreAdminBtn">Restore Administrator</button>
@@ -157,6 +147,6 @@
             </div>
         </section>
     </main>
-    <script src="/admin.js?v=20260910-2"></script>
+    <script src="/admin.js?v=20260910-4"></script>
 </body>
 </html>

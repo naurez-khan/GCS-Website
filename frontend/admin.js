@@ -1,7 +1,6 @@
 let currentAdmin = JSON.parse(localStorage.getItem("teacher") || "null");
 
 const teacherForm = document.getElementById("teacherForm");
-const adminForm = document.getElementById("adminForm");
 const teacherRows = document.getElementById("teacherRows");
 const adminRows = document.getElementById("adminRows");
 const message = document.getElementById("message");
@@ -66,13 +65,18 @@ async function loadTeachers() {
                 <td><button class="teacher-name-button" data-teacher-id="${Number(teacher.id)}" ${teacher.is_active ? "" : "disabled"}>${escapeHtml(teacher.name)}</button></td>
                 <td>${escapeHtml(teacher.email)}</td>
                 <td><span class="status ${teacher.is_active ? "active" : "inactive"}">${teacher.is_active ? "Active" : "Inactive"}</span></td>
+                <td><span class="status ${teacher.can_admin ? "active" : "inactive"}">${teacher.can_admin ? "Granted" : "Not granted"}</span></td>
                 <td>${escapeHtml(new Date(teacher.created_at).toLocaleDateString())}</td>
-            </tr>`).join("") : '<tr><td colspan="4">No teachers have been added.</td></tr>';
+                <td><button class="account-action ${teacher.can_admin ? "" : "restore"}" data-admin-access="${Number(teacher.id)}" data-grant="${teacher.can_admin ? "false" : "true"}"
+                    ${!teacher.is_active || (teacher.can_admin && Number(teacher.id) === Number(currentAdmin?.id)) ? "disabled" : ""}>
+                    ${teacher.can_admin ? "Revoke Admin" : "Make Admin"}
+                </button></td>
+            </tr>`).join("") : '<tr><td colspan="6">No teachers have been added.</td></tr>';
         document.getElementById("removeTeacherBtn").disabled = !currentTeachers.some(teacher => teacher.is_active);
         document.getElementById("restoreTeacherBtn").disabled = !currentTeachers.some(teacher => !teacher.is_active);
         updateRestoreTeacherChoices();
     } catch (error) {
-        teacherRows.innerHTML = `<tr><td colspan="4">${escapeHtml(error.message)}</td></tr>`;
+        teacherRows.innerHTML = `<tr><td colspan="6">${escapeHtml(error.message)}</td></tr>`;
     }
 }
 
@@ -319,6 +323,30 @@ transferClassForm.addEventListener("submit", async event => {
 });
 
 teacherRows.addEventListener("click", async event => {
+    const accessButton = event.target.closest("[data-admin-access]");
+    if (accessButton) {
+        const teacherId = Number(accessButton.dataset.adminAccess);
+        const grant = accessButton.dataset.grant === "true";
+        const teacher = currentTeachers.find(item => Number(item.id) === teacherId);
+        if (!teacher) return;
+        const action = grant ? "grant administrator access to" : "remove administrator access from";
+        if (!window.confirm(`Are you sure you want to ${action} ${teacher.name}?`)) return;
+        accessButton.disabled = true;
+        try {
+            const data = await api(`/api/admin/teachers/${teacherId}/admin-access`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ can_admin: grant })
+            });
+            showMessage(message, data.message, "success");
+            await loadTeachers();
+        } catch (error) {
+            showMessage(message, error.message, "error");
+            accessButton.disabled = false;
+        }
+        return;
+    }
+
     const button = event.target.closest("[data-teacher-id]");
     if (!button) return;
     button.disabled = true;
@@ -461,36 +489,29 @@ teacherForm.addEventListener("submit", async event => {
     }
 });
 
-adminForm.addEventListener("submit", async event => {
-    event.preventDefault();
-    const submit = adminForm.querySelector("button[type=submit]");
-    submit.disabled = true;
-    try {
-        await api("/api/admin/admins", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                name: document.getElementById("newAdminName").value,
-                email: document.getElementById("newAdminEmail").value,
-                password: document.getElementById("newAdminPassword").value
-            })
-        });
-        adminForm.reset();
-        showMessage(adminMessage, "Administrator created successfully.", "success");
-        await loadAdmins();
-    } catch (error) {
-        showMessage(adminMessage, error.message, "error");
-    } finally {
-        submit.disabled = false;
-    }
-});
-
 document.getElementById("refreshBtn").addEventListener("click", () => Promise.all([loadTeachers(), loadAdmins(), loadCourseApprovals()]));
 document.getElementById("logoutBtn").addEventListener("click", async () => {
     await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
     localStorage.removeItem("teacher");
     localStorage.removeItem("adminSession");
     window.location.replace("/test-login.html");
+});
+
+document.getElementById("switchTeacherBtn").addEventListener("click", async () => {
+    const button = document.getElementById("switchTeacherBtn");
+    button.disabled = true;
+    try {
+        const data = await api("/api/auth/select-role", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ role: "teacher" })
+        });
+        localStorage.setItem("teacher", JSON.stringify(data.user));
+        window.location.href = "/teacher-dashboard.html";
+    } catch (error) {
+        showMessage(message, error.message, "error");
+        button.disabled = false;
+    }
 });
 
 async function initializeAdminPage() {
@@ -507,6 +528,7 @@ async function initializeAdminPage() {
         localStorage.setItem("teacher", JSON.stringify(currentAdmin));
         localStorage.removeItem("adminSession");
         document.getElementById("adminName").textContent = currentAdmin.name || "Administrator";
+        document.getElementById("switchTeacherBtn").hidden = !currentAdmin.roles?.includes("teacher");
         await Promise.all([loadTeachers(), loadAdmins(), loadCourseApprovals()]);
         updateResetPasswordAccounts();
         await loadTransferableCourses();
