@@ -23,7 +23,7 @@
     </header>
 
     <main class="portal-main two-column">
-        <section class="panel approval-panel">
+        <section id="approvalRequests" class="panel approval-panel">
             <div class="panel-heading">
                 <div>
                     <h1>Class Approval Requests</h1>
@@ -118,35 +118,7 @@
             </div>
         </section>
 
-        <section class="panel">
-            <div class="panel-heading">
-                <div><h2>Administrators</h2><p class="muted">Accounts with full portal access</p></div>
-            </div>
-            <div id="adminMessage" class="notice hidden" role="status"></div>
-            <div class="admin-list-actions">
-                <button id="removeAdminBtn" class="danger">Remove Administrator</button>
-                <button id="restoreAdminBtn">Restore Administrator</button>
-            </div>
-            <div id="adminAccountPanel" class="account-manager hidden">
-                <h3 id="adminAccountTitle">Remove Administrator</h3>
-                <p id="adminAccountHelp" class="muted">Choose which administrator should lose access.</p>
-                <label>
-                    Administrator
-                    <select id="adminAccountSelect"></select>
-                </label>
-                <div class="account-manager-actions">
-                    <button id="confirmAdminAccountBtn" class="danger" type="button">Remove Administrator</button>
-                    <button id="cancelAdminAccountBtn" type="button">Cancel</button>
-                </div>
-            </div>
-            <div class="table-wrap">
-                <table>
-                    <thead><tr><th>Name</th><th>Email</th><th>Status</th><th>Created</th></tr></thead>
-                    <tbody id="adminRows"><tr><td colspan="4">Loading…</td></tr></tbody>
-                </table>
-            </div>
-        </section>
     </main>
-    <script src="/admin.js?v=20260910-4"></script>
+    <script src="/admin.js?v=20260910-5"></script>
 </body>
 </html>

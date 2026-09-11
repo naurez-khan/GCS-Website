@@ -230,22 +230,6 @@
 
         }
 
-        .role-chooser {
-            display: grid;
-            gap: 12px;
-            margin-top: 24px;
-            padding: 20px;
-            border: 1px solid #eadedf;
-            border-radius: 12px;
-            background: #fff8f6;
-        }
-
-        .role-chooser[hidden] { display: none; }
-        .role-chooser h2 { margin: 0; text-align: center; font-size: 20px; color: #221b1c; }
-        .role-chooser p { margin: 0 0 4px; text-align: center; color: #6b7280; font-size: 14px; }
-        .role-chooser button { background: linear-gradient(135deg, #c8101a, #8e0b12); }
-        .role-chooser button.secondary-role { color: #8e0b12; background: #fff; border: 1px solid #d9b8bb; }
-
     </style>
     <link rel="stylesheet" href="/brand.css?v=20260824-33">
     <script defer src="/ui-icons.js?v=20260824-3"></script>
@@ -325,14 +309,6 @@
 
             <div id="message"></div>
 
-            <section id="roleChooser" class="role-chooser" hidden aria-labelledby="roleChooserTitle">
-                <h2 id="roleChooserTitle">Choose your workspace</h2>
-                <p>This account can use both areas. Where would you like to go?</p>
-                <button type="button" data-role-choice="teacher">Teacher Panel</button>
-                <button type="button" class="secondary-role" data-role-choice="admin">Administrator Panel</button>
-            </section>
-
-
             <div class="test-account">
                 Are you a student?
                 <a href="/results.html">View your published result</a>
@@ -380,32 +356,6 @@
             document.getElementById(
                 "message"
             );
-
-        const roleChooser = document.getElementById("roleChooser");
-
-        roleChooser.addEventListener("click", async event => {
-            const button = event.target.closest("[data-role-choice]");
-            if (!button) return;
-            const role = button.dataset.roleChoice;
-            roleChooser.querySelectorAll("button").forEach(item => { item.disabled = true; });
-            try {
-                const response = await fetch("/api/auth/select-role", {
-                    method: "POST",
-                    credentials: "include",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ role })
-                });
-                const data = await response.json();
-                if (!response.ok || !data.success) throw new Error(data.message || "Could not open that panel");
-                localStorage.setItem("teacher", JSON.stringify(data.user));
-                window.location.href = role === "admin" ? "/admin.html" : "/teacher-dashboard.html";
-            } catch (error) {
-                showMessage(error.message, "error");
-                roleChooser.querySelectorAll("button").forEach(item => { item.disabled = false; });
-            }
-        });
-
-
 
         // =========================
         // LOGIN
@@ -486,21 +436,13 @@
 
                     if (data.success) {
 
-                        if (data.needs_role_selection) {
-                            loginForm.hidden = true;
-                            message.className = "";
-                            message.textContent = "";
-                            roleChooser.hidden = false;
-                            roleChooser.querySelector("button")?.focus();
-                        } else {
-                            localStorage.setItem("teacher", JSON.stringify(data.user));
-                            showMessage("Login successful! Redirecting...", "success");
-                            setTimeout(function () {
-                                window.location.href = data.user.role === "admin"
-                                    ? "/admin.html"
-                                    : "/teacher-dashboard.html";
-                            }, 500);
-                        }
+                        localStorage.setItem("teacher", JSON.stringify(data.user));
+                        showMessage("Login successful! Redirecting...", "success");
+                        setTimeout(function () {
+                            window.location.href = data.user.role === "admin"
+                                ? "/admin.html"
+                                : "/teacher-dashboard.html";
+                        }, 500);
 
 
                     } else {

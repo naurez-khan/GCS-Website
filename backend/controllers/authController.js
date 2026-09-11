@@ -1,7 +1,7 @@
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const pool = require("../config/db");
-const { getAvailableRoles, canUseRole } = require("../lib/roles");
+const { getAvailableRoles, canUseRole, getDefaultRole } = require("../lib/roles");
 
 const setSessionCookie = (res, payload) => {
     const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: "8h" });
@@ -81,7 +81,7 @@ const login = async (req, res) => {
 
 
         const roles = getAvailableRoles(user);
-        const activeRole = roles.length > 1 ? "pending" : roles[0];
+        const activeRole = getDefaultRole(user);
         setSessionCookie(res, { id: user.id, role: activeRole });
 
 
@@ -94,8 +94,7 @@ const login = async (req, res) => {
                 email: user.email,
                 role: activeRole,
                 roles
-            },
-            needs_role_selection: roles.length > 1
+            }
         });
 
 
@@ -188,6 +187,27 @@ const selectRole = async (req, res) => {
     }
 };
 
+const getPendingApprovalCount = async (req, res) => {
+    try {
+        const accountResult = await pool.query(
+            "SELECT role, can_admin, is_active FROM users WHERE id = $1",
+            [req.user.id]
+        );
+        const account = accountResult.rows[0];
+        if (!account || !account.is_active || !canUseRole(account, "admin")) {
+            return res.status(403).json({ success: false, message: "Administrator access required" });
+        }
+
+        const result = await pool.query(
+            "SELECT COUNT(*)::int AS count FROM courses WHERE approval_status = 'pending'"
+        );
+        res.json({ success: true, count: Number(result.rows[0]?.count || 0) });
+    } catch (error) {
+        console.error("Pending approval count error:", error);
+        res.status(500).json({ success: false, message: "Server error" });
+    }
+};
+
 const changePassword = async (req, res) => {
     try {
         const currentPassword = String(req.body.current_password || "");
@@ -237,5 +257,6 @@ module.exports = {
     logout,
     getCurrentUser,
     selectRole,
+    getPendingApprovalCount,
     changePassword
 };

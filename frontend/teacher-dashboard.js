@@ -16,6 +16,12 @@ const returnAdminBtn =
 const switchAdminBtn =
     document.getElementById("switchAdminBtn");
 
+const adminNotificationIndicator =
+    document.getElementById("adminNotificationIndicator");
+
+const adminNotificationBadge =
+    document.getElementById("adminNotificationBadge");
+
 const changePasswordBtn =
     document.getElementById("changePasswordBtn");
 
@@ -44,6 +50,30 @@ const deleteCourseBtn =
 
 let loadedCourses = [];
 let importedCreationRoster = [];
+
+async function loadPendingApprovalCount() {
+    if (!switchAdminBtn || switchAdminBtn.hidden) return;
+
+    try {
+        const response = await fetch("/api/auth/pending-approvals", {
+            credentials: "include",
+            cache: "no-store"
+        });
+        const data = await response.json();
+        if (!response.ok || !data.success) return;
+
+        const count = Math.max(0, Number(data.count) || 0);
+        adminNotificationBadge.textContent = count > 99 ? "99+" : String(count);
+        adminNotificationIndicator.hidden = count === 0;
+        const label = count === 1
+            ? "1 pending class approval request"
+            : `${count} pending class approval requests`;
+        switchAdminBtn.setAttribute("aria-label", count ? `Administrator Panel, ${label}` : "Administrator Panel");
+        switchAdminBtn.title = count ? label : "Administrator Panel";
+    } catch (error) {
+        console.error("Load approval notification count error:", error);
+    }
+}
 
 
 // =========================
@@ -82,7 +112,9 @@ async function loadTeacherInfo() {
         if (data.user.role === "teacher") {
             localStorage.setItem("teacher", JSON.stringify(data.user));
             localStorage.removeItem("adminSession");
-            switchAdminBtn.hidden = !data.user.roles?.includes("admin");
+            const hasAdminAccess = data.user.roles?.includes("admin");
+            switchAdminBtn.hidden = !hasAdminAccess;
+            if (hasAdminAccess) loadPendingApprovalCount();
             displayTeacherInfo(data.user, false);
             return true;
         }
@@ -568,7 +600,7 @@ returnAdminBtn?.addEventListener("click", async () => {
         const admin = JSON.parse(localStorage.getItem("adminSession") || "null") || data.user;
         localStorage.setItem("teacher", JSON.stringify(admin));
         localStorage.removeItem("adminSession");
-        window.location.href = "/admin.html";
+        window.location.href = "/admin.html#approvalRequests";
     } catch (error) {
         returnAdminBtn.disabled = false;
         alert(error.message);
@@ -2638,3 +2670,8 @@ async function createCourse() {
 // =========================
 
 refreshTeacherDashboard();
+window.setInterval(loadPendingApprovalCount, 30000);
+window.addEventListener("focus", loadPendingApprovalCount);
+document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) loadPendingApprovalCount();
+});

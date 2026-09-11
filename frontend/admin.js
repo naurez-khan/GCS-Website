@@ -2,9 +2,7 @@ let currentAdmin = JSON.parse(localStorage.getItem("teacher") || "null");
 
 const teacherForm = document.getElementById("teacherForm");
 const teacherRows = document.getElementById("teacherRows");
-const adminRows = document.getElementById("adminRows");
 const message = document.getElementById("message");
-const adminMessage = document.getElementById("adminMessage");
 const transferMessage = document.getElementById("transferMessage");
 const transferClassForm = document.getElementById("transferClassForm");
 const transferFromTeacher = document.getElementById("transferFromTeacher");
@@ -22,9 +20,6 @@ const resetPasswordMessage = document.getElementById("resetPasswordMessage");
 const teacherAccountPanel = document.getElementById("teacherAccountPanel");
 const teacherAccountSelect = document.getElementById("teacherAccountSelect");
 const confirmTeacherAccountBtn = document.getElementById("confirmTeacherAccountBtn");
-const adminAccountPanel = document.getElementById("adminAccountPanel");
-const adminAccountSelect = document.getElementById("adminAccountSelect");
-const confirmAdminAccountBtn = document.getElementById("confirmAdminAccountBtn");
 const approvalRows = document.getElementById("approvalRows");
 const approvalMessage = document.getElementById("approvalMessage");
 let currentTeachers = [];
@@ -32,7 +27,6 @@ let currentAdmins = [];
 let transferableCourses = [];
 let pendingClassBackup = null;
 let teacherAccountMode = "remove";
-let adminAccountMode = "remove";
 
 const escapeHtml = value => String(value ?? "")
     .replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;")
@@ -151,19 +145,8 @@ async function loadAdmins() {
     try {
         const data = await api("/api/admin/admins");
         currentAdmins = data.admins;
-        adminRows.innerHTML = data.admins.length ? data.admins.map(admin => `
-            <tr>
-                <td>${escapeHtml(admin.name)}</td>
-                <td>${escapeHtml(admin.email)}</td>
-                <td><span class="status ${admin.is_active ? "active" : "inactive"}">${admin.is_active ? "Active" : "Inactive"}</span></td>
-                <td>${escapeHtml(new Date(admin.created_at).toLocaleDateString())}</td>
-            </tr>`).join("") : '<tr><td colspan="4">No administrators found.</td></tr>';
-        document.getElementById("removeAdminBtn").disabled = !currentAdmins.some(admin =>
-            admin.is_active && Number(admin.id) !== Number(currentAdmin?.id)
-        );
-        document.getElementById("restoreAdminBtn").disabled = !currentAdmins.some(admin => !admin.is_active);
     } catch (error) {
-        adminRows.innerHTML = `<tr><td colspan="4">${escapeHtml(error.message)}</td></tr>`;
+        currentAdmins = [];
     }
 }
 
@@ -409,59 +392,6 @@ confirmTeacherAccountBtn.addEventListener("click", async () => {
     } catch (error) {
         showMessage(message, error.message, "error");
         confirmTeacherAccountBtn.disabled = false;
-    }
-});
-
-function openAdminAccountPanel(mode) {
-    adminAccountMode = mode;
-    const removing = mode === "remove";
-    const candidates = currentAdmins.filter(admin =>
-        admin.is_active === removing && (!removing || Number(admin.id) !== Number(currentAdmin?.id))
-    );
-
-    document.getElementById("adminAccountTitle").textContent = removing ? "Remove Administrator" : "Restore Administrator";
-    document.getElementById("adminAccountHelp").textContent = removing
-        ? "Choose which administrator should lose sign-in access. The account records will be preserved."
-        : "Choose which administrator should regain sign-in access.";
-    confirmAdminAccountBtn.textContent = removing ? "Remove Administrator" : "Restore Administrator";
-    confirmAdminAccountBtn.classList.toggle("danger", removing);
-    adminAccountSelect.innerHTML = candidates.map(admin =>
-        `<option value="${Number(admin.id)}">${escapeHtml(admin.name)} — ${escapeHtml(admin.email)}</option>`
-    ).join("");
-    confirmAdminAccountBtn.disabled = candidates.length === 0;
-    adminAccountPanel.classList.remove("hidden");
-    adminAccountPanel.scrollIntoView({ behavior: "smooth", block: "nearest" });
-}
-
-document.getElementById("removeAdminBtn").addEventListener("click", () => openAdminAccountPanel("remove"));
-document.getElementById("restoreAdminBtn").addEventListener("click", () => openAdminAccountPanel("restore"));
-document.getElementById("cancelAdminAccountBtn").addEventListener("click", () => adminAccountPanel.classList.add("hidden"));
-
-confirmAdminAccountBtn.addEventListener("click", async () => {
-    const adminId = Number(adminAccountSelect.value);
-    const admin = currentAdmins.find(item => Number(item.id) === adminId);
-    const removing = adminAccountMode === "remove";
-    if (!admin) {
-        showMessage(adminMessage, "Choose an administrator first.", "error");
-        return;
-    }
-    if (removing && !window.confirm(`Remove ${admin.name}? They will no longer be able to sign in, but their account records will be preserved.`)) {
-        return;
-    }
-
-    confirmAdminAccountBtn.disabled = true;
-    try {
-        const data = await api(`/api/admin/admins/${adminId}/status`, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ is_active: !removing })
-        });
-        showMessage(adminMessage, data.message, "success");
-        adminAccountPanel.classList.add("hidden");
-        await loadAdmins();
-    } catch (error) {
-        showMessage(adminMessage, error.message, "error");
-        confirmAdminAccountBtn.disabled = false;
     }
 });
 

@@ -11,4 +11,9 @@ function canUseRole(account, role) {
     return getAvailableRoles(account).includes(role);
 }
 
-module.exports = { getAvailableRoles, canUseRole };
+function getDefaultRole(account) {
+    const roles = getAvailableRoles(account);
+    return roles.includes("teacher") ? "teacher" : roles[0];
+}
+
+module.exports = { getAvailableRoles, canUseRole, getDefaultRole };
