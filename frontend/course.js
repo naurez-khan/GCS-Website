@@ -175,6 +175,14 @@ const downloadAbsentExcelBtn = document.getElementById("downloadAbsentExcelBtn")
 const cancelAbsentExportBtn = document.getElementById("cancelAbsentExportBtn");
 const absentExportMessage = document.getElementById("absentExportMessage");
 
+const openLectureStatementBtn = document.getElementById("openLectureStatementBtn");
+const lectureStatementPanel = document.getElementById("lectureStatementPanel");
+const lectureStatementFrom = document.getElementById("lectureStatementFrom");
+const lectureStatementTo = document.getElementById("lectureStatementTo");
+const downloadLectureStatementBtn = document.getElementById("downloadLectureStatementBtn");
+const cancelLectureStatementBtn = document.getElementById("cancelLectureStatementBtn");
+const lectureStatementMessage = document.getElementById("lectureStatementMessage");
+
 
 // =========================
 // GLOBAL DATA
@@ -3232,6 +3240,18 @@ if (downloadAbsentExcelBtn) {
     downloadAbsentExcelBtn.addEventListener("click", downloadAbsentStudentsRegister);
 }
 
+if (openLectureStatementBtn) {
+    openLectureStatementBtn.addEventListener("click", openLectureStatementPanel);
+}
+
+if (cancelLectureStatementBtn) {
+    cancelLectureStatementBtn.addEventListener("click", closeLectureStatementPanel);
+}
+
+if (downloadLectureStatementBtn) {
+    downloadLectureStatementBtn.addEventListener("click", downloadLectureStatement);
+}
+
 
 // =========================
 // DOWNLOAD MARKS EXCEL
@@ -4130,6 +4150,7 @@ function openMonthlyExportPanel() {
 
     syncAttendanceExportMonth();
     closeAbsentExportPanel();
+    closeLectureStatementPanel();
     monthlyExportPanel?.classList.remove("hidden");
     downloadExcelBtn?.setAttribute("aria-expanded", "true");
     attendanceExportMonth?.focus();
@@ -4178,6 +4199,7 @@ function openAbsentExportPanel() {
     absentExportFrom.value = defaultDates[0];
     absentExportTo.value = defaultDates[defaultDates.length - 1];
     closeMonthlyExportPanel();
+    closeLectureStatementPanel();
     absentExportPanel.classList.remove("hidden");
     openAbsentExportBtn.setAttribute("aria-expanded", "true");
     setAbsentExportMessage("");
@@ -4235,6 +4257,91 @@ async function downloadAbsentStudentsRegister() {
     } finally {
         downloadAbsentExcelBtn.disabled = false;
         downloadAbsentExcelBtn.textContent = originalText;
+    }
+}
+
+function setLectureStatementMessage(text, type = "") {
+    if (!lectureStatementMessage) return;
+    lectureStatementMessage.textContent = text;
+    lectureStatementMessage.className = text && type ? `message ${type}` : "message";
+}
+
+function openLectureStatementPanel() {
+    const dates = savedAttendanceDates();
+    if (!dates.length) {
+        alert("No saved attendance is available for a lecture statement yet.");
+        return;
+    }
+
+    closeMonthlyExportPanel();
+    closeAbsentExportPanel();
+    lectureStatementFrom.min = dates[0];
+    lectureStatementFrom.max = dates.at(-1);
+    lectureStatementTo.min = dates[0];
+    lectureStatementTo.max = getTodayDate();
+    lectureStatementFrom.value = dates[0];
+    lectureStatementTo.value = dates.at(-1);
+    lectureStatementPanel.classList.remove("hidden");
+    openLectureStatementBtn.setAttribute("aria-expanded", "true");
+    setLectureStatementMessage("");
+    lectureStatementFrom.focus();
+}
+
+function closeLectureStatementPanel() {
+    lectureStatementPanel?.classList.add("hidden");
+    openLectureStatementBtn?.setAttribute("aria-expanded", "false");
+    setLectureStatementMessage("");
+}
+
+function filenameFromDisposition(headerValue) {
+    const match = /filename="?([^";]+)"?/i.exec(String(headerValue || ""));
+    return match ? match[1] : "lecture-statement.pdf";
+}
+
+async function downloadLectureStatement() {
+    const fromDate = lectureStatementFrom?.value;
+    const toDate = lectureStatementTo?.value;
+    if (!fromDate || !toDate) {
+        setLectureStatementMessage("Choose both the From date and To date.", "error");
+        return;
+    }
+    if (fromDate > toDate) {
+        setLectureStatementMessage("From date cannot be after To date.", "error");
+        return;
+    }
+
+    const originalText = downloadLectureStatementBtn.textContent;
+    downloadLectureStatementBtn.disabled = true;
+    downloadLectureStatementBtn.textContent = "Preparing PDF...";
+    setLectureStatementMessage("");
+
+    try {
+        const response = await fetch(
+            `/api/attendance/course/${courseId}/lecture-statement.pdf?from=${encodeURIComponent(fromDate)}&to=${encodeURIComponent(toDate)}`,
+            { credentials: "include" }
+        );
+        if (!response.ok) {
+            const contentType = response.headers.get("content-type") || "";
+            const data = contentType.includes("application/json") ? await response.json() : {};
+            throw new Error(data.message || "Could not create the lecture statement");
+        }
+
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = filenameFromDisposition(response.headers.get("content-disposition"));
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        setLectureStatementMessage("Lecture statement downloaded.", "success");
+    } catch (error) {
+        console.error("Lecture statement download error:", error);
+        setLectureStatementMessage(error.message || "Could not download the lecture statement.", "error");
+    } finally {
+        downloadLectureStatementBtn.disabled = false;
+        downloadLectureStatementBtn.textContent = originalText;
     }
 }
 

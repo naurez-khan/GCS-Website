@@ -242,8 +242,42 @@ body {
 }
 
 .absent-export-open-btn,
-#downloadExcelBtn {
+#downloadExcelBtn,
+.pdf-export-btn {
     white-space: nowrap;
+}
+
+.pdf-export-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    background: #9d121a;
+}
+
+.pdf-export-btn:hover,
+.pdf-export-btn:focus-visible {
+    background: #7e0d16;
+}
+
+.pdf-icon {
+    width: 20px;
+    height: 20px;
+    flex: 0 0 auto;
+}
+
+.lecture-statement-dates label {
+    display: grid;
+    gap: 8px;
+    color: #374151;
+    font-weight: 700;
+}
+
+.lecture-statement-dates input {
+    min-height: 46px;
+    border: 1px solid rgba(142, 9, 20, .25);
+    border-radius: 11px;
+    color: #27191b;
 }
 
 .export-panel {
@@ -300,11 +334,13 @@ body {
 @media (max-width: 700px) {
     .absent-export-open-btn,
     #downloadExcelBtn,
+    .pdf-export-btn,
     .export-panel-actions button {
         width: 100%;
     }
 
     .absent-export-dates,
+    .lecture-statement-dates,
     .export-panel-actions {
         grid-template-columns: 1fr;
     }
