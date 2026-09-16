@@ -18,6 +18,7 @@ const app = require("../server");
     await new Promise(resolve => server.once("listening", resolve));
     const origin = `http://127.0.0.1:${server.address().port}`;
     let courseId = null;
+    let intermediateCourseId = null;
 
     async function request(path, options = {}, expected = 200) {
         const response = await fetch(`${origin}${path}`, {
@@ -195,8 +196,82 @@ const app = require("../server");
             throw new Error("Published results did not reflect edited assessments");
         }
 
-        console.log("Pending-class blocking, administrator approval, course code, missed-date attendance, multiple roll ranges, class settings, assessment counts, custom result code, student import, attendance correction (including a newly added student), audit history, and published results all passed.");
+        const intermediateCode = `inter-${suffix}`;
+        const intermediateCreated = await request("/api/courses", {
+            method: "POST",
+            body: JSON.stringify({
+                name: `__INTERMEDIATE_CLASS_TEST_CHECK_${suffix}__`,
+                class_type: "intermediate", intermediate_year: "1st_year", class_shift: "morning",
+                rollStart: 9101, rollEnd: 9102, rollRanges: [{ start: 9101, end: 9102 }],
+                course_name_enabled: true, roll_number_enabled: true, attendance_enabled: true,
+                program_enabled: true, semester_enabled: true, section_enabled: false, student_name_enabled: false,
+                class_tests_enabled: true, class_test_count: 2, class_test_max_marks: 10,
+                monthly_tests_enabled: false, results_enabled: true, result_code: intermediateCode
+            })
+        }, 201);
+        intermediateCourseId = intermediateCreated.course.id;
+        await adminRequest(`/api/admin/courses/${intermediateCourseId}/approval`, {
+            method: "PATCH", body: JSON.stringify({ status: "approved" })
+        });
+        let intermediateMarks = await request(`/api/courses/${intermediateCourseId}/marks`);
+        if (intermediateMarks.classTests.length !== 2 || intermediateMarks.course.class_tests_enabled !== true) {
+            throw new Error("Intermediate Class Tests were not created");
+        }
+        const intermediateStudent = intermediateMarks.students[0];
+        await request(`/api/courses/${intermediateCourseId}/marks`, {
+            method: "PUT",
+            body: JSON.stringify({
+                classTestMarks: [{
+                    class_test_id: intermediateMarks.classTests[0].id,
+                    student_id: intermediateStudent.id,
+                    marks: 8
+                }]
+            })
+        });
+        await request(`/api/courses/${intermediateCourseId}/settings`, {
+            method: "PUT",
+            body: JSON.stringify({
+                name: `__INTERMEDIATE_CLASS_TEST_CHECK_${suffix}__`, class_type: "intermediate",
+                intermediate_year: "1st_year", class_shift: "morning", results_enabled: true,
+                result_code: intermediateCode, class_tests_enabled: true, class_test_count: 3,
+                class_test_max_marks: 15, monthly_tests_enabled: false
+            })
+        });
+        intermediateMarks = await request(`/api/courses/${intermediateCourseId}/marks`);
+        if (intermediateMarks.classTests.length !== 3 || intermediateMarks.classTests.some(test => Number(test.max_marks) !== 15)) {
+            throw new Error("Intermediate Class Tests did not update");
+        }
+        const intermediatePublished = await fetch(`${origin}/api/results/lookup`, {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ resultCode: intermediateCode, rollNumber: "9101" })
+        });
+        const intermediatePublishedData = await intermediatePublished.json();
+        if (!intermediatePublishedData.success || intermediatePublishedData.result.classTests.length !== 3) {
+            throw new Error("Published Intermediate results did not include Class Tests");
+        }
+
+        const bachelorSettings = await request(`/api/courses/${courseId}/settings`, {
+            method: "PUT",
+            body: JSON.stringify({
+                name: "Edited Workflow Class", course_code: "MTH-EDIT", class_type: "bachelors",
+                section: "E", results_enabled: true, result_code: editedCode,
+                class_tests_enabled: true, class_test_count: 2, class_test_max_marks: 10
+            })
+        });
+        if (bachelorSettings.course.class_tests_enabled !== false || Number(bachelorSettings.course.class_test_count) !== 0) {
+            throw new Error("Bachelor's class incorrectly enabled Class Tests");
+        }
+
+        console.log("Pending-class blocking, administrator approval, course code, attendance workflows, class settings, Intermediate-only Class Tests, marks, exports data, and published results all passed.");
     } finally {
+        if (intermediateCourseId !== null) {
+            const target = await pool.query("SELECT name FROM courses WHERE id = $1 AND teacher_id = $2", [intermediateCourseId, teacherId]);
+            if (target.rows[0]?.name?.startsWith("__INTERMEDIATE_CLASS_TEST_CHECK_")) {
+                await request(`/api/courses/${intermediateCourseId}`, { method: "DELETE" });
+            } else if (target.rows.length) {
+                throw new Error("Refused to clean up an Intermediate class not created by this check");
+            }
+        }
         if (courseId !== null) {
             const target = await pool.query("SELECT name FROM courses WHERE id = $1 AND teacher_id = $2", [courseId, teacherId]);
             if (target.rows[0]?.name === "Edited Workflow Class" || target.rows[0]?.name?.startsWith("__EDIT_WORKFLOW_CHECK_")) {

@@ -196,6 +196,7 @@ let courseAssignments = [];
 
 let courseQuizzes = [];
 let courseMonthlyTests = [];
+let courseClassTests = [];
 
 let assignmentMarks = [];
 
@@ -203,6 +204,7 @@ let quizMarks = [];
 let selectedAttendanceDate = null;
 
 let monthlyTestMarks = [];
+let classTestMarks = [];
 
 let currentAttendanceRecords = [];
 let currentCourseHolidays = [];
@@ -1672,7 +1674,7 @@ async function loadCourseMarks() {
         const courseMarksDescription = document.getElementById("courseMarksDescription");
         if (courseMarksDescription) {
             courseMarksDescription.textContent = currentCourse.class_type === "intermediate"
-                ? "Enter monthly-test marks, December Test marks, and Preboard marks."
+                ? "Enter Class Test, monthly-test, December Test, and Preboard marks."
                 : "Enter marks for each assignment and quiz.";
         }
 
@@ -1685,6 +1687,9 @@ async function loadCourseMarks() {
         courseMonthlyTests =
             data.monthlyTests || [];
 
+        courseClassTests =
+            data.classTests || [];
+
         assignmentMarks =
             data.assignmentMarks || [];
 
@@ -1693,6 +1698,9 @@ async function loadCourseMarks() {
 
         monthlyTestMarks =
             data.monthlyTestMarks || [];
+
+        classTestMarks =
+            data.classTestMarks || [];
 
         students =
             data.students || students;
@@ -1815,6 +1823,14 @@ function renderMarksTable() {
 
         }
     );
+
+    courseClassTests.forEach(test => {
+        html += `
+            <th>
+                ${escapeHtml(test.name)}
+                <small>/ ${test.max_marks}</small>
+            </th>`;
+    });
 
     courseMonthlyTests.forEach(test => {
         html += `
@@ -1988,6 +2004,19 @@ function renderMarksTable() {
 
             }
         );
+
+        courseClassTests.forEach(test => {
+            const existing = findClassTestMark(test.id, student.id);
+            html += `
+                <td>
+                    <input type="number" class="mark-input class-test-mark"
+                        data-class-test-id="${test.id}"
+                        data-student-id="${student.id}"
+                        data-max-marks="${test.max_marks}"
+                        min="0" max="${test.max_marks}" step="0.01"
+                        value="${existing === null ? "" : existing}">
+                </td>`;
+        });
 
         courseMonthlyTests.forEach(test => {
             const existing = findMonthlyTestMark(test.id, student.id);
@@ -2365,6 +2394,8 @@ async function saveCourseMarks() {
 
     const monthlyTestPayload = [];
 
+    const classTestPayload = [];
+
     const midtermPayload = [];
 
     const finalPayload = [];
@@ -2466,6 +2497,14 @@ async function saveCourseMarks() {
             });
         }
 
+        if (input.classList.contains("class-test-mark")) {
+            classTestPayload.push({
+                class_test_id: Number(input.dataset.classTestId),
+                student_id: studentId,
+                marks: marks
+            });
+        }
+
 
         if (input.classList.contains(
             "midterm-mark"
@@ -2545,6 +2584,9 @@ async function saveCourseMarks() {
 
                             monthlyTestMarks:
                                 monthlyTestPayload,
+
+                            classTestMarks:
+                                classTestPayload,
 
                             midtermMarks:
                                 midtermPayload,
@@ -3296,6 +3338,7 @@ async function downloadMarksExcel() {
             alert("Excel export library failed to load. Refresh the page and try again.");
             return;
         }
+
         try {
             const spec = AwardList.buildAwardListSpec({
                 students,
@@ -3376,6 +3419,10 @@ async function downloadMarksExcel() {
             `${quiz.name || "Quiz"} (/${quiz.max_marks})`
         );
 
+    });
+
+    courseClassTests.forEach(test => {
+        header.push(`${test.name || "Class Test"} (/${test.max_marks})`);
     });
 
     courseMonthlyTests.forEach(test => {
@@ -3468,6 +3515,12 @@ async function downloadMarksExcel() {
 
                 }
 
+            });
+
+            courseClassTests.forEach(test => {
+                const marks = findClassTestMark(test.id, student.id);
+                row.push(marks === null ? "" : marks);
+                if (marks !== null) total += Number(marks);
             });
 
             courseMonthlyTests.forEach(test => {
@@ -4142,6 +4195,14 @@ async function downloadMonthlyAttendanceRegister() {
     }
 }
 
+function findClassTestMark(testId, studentId) {
+    const record = classTestMarks.find(item =>
+        Number(item.class_test_id) === Number(testId) &&
+        Number(item.student_id) === Number(studentId)
+    );
+    return record ? record.marks : null;
+}
+
 function openMonthlyExportPanel() {
     if (!currentAttendanceRecords.length) {
         alert("No attendance records to export yet.");
@@ -4447,6 +4508,13 @@ function readSettingsMonthlyTests() {
 
 function syncSettingsInputs() {
     const intermediate = document.getElementById("settingsClassType").value === "intermediate";
+    const classTestsToggle = document.getElementById("settingsClassTestsEnabled");
+    const classTestsLabel = document.getElementById("settingsClassTestsLabel");
+    if (classTestsLabel) {
+        classTestsLabel.textContent = classTestsToggle.checked
+            ? "Class Test Enabled"
+            : "Enable Class Test";
+    }
     if (intermediate) {
         ["settingsAssignmentsEnabled", "settingsQuizzesEnabled", "settingsMidtermEnabled", "settingsFinalEnabled"]
             .forEach(id => { document.getElementById(id).checked = false; });
@@ -4454,6 +4522,7 @@ function syncSettingsInputs() {
     const pairs = [
         ["settingsAssignmentsEnabled", ["settingsAssignmentCount", "settingsAssignmentMax"]],
         ["settingsQuizzesEnabled", ["settingsQuizCount", "settingsQuizMax"]],
+        ["settingsClassTestsEnabled", ["settingsClassTestCount", "settingsClassTestMax"]],
         ["settingsMidtermEnabled", ["settingsMidtermMax"]],
         ["settingsFinalEnabled", ["settingsFinalMax"]]
     ];
@@ -4468,13 +4537,19 @@ function syncSettingsInputs() {
     document.getElementById("settingsRollNumberTypeField").hidden = intermediate;
     document.getElementById("settingsRollNumberTypeField").hidden = intermediate;
     document.getElementById("settingsMonthlyTestsToggle").hidden = !intermediate;
+    document.getElementById("settingsClassTestsToggle").hidden = !intermediate;
+    document.getElementById("settingsClassTestCountLabel").hidden = !intermediate;
+    document.getElementById("settingsClassTestMaxLabel").hidden = !intermediate;
     document.getElementById("settingsIntermediateFixedAssessments").hidden = !intermediate;
     [
         "settingsAssignmentsToggle", "settingsAssignmentCountLabel", "settingsAssignmentMaxLabel",
         "settingsQuizzesToggle", "settingsQuizCountLabel", "settingsQuizMaxLabel",
         "settingsMidtermToggle", "settingsMidtermMaxLabel", "settingsFinalToggle", "settingsFinalMaxLabel"
     ].forEach(id => { document.getElementById(id).hidden = intermediate; });
-    if (!intermediate) document.getElementById("settingsMonthlyTestsEnabled").checked = false;
+    if (!intermediate) {
+        document.getElementById("settingsMonthlyTestsEnabled").checked = false;
+        document.getElementById("settingsClassTestsEnabled").checked = false;
+    }
     document.getElementById("settingsMonthlyTestsPanel").hidden = !intermediate || !document.getElementById("settingsMonthlyTestsEnabled").checked;
 }
 
@@ -4509,10 +4584,12 @@ async function openClassSettings() {
     document.getElementById("settingsMidtermEnabled").checked = currentCourse.midterm_enabled === true;
     document.getElementById("settingsFinalEnabled").checked = currentCourse.final_enabled === true;
     document.getElementById("settingsMonthlyTestsEnabled").checked = currentCourse.monthly_tests_enabled === true;
+    document.getElementById("settingsClassTestsEnabled").checked = currentCourse.class_tests_enabled === true;
     document.getElementById("settingsAssignmentCount").value = currentCourse.assignment_count || 1;
     document.getElementById("settingsQuizCount").value = currentCourse.quiz_count || 1;
     document.getElementById("settingsMidtermMax").value = currentCourse.midterm_max_marks || 30;
     document.getElementById("settingsFinalMax").value = 15;
+    document.getElementById("settingsClassTestCount").value = currentCourse.class_test_count || 1;
 
     let assessmentLoadError = "";
     try {
@@ -4525,6 +4602,7 @@ async function openClassSettings() {
         document.getElementById("settingsAssignmentMax").value = assignmentData.assignments?.[0]?.max_marks || 10;
         document.getElementById("settingsQuizMax").value = quizData.quizzes?.[0]?.max_marks || 10;
         renderSettingsMonthlyTests(marksData.monthlyTests || []);
+        document.getElementById("settingsClassTestMax").value = marksData.classTests?.[0]?.max_marks || 10;
     } catch (error) {
         assessmentLoadError = "Could not load all assessment settings.";
     } finally {
@@ -4547,7 +4625,7 @@ document.getElementById("cancelClassSettingsBtn")?.addEventListener("click", () 
     if (coursePageAction === "edit") returnToCourseHub();
     else classSettingsSection.classList.add("hidden");
 });
-["settingsAssignmentsEnabled", "settingsQuizzesEnabled", "settingsMidtermEnabled", "settingsFinalEnabled"]
+["settingsAssignmentsEnabled", "settingsQuizzesEnabled", "settingsClassTestsEnabled", "settingsMidtermEnabled", "settingsFinalEnabled"]
     .forEach(id => document.getElementById(id)?.addEventListener("change", syncSettingsInputs));
 document.getElementById("settingsClassType")?.addEventListener("change", syncSettingsInputs);
 document.getElementById("settingsMonthlyTestsEnabled")?.addEventListener("change", syncSettingsInputs);
@@ -4672,6 +4750,9 @@ document.getElementById("saveClassSettingsBtn")?.addEventListener("click", async
         quiz_max_marks: Number(value("settingsQuizMax")),
         monthly_tests_enabled: checked("settingsMonthlyTestsEnabled"),
         monthly_tests: readSettingsMonthlyTests(),
+        class_tests_enabled: value("settingsClassType") === "intermediate" && checked("settingsClassTestsEnabled"),
+        class_test_count: Number(value("settingsClassTestCount")),
+        class_test_max_marks: Number(value("settingsClassTestMax")),
         midterm_enabled: checked("settingsMidtermEnabled"),
         midterm_max_marks: Number(value("settingsMidtermMax")),
         final_enabled: checked("settingsFinalEnabled"),
@@ -4683,6 +4764,13 @@ document.getElementById("saveClassSettingsBtn")?.addEventListener("click", async
         new Set(payload.monthly_tests.map(test => test.month)).size !== payload.monthly_tests.length
     )) {
         setPanelMessage("classSettingsMessage", "Monthly tests need unique months and positive maximum marks.", "error");
+        return;
+    }
+    if (payload.class_tests_enabled && (
+        !Number.isInteger(payload.class_test_count) || payload.class_test_count < 1 || payload.class_test_count > 100 ||
+        !Number.isFinite(payload.class_test_max_marks) || payload.class_test_max_marks <= 0
+    )) {
+        setPanelMessage("classSettingsMessage", "Class tests need a count from 1 to 100 and positive maximum marks.", "error");
         return;
     }
     button.disabled = true;

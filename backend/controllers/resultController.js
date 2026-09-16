@@ -35,7 +35,7 @@ const getStudentResult = async (req, res) => {
 
         const student = studentResult.rows[0];
 
-        const [assignmentResult, quizResult, monthlyTestResult, attendanceResult] = await Promise.all([
+        const [assignmentResult, quizResult, monthlyTestResult, classTestResult, attendanceResult] = await Promise.all([
             pool.query(
                 `SELECT a.name, a.max_marks, am.marks
                  FROM assignments a
@@ -59,6 +59,14 @@ const getStudentResult = async (req, res) => {
                 [student.course_id, student.id]
             ),
             pool.query(
+                `SELECT a.name, a.max_marks, am.marks
+                 FROM assignments a
+                 LEFT JOIN assignment_marks am ON am.assignment_id = a.id AND am.student_id = $2
+                 WHERE a.course_id = $1 AND a.assessment_type = 'class_test'
+                 ORDER BY a.assignment_number`,
+                [student.course_id, student.id]
+            ),
+            pool.query(
                 `SELECT COUNT(*)::INTEGER AS total,
                         COUNT(*) FILTER (WHERE status IN ('present', 'leave'))::INTEGER AS present
                  FROM attendance WHERE course_id = $1 AND student_id = $2`,
@@ -76,6 +84,7 @@ const getStudentResult = async (req, res) => {
         assignmentResult.rows.forEach(item => addScore(item.marks, item.max_marks));
         quizResult.rows.forEach(item => addScore(item.marks, item.max_marks));
         monthlyTestResult.rows.forEach(item => addScore(item.marks, item.max_marks));
+        classTestResult.rows.forEach(item => addScore(item.marks, item.max_marks));
         if (student.midterm_enabled) addScore(student.midterm_marks, student.midterm_max_marks);
         if (student.final_enabled) addScore(student.final_marks, student.class_type === "intermediate" ? student.final_max_marks : 15);
         if (student.class_type === "intermediate") {
@@ -112,6 +121,7 @@ const getStudentResult = async (req, res) => {
                 assignments: assignmentResult.rows,
                 quizzes: quizResult.rows,
                 monthlyTests: monthlyTestResult.rows,
+                classTests: classTestResult.rows,
                 monthlySummary: {
                     earned: monthlyEarned,
                     maximum: monthlyMaximum,

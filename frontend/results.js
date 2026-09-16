@@ -13,7 +13,7 @@ function assessmentRows(items) {
 }
 
 function renderResult(result) {
-    const rows = [assessmentRows(result.assignments), assessmentRows(result.quizzes), assessmentRows(result.monthlyTests || [])];
+    const rows = [assessmentRows(result.assignments), assessmentRows(result.quizzes), assessmentRows(result.classTests || []), assessmentRows(result.monthlyTests || [])];
     if (result.course.classType === "intermediate") {
         rows.push(`
             <tr><th>Monthly Total</th><th>${score(result.monthlySummary?.earned)}</th><th>${score(result.monthlySummary?.maximum)}</th></tr>

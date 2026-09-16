@@ -1329,6 +1329,19 @@ function showAddCourseForm() {
 
             </div>
 
+            <!-- INTERMEDIATE CLASS TESTS -->
+
+            <div id="intermediateClassTestsFeature" hidden>
+                ${createSwitch("class_tests_enabled", "Class Tests", false)}
+                <div id="classTestCountField" class="conditional-field" style="display: none;">
+                    <label>Number of Class Tests</label>
+                    <input type="number" id="classTestCount" min="1" max="100" value="1" placeholder="e.g. 3">
+                    <small>Choose how many class tests you plan to take.</small>
+                    <label>Maximum Marks per Class Test</label>
+                    <input type="number" id="classTestMaxMarks" min="0.01" step="0.01" value="10" placeholder="e.g. 10">
+                </div>
+            </div>
+
             <!-- INTERMEDIATE MONTHLY TESTS -->
 
             <div id="monthlyTestsFeature" hidden>
@@ -1588,6 +1601,11 @@ function setupCourseSwitches() {
     );
 
     setupConditionalField(
+        "class_tests_enabled",
+        "classTestCountField"
+    );
+
+    setupConditionalField(
         "midterm_enabled",
         "midtermMarksField"
     );
@@ -1651,6 +1669,7 @@ function setupClassTypeFields() {
         document.getElementById("intermediatePanel").hidden = !hasSelection || !intermediate;
         document.getElementById("bachelorsRollNumberType").hidden = !hasSelection || intermediate;
         document.getElementById("monthlyTestsFeature").hidden = !hasSelection || !intermediate;
+        document.getElementById("intermediateClassTestsFeature").hidden = !hasSelection || !intermediate;
         document.getElementById("courseCodeField").hidden = intermediate;
         bachelorsFeatureIds.forEach(id => { document.getElementById(id).hidden = !hasSelection || intermediate; });
 
@@ -1668,6 +1687,7 @@ function setupClassTypeFields() {
             ["assignments_enabled", "quizzes_enabled", "midterm_enabled", "final_enabled"].forEach(turnOff);
         } else {
             turnOff("monthly_tests_enabled");
+            turnOff("class_tests_enabled");
         }
     };
 
@@ -2144,6 +2164,9 @@ async function createCourse() {
     const monthlyTestsEnabled =
         isIntermediate && checked("monthly_tests_enabled");
 
+    const classTestsEnabled =
+        isIntermediate && checked("class_tests_enabled");
+
     const midtermEnabled =
         !isIntermediate && checked("midterm_enabled");
 
@@ -2206,11 +2229,17 @@ async function createCourse() {
             10
         ) || 0;
 
+    const classTestCount =
+        parseInt(document.getElementById("classTestCount").value, 10) || 0;
+
     const assignmentMaxMarks =
         Number(document.getElementById("assignmentMaxMarks").value);
 
     const quizMaxMarks =
         Number(document.getElementById("quizMaxMarks").value);
+
+    const classTestMaxMarks =
+        Number(document.getElementById("classTestMaxMarks").value);
 
     const midtermMaxMarks =
         Number(document.getElementById("midtermMaxMarks").value);
@@ -2353,6 +2382,15 @@ async function createCourse() {
         return;
     }
 
+    if (classTestsEnabled && (
+        classTestCount < 1 || classTestCount > 100 ||
+        !Number.isFinite(classTestMaxMarks) || classTestMaxMarks <= 0
+    )) {
+        message.textContent = "Enter 1-100 class tests and positive maximum marks.";
+        message.className = "form-message error";
+        return;
+    }
+
     if (midtermEnabled && (!Number.isFinite(midtermMaxMarks) || midtermMaxMarks <= 0)) {
         message.textContent = "Please enter positive maximum marks for the midterm.";
         message.className = "form-message error";
@@ -2479,6 +2517,9 @@ async function createCourse() {
         monthly_tests:
             monthlyTestsEnabled ? monthlyTestResult.tests : [],
 
+        class_tests_enabled:
+            classTestsEnabled,
+
         midterm_enabled:
             midtermEnabled,
 
@@ -2516,6 +2557,16 @@ async function createCourse() {
         quiz_max_marks:
             quizzesEnabled
                 ? quizMaxMarks
+                : null,
+
+        class_test_count:
+            classTestsEnabled
+                ? classTestCount
+                : 0,
+
+        class_test_max_marks:
+            classTestsEnabled
+                ? classTestMaxMarks
                 : null,
 
         midterm_max_marks:

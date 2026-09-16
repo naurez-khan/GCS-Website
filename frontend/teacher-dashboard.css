@@ -808,7 +808,9 @@ body {
 #bachelorsAssignmentsFeature[hidden],
 #bachelorsQuizzesFeature[hidden],
 #bachelorsMidtermFeature[hidden],
-#bachelorsFinalFeature[hidden] { display: none !important; }
+#bachelorsFinalFeature[hidden],
+#monthlyTestsFeature[hidden],
+#intermediateClassTestsFeature[hidden] { display: none !important; }
 
 .class-level-panel[hidden],
 .roll-entry-panel[hidden] {

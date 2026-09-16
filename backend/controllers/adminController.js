@@ -637,10 +637,10 @@ const restoreClassBackup = async (req, res) => {
                 course_name_enabled, program_enabled, semester_enabled, section_enabled,
                 roll_number_enabled, student_name_enabled, attendance_enabled,
                 assignments_enabled, assignment_count, quizzes_enabled, quiz_count,
-                midterm_enabled, final_enabled, results_enabled, monthly_tests_enabled,
+                midterm_enabled, final_enabled, results_enabled, monthly_tests_enabled, class_tests_enabled, class_test_count,
                 midterm_max_marks, final_max_marks, approval_status, approved_by, approved_at
              ) VALUES (
-                $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33
+                $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35
              ) RETURNING *`,
             [
                 restoredName, sourceCourse.course_code || null, sourceCourse.class_type || "bachelors",
@@ -655,6 +655,8 @@ const restoreClassBackup = async (req, res) => {
                 Number(sourceCourse.assignment_count) || 0, sourceCourse.quizzes_enabled === true,
                 Number(sourceCourse.quiz_count) || 0, sourceCourse.midterm_enabled === true,
                 sourceCourse.final_enabled === true, false, sourceCourse.monthly_tests_enabled === true,
+                sourceCourse.class_type === "intermediate" && sourceCourse.class_tests_enabled === true,
+                sourceCourse.class_type === "intermediate" ? (Number(sourceCourse.class_test_count) || 0) : 0,
                 sourceCourse.midterm_max_marks || null, sourceCourse.final_max_marks || null,
                 "approved", req.user.id, new Date()
             ]
