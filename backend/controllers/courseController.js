@@ -973,7 +973,7 @@ const updateCourseRollNumbers = async (req, res) => {
 
         if (removedStudentIds.length) {
             await client.query(
-                "UPDATE students SET deleted_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP WHERE course_id=$1 AND id=ANY($2::int[])",
+                "DELETE FROM students WHERE course_id=$1 AND id=ANY($2::int[])",
                 [courseId, removedStudentIds]
             );
         }
@@ -1030,7 +1030,7 @@ const updateCourseRollNumbers = async (req, res) => {
         res.json({
             success: true,
             message: removedStudentIds.length
-                ? `${removedStudentIds.length} student${removedStudentIds.length === 1 ? "" : "s"} removed and roll numbers updated successfully`
+                ? `${removedStudentIds.length} student${removedStudentIds.length === 1 ? "" : "s"} permanently deleted and roll numbers updated successfully`
                 : "Roll numbers updated successfully",
             backfilled_attendance: backfilledAttendance,
             course: updatedCourse.rows[0],

@@ -94,19 +94,18 @@
                 <div><h2>Teachers</h2><p class="muted">Current department accounts. Grant administrator access without creating another account.</p></div>
                 <div class="teacher-list-actions">
                     <button id="refreshBtn">Refresh</button>
-                    <button id="removeTeacherBtn" class="danger">Remove Teacher</button>
-                    <button id="restoreTeacherBtn">Restore Teacher</button>
+                    <button id="removeTeacherBtn" class="danger">Delete Teacher</button>
                 </div>
             </div>
             <div id="teacherAccountPanel" class="account-manager hidden">
-                <h3 id="teacherAccountTitle">Remove Teacher</h3>
-                <p id="teacherAccountHelp" class="muted">Choose which teacher should lose access.</p>
+                <h3 id="teacherAccountTitle">Permanently Delete Teacher</h3>
+                <p id="teacherAccountHelp" class="muted">The account cannot be restored. Transfer or delete all of the teacher's classes first.</p>
                 <label>
                     Teacher
                     <select id="teacherAccountSelect"></select>
                 </label>
                 <div class="account-manager-actions">
-                    <button id="confirmTeacherAccountBtn" class="danger" type="button">Remove Teacher</button>
+                    <button id="confirmTeacherAccountBtn" class="danger" type="button">Delete Permanently</button>
                     <button id="cancelTeacherAccountBtn" type="button">Cancel</button>
                 </div>
             </div>
@@ -119,6 +118,6 @@
         </section>
 
     </main>
-    <script src="/admin.js?v=20260910-5"></script>
+    <script src="/admin.js?v=20260917-1"></script>
 </body>
 </html>

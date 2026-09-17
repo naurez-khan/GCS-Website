@@ -7,7 +7,7 @@ const {
     getAdmins,
     viewTeacherDashboard,
     stopViewingTeacher,
-    setTeacherStatus,
+    deleteTeacher,
     setTeacherAdminAccess,
     setAdminStatus,
     getTransferableCourses,
@@ -49,7 +49,7 @@ router.post("/admins", authenticate, adminOnly, addAdmin);
 router.get("/admins", authenticate, adminOnly, getAdmins);
 router.post("/teachers/:teacherId/view", authenticate, adminOnly, viewTeacherDashboard);
 router.post("/stop-viewing-teacher", authenticate, adminOnly, stopViewingTeacher);
-router.patch("/teachers/:teacherId/status", authenticate, adminOnly, setTeacherStatus);
+router.delete("/teachers/:teacherId", authenticate, adminOnly, deleteTeacher);
 router.patch("/teachers/:teacherId/admin-access", authenticate, adminOnly, setTeacherAdminAccess);
 router.patch("/admins/:adminId/status", authenticate, adminOnly, setAdminStatus);
 router.get("/courses", authenticate, adminOnly, getTransferableCourses);

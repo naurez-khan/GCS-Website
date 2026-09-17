@@ -26,7 +26,6 @@ let currentTeachers = [];
 let currentAdmins = [];
 let transferableCourses = [];
 let pendingClassBackup = null;
-let teacherAccountMode = "remove";
 
 const escapeHtml = value => String(value ?? "")
     .replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;")
@@ -66,8 +65,7 @@ async function loadTeachers() {
                     ${teacher.can_admin ? "Revoke Admin" : "Make Admin"}
                 </button></td>
             </tr>`).join("") : '<tr><td colspan="6">No teachers have been added.</td></tr>';
-        document.getElementById("removeTeacherBtn").disabled = !currentTeachers.some(teacher => teacher.is_active);
-        document.getElementById("restoreTeacherBtn").disabled = !currentTeachers.some(teacher => !teacher.is_active);
+        document.getElementById("removeTeacherBtn").disabled = currentTeachers.length === 0;
         updateRestoreTeacherChoices();
     } catch (error) {
         teacherRows.innerHTML = `<tr><td colspan="6">${escapeHtml(error.message)}</td></tr>`;
@@ -344,17 +342,13 @@ teacherRows.addEventListener("click", async event => {
     }
 });
 
-function openTeacherAccountPanel(mode) {
-    teacherAccountMode = mode;
-    const removing = mode === "remove";
-    const candidates = currentTeachers.filter(teacher => teacher.is_active === removing);
+function openTeacherAccountPanel() {
+    const candidates = currentTeachers;
 
-    document.getElementById("teacherAccountTitle").textContent = removing ? "Remove Teacher" : "Restore Teacher";
-    document.getElementById("teacherAccountHelp").textContent = removing
-        ? "Choose which teacher should lose sign-in access. Their classes and records will be preserved."
-        : "Choose which teacher should regain sign-in access.";
-    confirmTeacherAccountBtn.textContent = removing ? "Remove Teacher" : "Restore Teacher";
-    confirmTeacherAccountBtn.classList.toggle("danger", removing);
+    document.getElementById("teacherAccountTitle").textContent = "Permanently Delete Teacher";
+    document.getElementById("teacherAccountHelp").textContent = "This cannot be undone. Transfer or permanently delete all of the teacher's classes first.";
+    confirmTeacherAccountBtn.textContent = "Delete Permanently";
+    confirmTeacherAccountBtn.classList.add("danger");
     teacherAccountSelect.innerHTML = candidates.map(teacher =>
         `<option value="${Number(teacher.id)}">${escapeHtml(teacher.name)} — ${escapeHtml(teacher.email)}</option>`
     ).join("");
@@ -363,29 +357,23 @@ function openTeacherAccountPanel(mode) {
     teacherAccountPanel.scrollIntoView({ behavior: "smooth", block: "nearest" });
 }
 
-document.getElementById("removeTeacherBtn").addEventListener("click", () => openTeacherAccountPanel("remove"));
-document.getElementById("restoreTeacherBtn").addEventListener("click", () => openTeacherAccountPanel("restore"));
+document.getElementById("removeTeacherBtn").addEventListener("click", openTeacherAccountPanel);
 document.getElementById("cancelTeacherAccountBtn").addEventListener("click", () => teacherAccountPanel.classList.add("hidden"));
 
 confirmTeacherAccountBtn.addEventListener("click", async () => {
     const teacherId = Number(teacherAccountSelect.value);
     const teacher = currentTeachers.find(item => Number(item.id) === teacherId);
-    const removing = teacherAccountMode === "remove";
     if (!teacher) {
         showMessage(message, "Choose a teacher first.", "error");
         return;
     }
-    if (removing && !window.confirm(`Remove ${teacher.name}? They will no longer be able to sign in, but their records will be preserved.`)) {
+    if (!window.confirm(`Permanently delete ${teacher.name}? This account cannot be restored. Make sure all of their classes have already been transferred or deleted.`)) {
         return;
     }
 
     confirmTeacherAccountBtn.disabled = true;
     try {
-        const data = await api(`/api/admin/teachers/${teacherId}/status`, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ is_active: !removing })
-        });
+        const data = await api(`/api/admin/teachers/${teacherId}`, { method: "DELETE" });
         showMessage(message, data.message, "success");
         teacherAccountPanel.classList.add("hidden");
         await loadTeachers();

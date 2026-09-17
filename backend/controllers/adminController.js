@@ -389,21 +389,20 @@ const stopViewingTeacher = async (req, res) => {
     }
 };
 
-const setTeacherStatus = async (req, res) => {
+const deleteTeacher = async (req, res) => {
     const client = await pool.connect();
     try {
         const teacherId = Number(req.params.teacherId);
-        const isActive = req.body.is_active;
-        if (!Number.isInteger(teacherId) || teacherId < 1 || typeof isActive !== "boolean") {
-            return res.status(400).json({ success: false, message: "A valid teacher and status are required" });
+        if (!Number.isInteger(teacherId) || teacherId < 1) {
+            return res.status(400).json({ success: false, message: "Choose a valid teacher" });
         }
-        if (!isActive && teacherId === Number(req.user.id)) {
-            return res.status(400).json({ success: false, message: "You cannot deactivate your own account" });
+        if (teacherId === Number(req.user.id)) {
+            return res.status(400).json({ success: false, message: "You cannot delete your own account" });
         }
 
         await client.query("BEGIN");
         const targetResult = await client.query(
-            "SELECT id, can_admin, is_active FROM users WHERE id = $1 AND role = 'teacher' FOR UPDATE",
+            "SELECT id, name, email, can_admin, is_active FROM users WHERE id = $1 AND role = 'teacher' FOR UPDATE",
             [teacherId]
         );
         const target = targetResult.rows[0];
@@ -411,32 +410,39 @@ const setTeacherStatus = async (req, res) => {
             await client.query("ROLLBACK");
             return res.status(404).json({ success: false, message: "Teacher not found" });
         }
-        if (!isActive && target.is_active && target.can_admin) {
+        if (target.can_admin) {
             const activeAdmins = await client.query(
                 "SELECT id FROM users WHERE is_active = TRUE AND (role = 'admin' OR can_admin = TRUE) FOR UPDATE"
             );
             if (activeAdmins.rows.length <= 1) {
                 await client.query("ROLLBACK");
-                return res.status(409).json({ success: false, message: "The final active administrator cannot be deactivated" });
+                return res.status(409).json({ success: false, message: "The final active administrator cannot be deleted" });
             }
         }
 
-        const result = await client.query(
-            `UPDATE users SET is_active = $1
-             WHERE id = $2 AND role = 'teacher'
-             RETURNING id, name, email, role, is_active, created_at`,
-            [isActive, teacherId]
+        const courseCount = await client.query(
+            "SELECT COUNT(*)::integer AS total FROM courses WHERE teacher_id = $1",
+            [teacherId]
         );
+        if (courseCount.rows[0].total > 0) {
+            await client.query("ROLLBACK");
+            return res.status(409).json({
+                success: false,
+                message: "Transfer or permanently delete all of this teacher's classes before deleting the teacher account"
+            });
+        }
+
+        await client.query("DELETE FROM users WHERE id = $1 AND role = 'teacher'", [teacherId]);
         await client.query("COMMIT");
 
         res.json({
             success: true,
-            message: isActive ? "Teacher restored successfully" : "Teacher removed successfully. Their records were preserved.",
-            teacher: result.rows[0]
+            message: `${target.name} was permanently deleted.`,
+            teacher: { id: target.id, name: target.name, email: target.email }
         });
     } catch (error) {
         await client.query("ROLLBACK");
-        console.error("Set teacher status error:", error);
+        console.error("Delete teacher error:", error);
         res.status(500).json({ success: false, message: "Server error" });
     } finally {
         client.release();
@@ -752,7 +758,7 @@ module.exports = {
     getAdmins,
     viewTeacherDashboard,
     stopViewingTeacher,
-    setTeacherStatus,
+    deleteTeacher,
     setTeacherAdminAccess,
     setAdminStatus,
     getTransferableCourses,

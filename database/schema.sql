@@ -109,7 +109,7 @@ CREATE TABLE IF NOT EXISTS attendance_audit_logs (
     attendance_date DATE NOT NULL,
     old_status VARCHAR(10) NOT NULL CHECK (old_status IN ('present', 'absent', 'leave')),
     new_status VARCHAR(10) NOT NULL CHECK (new_status IN ('present', 'absent', 'leave')),
-    changed_by INTEGER NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    changed_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
     changed_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -120,7 +120,7 @@ CREATE TABLE IF NOT EXISTS course_holidays (
     course_id INTEGER NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
     holiday_date DATE NOT NULL,
     name VARCHAR(150) NOT NULL,
-    created_by INTEGER NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UNIQUE (course_id, holiday_date)

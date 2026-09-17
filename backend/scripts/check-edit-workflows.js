@@ -19,6 +19,7 @@ const app = require("../server");
     const origin = `http://127.0.0.1:${server.address().port}`;
     let courseId = null;
     let intermediateCourseId = null;
+    let temporaryTeacherId = null;
 
     async function request(path, options = {}, expected = 200) {
         const response = await fetch(`${origin}${path}`, {
@@ -262,8 +263,42 @@ const app = require("../server");
             throw new Error("Bachelor's class incorrectly enabled Class Tests");
         }
 
-        console.log("Pending-class blocking, administrator approval, course code, attendance workflows, class settings, Intermediate-only Class Tests, marks, exports data, and published results all passed.");
+        const remainingStudents = courseData.students
+            .filter(student => Number(student.id) !== Number(importedStudent.id))
+            .map(student => ({
+                student_id: Number(student.id),
+                roll_number: Number(student.roll_number),
+                name: student.name || ""
+            }));
+        await request(`/api/courses/${courseId}/students/roll-numbers`, {
+            method: "PUT",
+            body: JSON.stringify({ students: remainingStudents, removed_student_ids: [Number(importedStudent.id)] })
+        });
+        const deletedStudent = await pool.query("SELECT 1 FROM students WHERE id=$1", [importedStudent.id]);
+        const deletedAttendance = await pool.query("SELECT 1 FROM attendance WHERE student_id=$1", [importedStudent.id]);
+        if (deletedStudent.rows.length || deletedAttendance.rows.length) {
+            throw new Error("Student deletion did not permanently remove the student and dependent attendance");
+        }
+
+        const temporaryTeacher = await adminRequest("/api/admin/teachers", {
+            method: "POST",
+            body: JSON.stringify({
+                name: `Permanent Delete Check ${suffix}`,
+                email: `delete-check-${suffix}@example.edu`,
+                password: "Temporary-Check-Password-42"
+            })
+        }, 201);
+        temporaryTeacherId = Number(temporaryTeacher.teacher.id);
+        await adminRequest(`/api/admin/teachers/${temporaryTeacherId}`, { method: "DELETE" });
+        const deletedTeacher = await pool.query("SELECT 1 FROM users WHERE id=$1", [temporaryTeacherId]);
+        if (deletedTeacher.rows.length) throw new Error("Teacher account was not permanently deleted");
+        temporaryTeacherId = null;
+
+        console.log("Pending-class blocking, administrator approval, attendance workflows, class settings, Intermediate-only Class Tests, permanent student deletion, permanent teacher deletion, and published results all passed.");
     } finally {
+        if (temporaryTeacherId !== null) {
+            await pool.query("DELETE FROM users WHERE id=$1 AND role='teacher'", [temporaryTeacherId]);
+        }
         if (intermediateCourseId !== null) {
             const target = await pool.query("SELECT name FROM courses WHERE id = $1 AND teacher_id = $2", [intermediateCourseId, teacherId]);
             if (target.rows[0]?.name?.startsWith("__INTERMEDIATE_CLASS_TEST_CHECK_")) {

@@ -201,15 +201,7 @@
             </div>
             <div class="settings-roll-editor">
                 <div class="settings-roll-heading">
-                    <div><h3>Manage Students</h3><p>Add or remove students by entering their roll numbers separated by commas.</p></div>
-                    <div class="settings-roll-heading-actions">
-                        <button id="showRemovedStudentsBtn" class="secondary-btn" type="button">Restore Students</button>
-                    </div>
-                </div>
-                <div id="removedStudentsPanel" class="removed-students-panel hidden">
-                    <h4>Removed Students</h4>
-                    <p>Restoring a student also restores their saved attendance and marks.</p>
-                    <div id="removedStudentsList"></div>
+                    <div><h3>Manage Students</h3><p>Add or permanently delete students by entering their roll numbers separated by commas.</p></div>
                 </div>
                 <div class="settings-roll-bulk-grid">
                     <label>
@@ -218,9 +210,9 @@
                         <small>Only enter roll numbers that are not already in the class.</small>
                     </label>
                     <label>
-                        Remove students
+                        Permanently delete students
                         <textarea id="settingsRemoveRolls" rows="3" placeholder="e.g. 1851, 1852"></textarea>
-                        <small>Removed students can be restored later with their records intact.</small>
+                        <small>The students and all their attendance and marks will be deleted permanently.</small>
                     </label>
                 </div>
                 <p class="settings-roll-count" id="settingsRollCount"></p>

@@ -550,7 +550,7 @@ const getAttendanceAudit = async (req, res) => {
                     s.roll_number, s.name AS student_name, u.name AS changed_by_name
              FROM attendance_audit_logs l
              JOIN students s ON s.id = l.student_id
-             JOIN users u ON u.id = l.changed_by
+             LEFT JOIN users u ON u.id = l.changed_by
              WHERE l.course_id = $1
              ORDER BY l.changed_at DESC
              LIMIT 200`,

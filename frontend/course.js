@@ -4640,48 +4640,6 @@ document.getElementById("settingsMonthlyTestRows")?.addEventListener("click", ev
     if (button) button.closest(".settings-monthly-test-row").remove();
 });
 
-async function loadRemovedStudents() {
-    const list = document.getElementById("removedStudentsList");
-    try {
-        const response = await fetch(`/api/courses/${courseId}/students/deleted`, { credentials: "include", cache: "no-store" });
-        const data = await response.json();
-        if (!response.ok || !data.success) throw new Error(data.message || "Could not load removed students");
-        list.innerHTML = data.students.length ? data.students.map(student => `
-            <div class="removed-student-row">
-                <div><strong>Roll ${escapeHtml(student.roll_number)}</strong><span>${escapeHtml(student.name || "No name")}</span></div>
-                <button class="secondary-btn restore-student-btn" type="button" data-student-id="${Number(student.id)}">Restore</button>
-            </div>`).join("") : "<p>No removed students.</p>";
-    } catch (error) {
-        list.innerHTML = `<p class="error">${escapeHtml(error.message)}</p>`;
-    }
-}
-
-document.getElementById("showRemovedStudentsBtn")?.addEventListener("click", async () => {
-    const panel = document.getElementById("removedStudentsPanel");
-    panel.classList.toggle("hidden");
-    if (!panel.classList.contains("hidden")) await loadRemovedStudents();
-});
-
-document.getElementById("removedStudentsList")?.addEventListener("click", async event => {
-    const button = event.target.closest(".restore-student-btn");
-    if (!button) return;
-    button.disabled = true;
-    try {
-        const response = await fetch(`/api/courses/${courseId}/students/${button.dataset.studentId}/restore`, {
-            method: "POST", credentials: "include"
-        });
-        const data = await response.json();
-        if (!response.ok || !data.success) throw new Error(data.message || "Could not restore student");
-        setPanelMessage("settingsRollMessage", data.message, "success");
-        await loadCourse();
-        renderSettingsRollEditor();
-        await loadRemovedStudents();
-    } catch (error) {
-        setPanelMessage("settingsRollMessage", error.message, "error");
-        button.disabled = false;
-    }
-});
-
 document.getElementById("saveSettingsRollsBtn")?.addEventListener("click", async () => {
     const button = document.getElementById("saveSettingsRollsBtn");
     let changes;
@@ -4692,7 +4650,7 @@ document.getElementById("saveSettingsRollsBtn")?.addEventListener("click", async
         return;
     }
     if (changes.removedCount && !window.confirm(
-        `Remove ${changes.removedCount} student${changes.removedCount === 1 ? "" : "s"}? Their attendance and marks will be preserved and they can be restored later.`
+        `Permanently delete ${changes.removedCount} student${changes.removedCount === 1 ? "" : "s"}? Their attendance and marks will also be permanently deleted. This cannot be undone.`
     )) return;
 
     button.disabled = true;
