@@ -1922,6 +1922,7 @@ async function importCreationRoster(event) {
     importedCreationRoster = [];
     if (!file) return renderCreationRosterPreview();
     try {
+        await SpreadsheetLibraries.ensureXlsx();
         if (typeof XLSX === "undefined") throw new Error("Excel reader did not load. Refresh and try again.");
         const workbook = XLSX.read(await file.arrayBuffer(), { type: "array" });
         const sheet = workbook.Sheets[workbook.SheetNames[0]];

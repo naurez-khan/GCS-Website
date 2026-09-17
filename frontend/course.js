@@ -328,11 +328,14 @@ async function loadCourse() {
 
 
         if (
-            currentCourse.attendance_enabled !== false
+            currentCourse.attendance_enabled !== false &&
+            ["attendance", "history"].includes(coursePageAction)
         ) {
 
-            await loadCourseHolidays();
-            await loadAttendanceHistory();
+            await Promise.all([
+                loadCourseHolidays(),
+                loadAttendanceHistory()
+            ]);
 
         }
 
@@ -3313,6 +3316,13 @@ async function downloadMarksExcel() {
 
     const isIntermediate = currentCourse?.class_type === "intermediate";
 
+    try {
+        if (isIntermediate) await SpreadsheetLibraries.ensureXlsx();
+        else await SpreadsheetLibraries.ensureExcelJs();
+    } catch (error) {
+        console.error("Excel export library error:", error);
+    }
+
     if (isIntermediate && typeof XLSX === "undefined") {
 
         alert(
@@ -3620,7 +3630,13 @@ async function downloadMarksExcel() {
 }
 
 
-function downloadAttendanceExcel() {
+async function downloadAttendanceExcel() {
+
+    try {
+        await SpreadsheetLibraries.ensureXlsx();
+    } catch (error) {
+        console.error("Excel export library error:", error);
+    }
 
     if (typeof XLSX === "undefined") {
 
@@ -4063,6 +4079,11 @@ async function loadAttendanceRegisterLogo() {
 }
 
 async function downloadMonthlyAttendanceRegister() {
+    try {
+        await SpreadsheetLibraries.ensureExcelJs();
+    } catch (error) {
+        console.error("Excel export library error:", error);
+    }
     if (typeof ExcelJS === "undefined") {
         alert("The printable Excel export failed to load. Refresh the page and try again.");
         return;
@@ -4274,6 +4295,11 @@ function closeAbsentExportPanel() {
 }
 
 async function downloadAbsentStudentsRegister() {
+    try {
+        await SpreadsheetLibraries.ensureExcelJs();
+    } catch (error) {
+        console.error("Excel export library error:", error);
+    }
     if (typeof ExcelJS === "undefined" || typeof AbsentRegister === "undefined") {
         setAbsentExportMessage("The Excel export could not load. Refresh the page and try again.", "error");
         return;
@@ -4779,6 +4805,11 @@ document.getElementById("studentImportFile")?.addEventListener("change", async e
     setPanelMessage("studentImportMessage", "", "");
     const file = event.target.files[0];
     if (!file) return;
+    try {
+        await SpreadsheetLibraries.ensureXlsx();
+    } catch (error) {
+        console.error("Excel import library error:", error);
+    }
     if (typeof XLSX === "undefined") {
         setPanelMessage("studentImportMessage", "Excel reader failed to load. Check your internet connection.", "error");
         return;

@@ -3,6 +3,7 @@ require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
+const compression = require("compression");
 const path = require("path");
 
 const pool = require("./config/db");
@@ -61,6 +62,7 @@ app.use(express.urlencoded({
 }));
 
 app.use(cookieParser());
+app.use(compression());
 
 
 // =========================
@@ -79,6 +81,7 @@ const courseWorkflowPages = [
 ];
 
 app.get(courseWorkflowPages, (req, res) => {
+    res.setHeader("Cache-Control", "no-cache");
     res.sendFile(path.join(__dirname, "../frontend/course.html"));
 });
 
@@ -86,10 +89,16 @@ app.use(
     express.static(
         path.join(__dirname, "../frontend"),
         {
-            etag: false,
-            maxAge: 0,
-            setHeaders(response) {
-                response.setHeader("Cache-Control", "no-store");
+            etag: true,
+            setHeaders(response, filePath) {
+                const extension = path.extname(filePath).toLowerCase();
+                if (extension === ".html") {
+                    response.setHeader("Cache-Control", "no-cache");
+                    return;
+                }
+
+                response.setHeader("Cache-Control", "public, max-age=86400, stale-while-revalidate=604800");
+                response.setHeader("Vercel-CDN-Cache-Control", "public, max-age=31536000, immutable");
             }
         }
     )
