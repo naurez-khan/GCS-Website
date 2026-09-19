@@ -3,6 +3,10 @@ const {
     buildLectureStatementSpec,
     createLectureStatementPdf
 } = require("../lib/lectureStatementPdf");
+const {
+    buildMonthlyAttendancePdfSpec,
+    createMonthlyAttendancePdf
+} = require("../lib/monthlyAttendancePdf");
 function getPakistanDate() {
     const parts = new Intl.DateTimeFormat("en-CA", {
         timeZone: "Asia/Karachi",
@@ -436,6 +440,87 @@ const downloadLectureStatement = async (req, res) => {
     }
 };
 
+const downloadMonthlyAttendancePdf = async (req, res) => {
+    try {
+        const courseId = Number(req.params.courseId);
+        const selectedMonth = String(req.query.month || "").trim();
+        if (!Number.isInteger(courseId) || courseId < 1 || !/^\d{4}-\d{2}$/.test(selectedMonth)) {
+            return res.status(400).json({ success: false, message: "A valid attendance month is required" });
+        }
+        const [year, month] = selectedMonth.split("-").map(Number);
+        if (month < 1 || month > 12) {
+            return res.status(400).json({ success: false, message: "A valid attendance month is required" });
+        }
+        const fromDate = `${selectedMonth}-01`;
+        const toDate = new Date(Date.UTC(year, month, 0)).toISOString().slice(0, 10);
+
+        const [courseResult, studentsResult, attendanceResult, holidaysResult] = await Promise.all([
+            pool.query(
+                `SELECT c.id, c.name, c.course_code, c.class_type, c.intermediate_year,
+                        c.class_shift, c.program, c.semester, c.section,
+                        u.name AS teacher_name
+                 FROM courses c
+                 JOIN users u ON u.id = c.teacher_id
+                 WHERE c.id = $1 AND c.teacher_id = $2`,
+                [courseId, req.user.id]
+            ),
+            pool.query(
+                `SELECT id, roll_number, name
+                 FROM students
+                 WHERE course_id = $1 AND deleted_at IS NULL
+                 ORDER BY roll_number::INTEGER`,
+                [courseId]
+            ),
+            pool.query(
+                `SELECT a.student_id, TO_CHAR(a.attendance_date, 'YYYY-MM-DD') AS attendance_date, a.status
+                 FROM attendance a
+                 JOIN students s ON s.id = a.student_id AND s.course_id = a.course_id
+                 WHERE a.course_id = $1 AND s.deleted_at IS NULL
+                   AND a.attendance_date <= $2::date
+                 ORDER BY a.attendance_date, s.roll_number::INTEGER`,
+                [courseId, toDate]
+            ),
+            pool.query(
+                `SELECT TO_CHAR(holiday_date, 'YYYY-MM-DD') AS holiday_date, name
+                 FROM course_holidays
+                 WHERE course_id = $1 AND holiday_date BETWEEN $2::date AND $3::date
+                 ORDER BY holiday_date`,
+                [courseId, fromDate, toDate]
+            )
+        ]);
+
+        if (!courseResult.rows.length) {
+            return res.status(404).json({ success: false, message: "Course not found or access denied" });
+        }
+
+        const course = courseResult.rows[0];
+        const spec = buildMonthlyAttendancePdfSpec({
+            course,
+            students: studentsResult.rows,
+            records: attendanceResult.rows,
+            holidays: holidaysResult.rows,
+            selectedMonth,
+            teacherName: course.teacher_name
+        });
+        const pdfBuffer = await createMonthlyAttendancePdf(spec);
+        const safeName = String(course.course_code || course.name || "course")
+            .replace(/[^a-z0-9_-]+/gi, "-")
+            .replace(/^-+|-+$/g, "") || "course";
+
+        res.setHeader("Content-Type", "application/pdf");
+        res.setHeader("Content-Disposition", `attachment; filename="monthly-attendance-${safeName}-${selectedMonth}.pdf"`);
+        res.setHeader("Content-Length", pdfBuffer.length);
+        return res.send(pdfBuffer);
+    } catch (error) {
+        console.error("Monthly attendance PDF error:", error);
+        const isEmpty = /No saved attendance/.test(error.message || "");
+        return res.status(isEmpty ? 400 : 500).json({
+            success: false,
+            message: isEmpty ? error.message : "Could not create the monthly attendance PDF"
+        });
+    }
+};
+
 const updateAttendance = async (req, res) => {
     const client = await pool.connect();
     try {
@@ -671,6 +756,7 @@ const deleteCourseHoliday = async (req, res) => {
 module.exports = {
     markAttendance,
     getAttendance,
+    downloadMonthlyAttendancePdf,
     downloadLectureStatement,
     updateAttendance,
     getAttendanceAudit,

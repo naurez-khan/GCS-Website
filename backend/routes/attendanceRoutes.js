@@ -3,6 +3,7 @@ const express = require("express");
 const {
     markAttendance,
     getAttendance,
+    downloadMonthlyAttendancePdf,
     downloadLectureStatement,
     updateAttendance,
     getAttendanceAudit,
@@ -46,6 +47,7 @@ router.get(
     getAttendance
 );
 
+router.get("/course/:courseId/monthly-register.pdf", downloadMonthlyAttendancePdf);
 router.get("/course/:courseId/lecture-statement.pdf", downloadLectureStatement);
 
 router.post("/course/:courseId/leave", createStudentLeave);

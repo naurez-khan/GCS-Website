@@ -165,7 +165,9 @@ const attendanceExportMonth =
 
 const monthlyExportPanel = document.getElementById("monthlyExportPanel");
 const downloadMonthlyExcelBtn = document.getElementById("downloadMonthlyExcelBtn");
+const downloadMonthlyPdfBtn = document.getElementById("downloadMonthlyPdfBtn");
 const cancelMonthlyExportBtn = document.getElementById("cancelMonthlyExportBtn");
+const monthlyExportMessage = document.getElementById("monthlyExportMessage");
 
 const openAbsentExportBtn = document.getElementById("openAbsentExportBtn");
 const absentExportPanel = document.getElementById("absentExportPanel");
@@ -3269,6 +3271,10 @@ if (downloadMonthlyExcelBtn) {
     downloadMonthlyExcelBtn.addEventListener("click", downloadMonthlyAttendanceRegister);
 }
 
+if (downloadMonthlyPdfBtn) {
+    downloadMonthlyPdfBtn.addEventListener("click", downloadMonthlyAttendancePdf);
+}
+
 if (cancelMonthlyExportBtn) {
     cancelMonthlyExportBtn.addEventListener("click", closeMonthlyExportPanel);
 }
@@ -4216,6 +4222,64 @@ async function downloadMonthlyAttendanceRegister() {
     }
 }
 
+async function downloadMonthlyAttendancePdf() {
+    syncAttendanceExportMonth();
+    const selectedMonth = attendanceExportMonth?.value;
+    if (!selectedMonth) {
+        attendanceExportMonth?.focus();
+        return;
+    }
+
+    const buttonLabel = downloadMonthlyPdfBtn?.querySelector("span");
+    const originalButtonText = buttonLabel?.textContent;
+    if (downloadMonthlyPdfBtn) {
+        downloadMonthlyPdfBtn.disabled = true;
+        if (buttonLabel) buttonLabel.textContent = "Preparing PDF…";
+    }
+    if (monthlyExportMessage) {
+        monthlyExportMessage.textContent = "";
+        monthlyExportMessage.className = "message";
+    }
+
+    try {
+        const response = await fetch(
+            `/api/attendance/course/${courseId}/monthly-register.pdf?month=${encodeURIComponent(selectedMonth)}`,
+            { credentials: "include" }
+        );
+        if (!response.ok) {
+            const contentType = response.headers.get("content-type") || "";
+            const data = contentType.includes("application/json") ? await response.json() : null;
+            throw new Error(data?.message || "Could not create the monthly attendance PDF");
+        }
+        const blob = await response.blob();
+        const disposition = response.headers.get("content-disposition") || "";
+        const filename = disposition.match(/filename="([^"]+)"/)?.[1] || `monthly-attendance-${selectedMonth}.pdf`;
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        if (monthlyExportMessage) {
+            monthlyExportMessage.textContent = "Monthly attendance PDF downloaded.";
+            monthlyExportMessage.className = "message success";
+        }
+    } catch (error) {
+        console.error("Monthly attendance PDF error:", error);
+        if (monthlyExportMessage) {
+            monthlyExportMessage.textContent = error.message || "Could not create the monthly attendance PDF.";
+            monthlyExportMessage.className = "message error";
+        }
+    } finally {
+        if (downloadMonthlyPdfBtn) {
+            downloadMonthlyPdfBtn.disabled = false;
+            if (buttonLabel) buttonLabel.textContent = originalButtonText;
+        }
+    }
+}
+
 function findClassTestMark(testId, studentId) {
     const record = classTestMarks.find(item =>
         Number(item.class_test_id) === Number(testId) &&
@@ -4233,6 +4297,8 @@ function openMonthlyExportPanel() {
     syncAttendanceExportMonth();
     closeAbsentExportPanel();
     closeLectureStatementPanel();
+    downloadMonthlyExcelBtn?.classList.remove("hidden");
+    downloadMonthlyPdfBtn?.classList.remove("hidden");
     monthlyExportPanel?.classList.remove("hidden");
     downloadExcelBtn?.setAttribute("aria-expanded", "true");
     attendanceExportMonth?.focus();
@@ -4241,6 +4307,10 @@ function openMonthlyExportPanel() {
 function closeMonthlyExportPanel() {
     monthlyExportPanel?.classList.add("hidden");
     downloadExcelBtn?.setAttribute("aria-expanded", "false");
+    if (monthlyExportMessage) {
+        monthlyExportMessage.textContent = "";
+        monthlyExportMessage.className = "message";
+    }
 }
 
 function savedAttendanceDates() {

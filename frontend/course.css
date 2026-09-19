@@ -331,6 +331,17 @@ body {
     background: #12663d;
 }
 
+.monthly-export-actions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+    align-items: stretch;
+}
+
+.monthly-export-actions button {
+    min-width: 0;
+    justify-content: center;
+}
+
 @media (max-width: 700px) {
     .absent-export-open-btn,
     #downloadExcelBtn,
@@ -342,6 +353,12 @@ body {
     .absent-export-dates,
     .lecture-statement-dates,
     .export-panel-actions {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 700px) {
+    .monthly-export-actions {
         grid-template-columns: 1fr;
     }
 }

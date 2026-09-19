@@ -16,7 +16,7 @@
 
     <link
         rel="stylesheet"
-        href="/course.css?v=20260909-5"
+        href="/course.css?v=20260920-2"
     >
     <link rel="stylesheet" href="/brand.css?v=20260824-33">
     <script defer src="/ui-icons.js?v=20260824-3"></script>
@@ -474,15 +474,11 @@
 
                 <button
                     id="downloadExcelBtn"
-                    class="primary-btn excel-btn"
+                    class="secondary-btn"
                     type="button"
                     aria-expanded="false"
                     aria-controls="monthlyExportPanel"
                 >
-                    <svg class="excel-icon" viewBox="0 0 24 24" aria-hidden="true">
-                        <path d="M4 3h10a2 2 0 0 1 2 2v2h4v14H8v-3H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z" fill="currentColor"/>
-                        <path d="M16 9v3h2V9h-2Zm0 5v3h2v-3h-2Zm-6-5 1.45 2.5L13 9h2l-2.45 4L15 17h-2l-1.55-2.55L10 17H8l2.4-4L8 9h2Z" fill="#217346"/>
-                    </svg>
                     <span>Download Monthly Attendance</span>
                 </button>
 
@@ -517,8 +513,8 @@
 
             <div id="monthlyExportPanel" class="attendance-editor export-panel monthly-export-panel hidden">
                 <div class="export-panel-heading">
-                    <h3>Monthly Attendance Excel</h3>
-                    <p>Choose the month you want to include in the attendance workbook.</p>
+                    <h3>Attendance Export</h3>
+                    <p>Choose the attendance month, then download the selected format. The PDF shows up to 25 students per page.</p>
                 </div>
 
                 <label class="attendance-export-month">
@@ -526,16 +522,23 @@
                     <input id="attendanceExportMonth" type="month" required>
                 </label>
 
-                <div class="panel-actions export-panel-actions">
+                <div class="panel-actions export-panel-actions monthly-export-actions">
                     <button id="downloadMonthlyExcelBtn" class="primary-btn excel-btn" type="button">
                         <svg class="excel-icon" viewBox="0 0 24 24" aria-hidden="true">
                             <path d="M4 3h10a2 2 0 0 1 2 2v2h4v14H8v-3H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z" fill="currentColor"/>
                             <path d="M16 9v3h2V9h-2Zm0 5v3h2v-3h-2Zm-6-5 1.45 2.5L13 9h2l-2.45 4L15 17h-2l-1.55-2.55L10 17H8l2.4-4L8 9h2Z" fill="#217346"/>
                         </svg>
-                        <span>Download Monthly Attendance</span>
+                        <span>Download Attendance Excel</span>
+                    </button>
+                    <button id="downloadMonthlyPdfBtn" class="primary-btn pdf-export-btn" type="button">
+                        <svg class="pdf-icon acrobat-icon" viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M12.25 2.4c1.43 0 1.67 2.06 1.37 3.83-.25 1.48-.83 3.18-1.63 4.87 1.2 2.22 2.52 4.02 3.83 5.25 1.51-.24 2.92-.32 4.01-.17 1.54.22 2.31.83 2.17 1.72-.2 1.25-1.73 1.66-3.42 1.36-1.12-.2-2.42-.83-3.72-1.86-2.26.42-4.81 1.17-7.16 2.12-1.36 1.75-2.67 2.72-3.78 2.52-1.04-.19-1.48-1.16-.92-2.18.55-.99 1.92-1.9 3.92-2.77 1.39-1.91 2.75-4.22 3.77-6.48-.78-1.62-1.29-3.17-1.4-4.45-.17-2.07.74-3.76 2.94-3.76Zm-5.7 16.42c-1.21.63-1.91 1.18-2.13 1.58.37-.13 1.1-.65 2.13-1.58Zm2.35-1.04c1.56-.55 3.18-1 4.71-1.31a25.1 25.1 0 0 1-2.45-3.56 37.38 37.38 0 0 1-2.26 4.87Zm8.55-.09c.75.42 1.42.66 1.98.76.53.1.9.04 1.1-.04-.48-.38-1.57-.62-3.08-.72ZM12.2 4.14c-.27.54-.25 2.01.3 3.89.53-1.63.67-3.05.48-3.72-.15-.52-.48-.57-.78-.17Z" fill="currentColor"/>
+                        </svg>
+                        <span>Download Attendance PDF</span>
                     </button>
                     <button id="cancelMonthlyExportBtn" class="secondary-btn" type="button">Cancel</button>
                 </div>
+                <div id="monthlyExportMessage" class="message" role="status" aria-live="polite"></div>
             </div>
 
             <div id="absentExportPanel" class="attendance-editor export-panel absent-export-panel hidden">
@@ -641,7 +644,7 @@
          COURSE JAVASCRIPT
     ========================= -->
 
-    <script src="/course.js?v=20260917-1"></script>
+    <script src="/course.js?v=20260920-2"></script>
 
 </body>
 
