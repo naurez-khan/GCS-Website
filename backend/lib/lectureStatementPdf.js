@@ -9,6 +9,10 @@ const TABLE_GAP = 10;
 const ROWS_PER_REGISTER = 22;
 const ROWS_PER_PAGE = ROWS_PER_REGISTER * 2;
 const DEFAULT_LOGO_PATH = path.join(__dirname, "../../frontend/assets/department-logo.png");
+const REGULAR_FONT_PATH = path.join(__dirname, "../../frontend/assets/fonts/poppins/poppins-latin-400-normal.ttf");
+const BOLD_FONT_PATH = path.join(__dirname, "../../frontend/assets/fonts/poppins/poppins-latin-700-normal.ttf");
+const REGULAR_FONT = "PortalPoppins";
+const BOLD_FONT = "PortalPoppinsBold";
 
 function dateKey(value) {
     if (!value) return "";
@@ -124,7 +128,7 @@ function centeredText(doc, text, x, y, width, height, options = {}) {
 function drawCell(doc, { x, y, width, height, text = "", bold = false, fontSize = 8.2, fill = null, align = "left" }) {
     if (fill) doc.save().fillColor(fill).rect(x, y, width, height).fill().restore();
     doc.save().lineWidth(0.55).strokeColor("#000000").rect(x, y, width, height).stroke().restore();
-    doc.font(bold ? "Helvetica-Bold" : "Helvetica").fontSize(fontSize).fillColor("#000000");
+    doc.font(bold ? BOLD_FONT : REGULAR_FONT).fontSize(fontSize).fillColor("#000000");
     const padding = align === "center" ? 2 : 5;
     centeredText(doc, text, x + padding, y, width - (padding * 2), height, { align });
 }
@@ -193,14 +197,18 @@ function drawRegister(doc, rows, x, top, width) {
 }
 
 function drawPage(doc, spec, pageRows, pageNumber, pageCount) {
-    if (fs.existsSync(DEFAULT_LOGO_PATH)) {
-        doc.image(DEFAULT_LOGO_PATH, 34, 20, { fit: [55, 55], align: "center", valign: "center" });
+    try {
+        if (fs.existsSync(DEFAULT_LOGO_PATH)) {
+            doc.image(DEFAULT_LOGO_PATH, 34, 20, { fit: [55, 55], align: "center", valign: "center" });
+        }
+    } catch (error) {
+        console.warn("Lecture statement PDF logo could not be loaded:", error.message);
     }
-    doc.font("Helvetica-Bold").fontSize(14).fillColor("#000000")
+    doc.font(BOLD_FONT).fontSize(14).fillColor("#000000")
         .text("Govt. Graduate College Civil Lines Sheikhupura", 100, 27, { width: PAGE_WIDTH - 125, align: "center" });
-    doc.font("Helvetica-Bold").fontSize(14)
+    doc.font(BOLD_FONT).fontSize(14)
         .text(spec.title, 100, 50, { width: PAGE_WIDTH - 125, align: "center" });
-    doc.font("Helvetica-Bold").fontSize(10.5)
+    doc.font(BOLD_FONT).fontSize(10.5)
         .text(`From ${formatDate(spec.startDate)} to ${formatDate(spec.endDate)}`, 100, 70, { width: PAGE_WIDTH - 125, align: "center" });
 
     const metaBottom = drawMeta(doc, spec, 91);
@@ -209,13 +217,21 @@ function drawPage(doc, spec, pageRows, pageNumber, pageCount) {
     drawRegister(doc, pageRows.slice(0, ROWS_PER_REGISTER), PAGE_MARGIN, tableTop, registerWidth);
     drawRegister(doc, pageRows.slice(ROWS_PER_REGISTER), PAGE_MARGIN + registerWidth + TABLE_GAP, tableTop, registerWidth);
 
-    doc.font("Helvetica-Bold").fontSize(9).text("Teacher's Signature: __________________________", PAGE_WIDTH - 245, PAGE_HEIGHT - 45, { width: 220, align: "right" });
-    doc.font("Helvetica").fontSize(7.5).fillColor("#555555").text(`Page ${pageNumber} of ${pageCount}`, PAGE_MARGIN, PAGE_HEIGHT - 31, { width: PAGE_WIDTH - (PAGE_MARGIN * 2), align: "center" });
+    doc.font(BOLD_FONT).fontSize(9).text("Teacher's Signature: __________________________", PAGE_WIDTH - 245, PAGE_HEIGHT - 45, { width: 220, height: 14, align: "right", lineBreak: false });
+    doc.font(REGULAR_FONT).fontSize(7.5).fillColor("#555555").text(`Page ${pageNumber} of ${pageCount}`, PAGE_MARGIN, PAGE_HEIGHT - 31, { width: PAGE_WIDTH - (PAGE_MARGIN * 2), height: 12, align: "center", lineBreak: false });
 }
 
 function createLectureStatementPdf(spec) {
     return new Promise((resolve, reject) => {
-        const doc = new PDFDocument({ autoFirstPage: false, size: "A4", margins: 0, info: { Title: "Lecture Statement" } });
+        const doc = new PDFDocument({
+            autoFirstPage: false,
+            size: "A4",
+            margins: 0,
+            font: REGULAR_FONT_PATH,
+            info: { Title: "Lecture Statement" }
+        });
+        doc.registerFont(REGULAR_FONT, REGULAR_FONT_PATH);
+        doc.registerFont(BOLD_FONT, BOLD_FONT_PATH);
         const chunks = [];
         doc.on("data", chunk => chunks.push(chunk));
         doc.on("end", () => resolve(Buffer.concat(chunks)));
