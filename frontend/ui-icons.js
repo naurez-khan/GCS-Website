@@ -3,6 +3,7 @@
 
     const iconForText = (element) => {
         const explicit = element.dataset.uiIcon;
+        if (explicit === "none") return null;
         if (explicit) return explicit;
 
         const text = element.textContent.replace(/\s+/g, " ").trim().toLowerCase();

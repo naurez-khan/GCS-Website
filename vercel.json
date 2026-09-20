@@ -3,7 +3,7 @@
   "regions": ["sin1"],
   "functions": {
     "server.js": {
-      "includeFiles": "frontend/**",
+      "includeFiles": "{frontend/**,node_modules/pdfkit/js/data/**}",
       "maxDuration": 60
     }
   }

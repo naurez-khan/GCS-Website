@@ -137,7 +137,11 @@ function drawCell(doc, x, y, width, height, text, options = {}) {
 }
 
 function drawHeader(doc, spec, pageNumber, pageCount) {
-    if (fs.existsSync(DEFAULT_LOGO_PATH)) doc.image(DEFAULT_LOGO_PATH, 24, 12, { fit: [48, 48] });
+    try {
+        if (fs.existsSync(DEFAULT_LOGO_PATH)) doc.image(DEFAULT_LOGO_PATH, 24, 12, { fit: [48, 48] });
+    } catch (error) {
+        console.warn("Monthly attendance PDF logo could not be loaded:", error.message);
+    }
     doc.font("Helvetica-Bold").fontSize(13.5).fillColor("#7E0D16")
         .text("Govt. Graduate College Civil Lines Sheikhupura", 82, 14, { width: PAGE_WIDTH - 164, align: "center" });
     doc.font("Helvetica-Bold").fontSize(12).fillColor("#171717")
