@@ -7,6 +7,10 @@ const PAGE_WIDTH = 841.89;
 const PAGE_HEIGHT = 595.28;
 const PAGE_MARGIN = 18;
 const DEFAULT_LOGO_PATH = path.join(__dirname, "../../frontend/assets/department-logo.png");
+const REGULAR_FONT_PATH = path.join(__dirname, "../../frontend/assets/fonts/poppins/poppins-latin-400-normal.ttf");
+const BOLD_FONT_PATH = path.join(__dirname, "../../frontend/assets/fonts/poppins/poppins-latin-700-normal.ttf");
+const REGULAR_FONT = "PortalPoppins";
+const BOLD_FONT = "PortalPoppinsBold";
 
 function dateKey(value) {
     if (!value) return "";
@@ -130,7 +134,7 @@ function drawCell(doc, x, y, width, height, text, options = {}) {
     const fill = options.fill || "#FFFFFF";
     doc.save().fillColor(fill).rect(x, y, width, height).fill().restore();
     doc.save().lineWidth(0.45).strokeColor("#4B4B4B").rect(x, y, width, height).stroke().restore();
-    doc.font(options.bold ? "Helvetica-Bold" : "Helvetica")
+    doc.font(options.bold ? BOLD_FONT : REGULAR_FONT)
         .fontSize(options.fontSize || 7)
         .fillColor(options.color || "#171717");
     drawCenteredText(doc, text, x + 1, y, width - 2, height, { align: "center", lineBreak: options.lineBreak === true });
@@ -142,11 +146,11 @@ function drawHeader(doc, spec, pageNumber, pageCount) {
     } catch (error) {
         console.warn("Monthly attendance PDF logo could not be loaded:", error.message);
     }
-    doc.font("Helvetica-Bold").fontSize(13.5).fillColor("#7E0D16")
+    doc.font(BOLD_FONT).fontSize(13.5).fillColor("#7E0D16")
         .text("Govt. Graduate College Civil Lines Sheikhupura", 82, 14, { width: PAGE_WIDTH - 164, align: "center" });
-    doc.font("Helvetica-Bold").fontSize(12).fillColor("#171717")
+    doc.font(BOLD_FONT).fontSize(12).fillColor("#171717")
         .text("Monthly Attendance Register", 82, 34, { width: PAGE_WIDTH - 164, align: "center" });
-    doc.font("Helvetica").fontSize(7.5).fillColor("#333333")
+    doc.font(REGULAR_FONT).fontSize(7.5).fillColor("#333333")
         .text(`Page ${pageNumber} of ${pageCount}`, PAGE_WIDTH - 95, 18, { width: 70, align: "right" });
 
     const metaX = PAGE_MARGIN;
@@ -263,8 +267,14 @@ function drawRegister(doc, spec, pageRows, top) {
     });
 
     const bottom = top + groupHeight + headerHeight + (pageRows.length * rowHeight);
-    doc.font("Helvetica-Bold").fontSize(8).fillColor("#171717")
-        .text("Teacher's Signature: __________________________", PAGE_WIDTH - 270, bottom + 13, { width: 245, align: "right" });
+    const signatureY = Math.min(bottom + 7, PAGE_HEIGHT - 17);
+    doc.font(BOLD_FONT).fontSize(7.5).fillColor("#171717")
+        .text("Teacher's Signature: __________________________", PAGE_WIDTH - 270, signatureY, {
+            width: 245,
+            height: 12,
+            align: "right",
+            lineBreak: false
+        });
 }
 
 function createMonthlyAttendancePdf(spec) {
@@ -276,6 +286,8 @@ function createMonthlyAttendancePdf(spec) {
             margins: 0,
             info: { Title: `Monthly Attendance Register - ${spec.selectedMonthLabel}` }
         });
+        doc.registerFont(REGULAR_FONT, REGULAR_FONT_PATH);
+        doc.registerFont(BOLD_FONT, BOLD_FONT_PATH);
         const chunks = [];
         doc.on("data", chunk => chunks.push(chunk));
         doc.on("end", () => resolve(Buffer.concat(chunks)));
