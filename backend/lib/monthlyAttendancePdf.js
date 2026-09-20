@@ -284,6 +284,7 @@ function createMonthlyAttendancePdf(spec) {
             size: "A4",
             layout: "landscape",
             margins: 0,
+            font: REGULAR_FONT_PATH,
             info: { Title: `Monthly Attendance Register - ${spec.selectedMonthLabel}` }
         });
         doc.registerFont(REGULAR_FONT, REGULAR_FONT_PATH);
