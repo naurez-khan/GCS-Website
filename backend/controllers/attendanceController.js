@@ -7,6 +7,18 @@ const {
     buildMonthlyAttendancePdfSpec,
     createMonthlyAttendancePdf
 } = require("../lib/monthlyAttendancePdf");
+
+function safeMonthlyPdfError(error) {
+    const name = String(error?.name || "Error").replace(/[^a-z0-9 _-]/gi, "");
+    const code = String(error?.code || "").replace(/[^a-z0-9_-]/gi, "");
+    const detail = String(error?.message || "Unknown PDF runtime error")
+        .replace(/[A-Z]:[\\/][^\s"']+/gi, "[local path]")
+        .replace(/\/var\/task\//g, "")
+        .replace(/\s+/g, " ")
+        .slice(0, 180);
+    return `${name}${code ? ` ${code}` : ""}: ${detail}`;
+}
+
 function getPakistanDate() {
     const parts = new Intl.DateTimeFormat("en-CA", {
         timeZone: "Asia/Karachi",
@@ -516,7 +528,9 @@ const downloadMonthlyAttendancePdf = async (req, res) => {
         const isEmpty = /No saved attendance/.test(error.message || "");
         return res.status(isEmpty ? 400 : 500).json({
             success: false,
-            message: isEmpty ? error.message : "Could not create the monthly attendance PDF"
+            message: isEmpty
+                ? error.message
+                : `Could not create the monthly attendance PDF (${safeMonthlyPdfError(error)})`
         });
     }
 };
