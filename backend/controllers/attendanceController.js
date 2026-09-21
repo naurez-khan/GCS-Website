@@ -7,6 +7,10 @@ const {
     buildMonthlyAttendancePdfSpec,
     createMonthlyAttendancePdf
 } = require("../lib/monthlyAttendancePdf");
+const {
+    buildAbsentStudentsPdfSpec,
+    createAbsentStudentsPdf
+} = require("../lib/absentStudentsPdf");
 
 function safeMonthlyPdfError(error) {
     const name = String(error?.name || "Error").replace(/[^a-z0-9 _-]/gi, "");
@@ -378,6 +382,79 @@ const getAttendance = async (req, res) => {
 
 };
 
+
+const downloadAbsentStudentsPdf = async (req, res) => {
+    try {
+        const courseId = Number(req.params.courseId);
+        const fromDate = String(req.query.from || "").trim();
+        const toDate = String(req.query.to || "").trim();
+        const validDate = value => /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(value);
+        if (!Number.isInteger(courseId) || courseId < 1 || !validDate(fromDate) || !validDate(toDate) || fromDate > toDate) {
+            return res.status(400).json({ success: false, message: "A valid From date and To date are required" });
+        }
+        if (toDate > getPakistanDate()) {
+            return res.status(400).json({ success: false, message: "The To date cannot be in the future" });
+        }
+
+        const [courseResult, studentsResult, attendanceResult] = await Promise.all([
+            pool.query(
+                `SELECT c.id, c.name, c.class_type, c.intermediate_year, c.program,
+                        c.semester, c.section, u.name AS teacher_name
+                 FROM courses c
+                 JOIN users u ON u.id = c.teacher_id
+                 WHERE c.id = $1 AND c.teacher_id = $2`,
+                [courseId, req.user.id]
+            ),
+            pool.query(
+                `SELECT id, roll_number, name
+                 FROM students
+                 WHERE course_id = $1 AND deleted_at IS NULL
+                 ORDER BY roll_number::INTEGER`,
+                [courseId]
+            ),
+            pool.query(
+                `SELECT a.student_id, s.roll_number,
+                        TO_CHAR(a.attendance_date, 'YYYY-MM-DD') AS attendance_date,
+                        a.status
+                 FROM attendance a
+                 JOIN students s ON s.id = a.student_id AND s.course_id = a.course_id
+                 WHERE a.course_id = $1 AND s.deleted_at IS NULL
+                   AND a.attendance_date BETWEEN $2::date AND $3::date
+                 ORDER BY a.attendance_date, s.roll_number::INTEGER`,
+                [courseId, fromDate, toDate]
+            )
+        ]);
+
+        if (!courseResult.rows.length) {
+            return res.status(404).json({ success: false, message: "Course not found or access denied" });
+        }
+
+        const course = courseResult.rows[0];
+        const spec = buildAbsentStudentsPdfSpec({
+            course,
+            students: studentsResult.rows,
+            records: attendanceResult.rows,
+            teacherName: course.teacher_name,
+            fromDate,
+            toDate
+        });
+        const pdfBuffer = await createAbsentStudentsPdf(spec);
+
+        res.setHeader("Content-Type", "application/pdf");
+        res.setHeader("Content-Disposition", `attachment; filename="${spec.filename}"`);
+        res.setHeader("Content-Length", pdfBuffer.length);
+        return res.send(pdfBuffer);
+    } catch (error) {
+        console.error("Absent students PDF error:", error);
+        const isEmpty = /No saved attendance/.test(error.message || "");
+        return res.status(isEmpty ? 400 : 500).json({
+            success: false,
+            message: isEmpty
+                ? error.message
+                : `Could not create the absent students PDF (${safeMonthlyPdfError(error)})`
+        });
+    }
+};
 
 const downloadLectureStatement = async (req, res) => {
     try {
@@ -771,6 +848,7 @@ module.exports = {
     markAttendance,
     getAttendance,
     downloadMonthlyAttendancePdf,
+    downloadAbsentStudentsPdf,
     downloadLectureStatement,
     updateAttendance,
     getAttendanceAudit,

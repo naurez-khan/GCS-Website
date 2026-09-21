@@ -4,6 +4,7 @@ const {
     markAttendance,
     getAttendance,
     downloadMonthlyAttendancePdf,
+    downloadAbsentStudentsPdf,
     downloadLectureStatement,
     updateAttendance,
     getAttendanceAudit,
@@ -48,6 +49,7 @@ router.get(
 );
 
 router.get("/course/:courseId/monthly-register.pdf", downloadMonthlyAttendancePdf);
+router.get("/course/:courseId/absent-students.pdf", downloadAbsentStudentsPdf);
 router.get("/course/:courseId/lecture-statement.pdf", downloadLectureStatement);
 
 router.post("/course/:courseId/leave", createStudentLeave);

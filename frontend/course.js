@@ -174,6 +174,7 @@ const absentExportPanel = document.getElementById("absentExportPanel");
 const absentExportFrom = document.getElementById("absentExportFrom");
 const absentExportTo = document.getElementById("absentExportTo");
 const downloadAbsentExcelBtn = document.getElementById("downloadAbsentExcelBtn");
+const downloadAbsentPdfBtn = document.getElementById("downloadAbsentPdfBtn");
 const cancelAbsentExportBtn = document.getElementById("cancelAbsentExportBtn");
 const absentExportMessage = document.getElementById("absentExportMessage");
 
@@ -3291,6 +3292,10 @@ if (downloadAbsentExcelBtn) {
     downloadAbsentExcelBtn.addEventListener("click", downloadAbsentStudentsRegister);
 }
 
+if (downloadAbsentPdfBtn) {
+    downloadAbsentPdfBtn.addEventListener("click", downloadAbsentStudentsPdf);
+}
+
 if (openLectureStatementBtn) {
     openLectureStatementBtn.addEventListener("click", openLectureStatementPanel);
 }
@@ -4375,9 +4380,10 @@ async function downloadAbsentStudentsRegister() {
         return;
     }
 
-    const originalText = downloadAbsentExcelBtn.textContent;
+    const buttonLabel = downloadAbsentExcelBtn?.querySelector("span");
+    const originalText = buttonLabel?.textContent;
     downloadAbsentExcelBtn.disabled = true;
-    downloadAbsentExcelBtn.textContent = "Preparing Excel...";
+    if (buttonLabel) buttonLabel.textContent = "Preparing Excel...";
     setAbsentExportMessage("");
 
     try {
@@ -4413,7 +4419,65 @@ async function downloadAbsentStudentsRegister() {
         setAbsentExportMessage(error.message || "Could not create the absent students register.", "error");
     } finally {
         downloadAbsentExcelBtn.disabled = false;
-        downloadAbsentExcelBtn.textContent = originalText;
+        if (buttonLabel) buttonLabel.textContent = originalText;
+    }
+}
+
+async function downloadAbsentStudentsPdf() {
+    const fromDate = absentExportFrom?.value;
+    const toDate = absentExportTo?.value;
+    if (!fromDate || !toDate) {
+        setAbsentExportMessage("Select valid From and To dates.", "error");
+        (!fromDate ? absentExportFrom : absentExportTo)?.focus();
+        return;
+    }
+    if (fromDate > toDate) {
+        setAbsentExportMessage("From date cannot be after To date.", "error");
+        absentExportFrom?.focus();
+        return;
+    }
+
+    const buttonLabel = downloadAbsentPdfBtn?.querySelector("span");
+    const originalText = buttonLabel?.textContent;
+    if (downloadAbsentPdfBtn) {
+        downloadAbsentPdfBtn.disabled = true;
+        if (buttonLabel) buttonLabel.textContent = "Preparing PDF...";
+    }
+    setAbsentExportMessage("");
+
+    try {
+        const params = new URLSearchParams({ from: fromDate, to: toDate });
+        const response = await fetch(
+            `/api/attendance/course/${courseId}/absent-students.pdf?${params.toString()}`,
+            { credentials: "include" }
+        );
+        if (!response.ok) {
+            const contentType = response.headers.get("content-type") || "";
+            const data = contentType.includes("application/json") ? await response.json() : null;
+            throw new Error(data?.message || "Could not create the absent students PDF");
+        }
+
+        const blob = await response.blob();
+        const disposition = response.headers.get("content-disposition") || "";
+        const filename = disposition.match(/filename="([^"]+)"/)?.[1]
+            || `absent-students-${fromDate}-to-${toDate}.pdf`;
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        setAbsentExportMessage("Absent students PDF downloaded.", "success");
+    } catch (error) {
+        console.error("Absent students PDF error:", error);
+        setAbsentExportMessage(error.message || "Could not create the absent students PDF.", "error");
+    } finally {
+        if (downloadAbsentPdfBtn) {
+            downloadAbsentPdfBtn.disabled = false;
+            if (buttonLabel) buttonLabel.textContent = originalText;
+        }
     }
 }
 

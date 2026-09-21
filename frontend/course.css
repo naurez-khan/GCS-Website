@@ -331,13 +331,15 @@ body {
     background: #12663d;
 }
 
-.monthly-export-actions {
+.monthly-export-actions,
+.absent-export-actions {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
     align-items: stretch;
 }
 
-.monthly-export-actions button {
+.monthly-export-actions button,
+.absent-export-actions button {
     min-width: 0;
     justify-content: center;
 }
@@ -358,7 +360,8 @@ body {
 }
 
 @media (max-width: 700px) {
-    .monthly-export-actions {
+    .monthly-export-actions,
+    .absent-export-actions {
         grid-template-columns: 1fr;
     }
 }
