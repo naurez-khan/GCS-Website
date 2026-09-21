@@ -241,6 +241,12 @@ body {
     flex-wrap: wrap;
 }
 
+@media (max-width: 700px) {
+    #editAttendanceBtn {
+        align-self: center;
+    }
+}
+
 .absent-export-open-btn,
 #downloadExcelBtn,
 .pdf-export-btn {

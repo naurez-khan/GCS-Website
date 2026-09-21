@@ -17,6 +17,8 @@ const pool = new Pool({
     max: Number(process.env.DB_POOL_MAX || (process.env.VERCEL ? 5 : 10)),
     connectionTimeoutMillis: 10000,
     idleTimeoutMillis: 30000,
+    keepAlive: true,
+    keepAliveInitialDelayMillis: 10000,
     allowExitOnIdle: Boolean(process.env.VERCEL)
 });
 

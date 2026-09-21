@@ -115,12 +115,15 @@ function buildLectureStatementSpec({ course = {}, students = [], records = [], t
 
 function centeredText(doc, text, x, y, width, height, options = {}) {
     const content = String(text ?? "");
-    const textHeight = doc.heightOfString(content, { width, align: "center", ...options });
+    const shouldWrap = options.lineBreak !== false;
+    const textHeight = shouldWrap
+        ? doc.heightOfString(content, { width, align: "center", ...options })
+        : doc.currentLineHeight();
     doc.text(content, x, y + Math.max((height - textHeight) / 2, 1), {
         width,
         height,
         align: "center",
-        lineBreak: true,
+        lineBreak: shouldWrap,
         ...options
     });
 }
@@ -190,7 +193,7 @@ function drawRegister(doc, rows, x, top, width) {
         const values = [row.puRollNumber, row.collegeRollNumber, row.attended, row.absent, row.percentage];
         cellX = x;
         values.forEach((value, columnIndex) => {
-            drawCell(doc, { x: cellX, y: top + headerHeight + (index * rowHeight), width: columnWidths[columnIndex], height: rowHeight, text: value ?? "", fontSize: 8.1, align: "center" });
+            drawCell(doc, { x: cellX, y: top + headerHeight + (index * rowHeight), width: columnWidths[columnIndex], height: rowHeight, text: value ?? "", fontSize: 8.1, align: "center", lineBreak: false });
             cellX += columnWidths[columnIndex];
         });
     }

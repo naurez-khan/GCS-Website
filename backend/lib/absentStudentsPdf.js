@@ -28,7 +28,7 @@ function drawCell(doc, { x, y, width, height, text = "", bold = false, fontSize 
     doc.save().lineWidth(0.55).strokeColor("#000000").rect(x, y, width, height).stroke().restore();
     doc.font(bold ? BOLD_FONT : REGULAR_FONT).fontSize(fontSize).fillColor("#000000");
     const value = String(text ?? "");
-    const textHeight = doc.heightOfString(value, { width: width - 6, align, lineBreak: false });
+    const textHeight = doc.currentLineHeight();
     doc.text(value, x + 3, y + Math.max(1, (height - textHeight) / 2), {
         width: width - 6,
         height: Math.max(1, height - 2),

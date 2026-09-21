@@ -212,6 +212,8 @@ let classTestMarks = [];
 let currentAttendanceRecords = [];
 let currentCourseHolidays = [];
 let editingHolidayId = null;
+const preparedExportFiles = new Map();
+let classExportPreparationStarted = false;
 
 let pendingStudentImport = [];
 
@@ -2798,6 +2800,10 @@ async function loadAttendanceHistory() {
             data.attendance || []
         );
 
+        if (coursePageAction === "history") {
+            prepareClassExports();
+        }
+
 
     } catch (error) {
 
@@ -4227,6 +4233,71 @@ async function downloadMonthlyAttendanceRegister() {
     }
 }
 
+function preparedExportRequest(url) {
+    if (preparedExportFiles.has(url)) return preparedExportFiles.get(url);
+
+    const request = fetch(url, {
+        credentials: "include",
+        cache: "no-store"
+    }).then(async response => {
+        if (!response.ok) {
+            const contentType = response.headers.get("content-type") || "";
+            const data = contentType.includes("application/json") ? await response.json() : {};
+            throw new Error(data.message || "Could not prepare the requested export");
+        }
+        return {
+            blob: await response.blob(),
+            disposition: response.headers.get("content-disposition") || ""
+        };
+    }).catch(error => {
+        preparedExportFiles.delete(url);
+        throw error;
+    });
+
+    preparedExportFiles.set(url, request);
+    return request;
+}
+
+async function prepareClassExports() {
+    if (classExportPreparationStarted || !currentAttendanceRecords.length) return;
+    classExportPreparationStarted = true;
+
+    SpreadsheetLibraries?.ensureExcelJs().catch(error => {
+        console.warn("Excel export preload failed:", error);
+    });
+
+    syncAttendanceExportMonth();
+    const dates = savedAttendanceDates();
+    const selectedMonth = attendanceExportMonth?.value;
+    const monthDates = selectedMonth
+        ? dates.filter(date => date.startsWith(`${selectedMonth}-`))
+        : [];
+    const absentDates = monthDates.length ? monthDates : dates.slice(-5);
+    const urls = [];
+
+    if (selectedMonth) {
+        urls.push(`/api/attendance/course/${courseId}/monthly-register.pdf?month=${encodeURIComponent(selectedMonth)}`);
+    }
+    if (absentDates.length) {
+        const params = new URLSearchParams({
+            from: absentDates[0],
+            to: absentDates.at(-1)
+        });
+        urls.push(`/api/attendance/course/${courseId}/absent-students.pdf?${params.toString()}`);
+        urls.push(
+            `/api/attendance/course/${courseId}/lecture-statement.pdf?from=${encodeURIComponent(dates[0])}&to=${encodeURIComponent(dates.at(-1))}`
+        );
+    }
+
+    for (const url of urls) {
+        try {
+            await preparedExportRequest(url);
+        } catch (error) {
+            console.warn("Background export preparation failed:", error);
+        }
+    }
+}
+
 async function downloadMonthlyAttendancePdf() {
     syncAttendanceExportMonth();
     const selectedMonth = attendanceExportMonth?.value;
@@ -4247,17 +4318,10 @@ async function downloadMonthlyAttendancePdf() {
     }
 
     try {
-        const response = await fetch(
-            `/api/attendance/course/${courseId}/monthly-register.pdf?month=${encodeURIComponent(selectedMonth)}`,
-            { credentials: "include" }
-        );
-        if (!response.ok) {
-            const contentType = response.headers.get("content-type") || "";
-            const data = contentType.includes("application/json") ? await response.json() : null;
-            throw new Error(data?.message || "Could not create the monthly attendance PDF");
-        }
-        const blob = await response.blob();
-        const disposition = response.headers.get("content-disposition") || "";
+        const requestUrl = `/api/attendance/course/${courseId}/monthly-register.pdf?month=${encodeURIComponent(selectedMonth)}`;
+        const prepared = await preparedExportRequest(requestUrl);
+        const blob = prepared.blob;
+        const disposition = prepared.disposition;
         const filename = disposition.match(/filename="([^"]+)"/)?.[1] || `monthly-attendance-${selectedMonth}.pdf`;
         const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
@@ -4300,6 +4364,9 @@ function openMonthlyExportPanel() {
     }
 
     syncAttendanceExportMonth();
+    SpreadsheetLibraries?.ensureExcelJs().catch(error => {
+        console.warn("Excel export preload failed:", error);
+    });
     closeAbsentExportPanel();
     closeLectureStatementPanel();
     downloadMonthlyExcelBtn?.classList.remove("hidden");
@@ -4343,6 +4410,9 @@ function openAbsentExportPanel() {
     }
 
     syncAttendanceExportMonth();
+    SpreadsheetLibraries?.ensureExcelJs().catch(error => {
+        console.warn("Excel export preload failed:", error);
+    });
     const selectedMonth = attendanceExportMonth?.value;
     const monthDates = selectedMonth
         ? dates.filter(date => date.startsWith(`${selectedMonth}-`))
@@ -4447,18 +4517,10 @@ async function downloadAbsentStudentsPdf() {
 
     try {
         const params = new URLSearchParams({ from: fromDate, to: toDate });
-        const response = await fetch(
-            `/api/attendance/course/${courseId}/absent-students.pdf?${params.toString()}`,
-            { credentials: "include" }
-        );
-        if (!response.ok) {
-            const contentType = response.headers.get("content-type") || "";
-            const data = contentType.includes("application/json") ? await response.json() : null;
-            throw new Error(data?.message || "Could not create the absent students PDF");
-        }
-
-        const blob = await response.blob();
-        const disposition = response.headers.get("content-disposition") || "";
+        const requestUrl = `/api/attendance/course/${courseId}/absent-students.pdf?${params.toString()}`;
+        const prepared = await preparedExportRequest(requestUrl);
+        const blob = prepared.blob;
+        const disposition = prepared.disposition;
         const filename = disposition.match(/filename="([^"]+)"/)?.[1]
             || `absent-students-${fromDate}-to-${toDate}.pdf`;
         const url = URL.createObjectURL(blob);
@@ -4537,21 +4599,13 @@ async function downloadLectureStatement() {
     setLectureStatementMessage("");
 
     try {
-        const response = await fetch(
-            `/api/attendance/course/${courseId}/lecture-statement.pdf?from=${encodeURIComponent(fromDate)}&to=${encodeURIComponent(toDate)}`,
-            { credentials: "include" }
-        );
-        if (!response.ok) {
-            const contentType = response.headers.get("content-type") || "";
-            const data = contentType.includes("application/json") ? await response.json() : {};
-            throw new Error(data.message || "Could not create the lecture statement");
-        }
-
-        const blob = await response.blob();
+        const requestUrl = `/api/attendance/course/${courseId}/lecture-statement.pdf?from=${encodeURIComponent(fromDate)}&to=${encodeURIComponent(toDate)}`;
+        const prepared = await preparedExportRequest(requestUrl);
+        const blob = prepared.blob;
         const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
         link.href = url;
-        link.download = filenameFromDisposition(response.headers.get("content-disposition"));
+        link.download = filenameFromDisposition(prepared.disposition);
         document.body.appendChild(link);
         link.click();
         link.remove();

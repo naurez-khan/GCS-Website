@@ -119,7 +119,9 @@ function buildMonthlyAttendancePdfSpec({ course = {}, students = [], records = [
 
 function drawCenteredText(doc, text, x, y, width, height, options = {}) {
     const content = String(text ?? "");
-    const textHeight = doc.heightOfString(content, { width, align: "center", ...options });
+    const textHeight = options.lineBreak
+        ? doc.heightOfString(content, { width, align: "center", ...options })
+        : doc.currentLineHeight();
     doc.text(content, x, y + Math.max((height - textHeight) / 2, 1), {
         width,
         height,
