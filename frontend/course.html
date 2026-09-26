@@ -16,7 +16,7 @@
 
     <link
         rel="stylesheet"
-        href="/course.css?v=20260921-2"
+        href="/course.css?v=20260926-1"
     >
     <link rel="stylesheet" href="/brand.css?v=20260824-33">
     <script defer src="/ui-icons.js?v=20260920-1"></script>
@@ -513,10 +513,18 @@
                     <p>Choose the attendance month, then download the selected format. The PDF shows up to 25 students per page.</p>
                 </div>
 
-                <label class="attendance-export-month">
-                    Export month
-                    <input id="attendanceExportMonth" type="month" required>
-                </label>
+                <div class="monthly-export-options">
+                    <label class="attendance-export-month">
+                        Export month
+                        <input id="attendanceExportMonth" type="month" required>
+                    </label>
+                    <label class="attendance-export-test">
+                        Test marks
+                        <select id="attendanceExportTest" required>
+                            <option value="">Loading tests...</option>
+                        </select>
+                    </label>
+                </div>
 
                 <div class="panel-actions export-panel-actions monthly-export-actions">
                     <button id="downloadMonthlyExcelBtn" class="primary-btn excel-btn" type="button">
@@ -642,7 +650,7 @@
 
     <script src="/spreadsheet-libs.js?v=20260917-1"></script>
     <script src="/award-list.js?v=20260909-2"></script>
-    <script src="/attendance-register.js?v=20260909-2"></script>
+    <script src="/attendance-register.js?v=20260926-2"></script>
     <script src="/absent-register.js?v=20260909-1"></script>
 
 
@@ -650,7 +658,7 @@
          COURSE JAVASCRIPT
     ========================= -->
 
-    <script src="/course.js?v=20260921-3"></script>
+    <script src="/course.js?v=20260926-2"></script>
 
 </body>
 

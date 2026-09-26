@@ -49,3 +49,24 @@ test("creates an A4 landscape PDF with no more than 25 students per page", async
     assert.match(buffer.toString("latin1"), /\/Count 2/);
     assert.match(buffer.toString("latin1"), /\/MediaBox \[0 0 841\.89 595\.28\]/);
 });
+
+test("adds selected test marks and uses A when a mark is missing", () => {
+    const spec = buildMonthlyAttendancePdfSpec({
+        selectedMonth: "2026-09",
+        course: { name: "Calculus" },
+        students: [
+            { id: 1, roll_number: "101" },
+            { id: 2, roll_number: "102" }
+        ],
+        records: [
+            { student_id: 1, attendance_date: "2026-09-01", status: "present" },
+            { student_id: 2, attendance_date: "2026-09-01", status: "present" }
+        ],
+        selectedTest: { key: "class:7", name: "Class Test 1", maxMarks: 10 },
+        testMarks: [{ student_id: 1, marks: 8 }]
+    });
+
+    assert.equal(spec.selectedTest.name, "Class Test 1");
+    assert.equal(spec.rows[0].testMark, 8);
+    assert.equal(spec.rows[1].testMark, "A");
+});

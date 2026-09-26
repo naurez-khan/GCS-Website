@@ -24,7 +24,8 @@ test("matches the printed register column order", () => {
     assert.equal(spec.ranges.practicalEnd + 1, spec.ranges.currentStart);
     assert.equal(spec.ranges.currentEnd + 1, spec.ranges.broughtForwardStart);
     assert.equal(spec.ranges.broughtForwardEnd + 1, spec.ranges.totalStart);
-    assert.equal(spec.ranges.totalEnd + 1, spec.ranges.remarksColumn);
+    assert.equal(spec.ranges.totalEnd + 1, spec.ranges.testMarksColumn);
+    assert.equal(spec.ranges.testMarksColumn + 1, spec.ranges.remarksColumn);
     assert.deepEqual(spec.previousMonths, ["2026-06", "2026-07"]);
     assert.equal(spec.rows[5][spec.ranges.currentStart], "Periods\nAttended\nT");
     assert.equal(spec.rows[5][spec.ranges.broughtForwardStart], "Periods\nB.F.\nT");
@@ -79,4 +80,20 @@ test("counts leave as attended and marks it L in the register", () => {
     assert.equal(spec.rows[6][spec.ranges.dailyStart + 2], "L");
     assert.equal(spec.rows[6][spec.ranges.currentStart].v, 1);
     assert.match(spec.rows[6][spec.ranges.currentStart].f, /COUNTIF\(.+,"L"\)/);
+});
+
+test("adds selected test marks and uses A when a mark is missing", () => {
+    const selectedTest = { key: "monthly:4", name: "August Monthly Test", maxMarks: 25 };
+    const spec = buildMonthlyAttendanceRegister({
+        students,
+        records,
+        selectedMonth: "2026-08",
+        course: { name: "Calculus" },
+        selectedTest,
+        testMarks: [{ testKey: "monthly:4", student_id: 1, marks: 18 }]
+    });
+    assert.equal(spec.rows[4][spec.ranges.testMarksColumn], "August Monthly Test / 25");
+    assert.equal(spec.rows[6][spec.ranges.testMarksColumn], 18);
+    assert.equal(spec.rows[7][spec.ranges.testMarksColumn], "A");
+    assert.ok(spec.columns[spec.ranges.remarksColumn].wch < 20);
 });

@@ -40,6 +40,12 @@
         const students = Array.isArray(options.students) ? options.students.slice() : [];
         const records = Array.isArray(options.records) ? options.records.slice() : [];
         const course = options.course || {};
+        const selectedTest = options.selectedTest || null;
+        const testMarksByStudent = new Map(
+            (Array.isArray(options.testMarks) ? options.testMarks : [])
+                .filter(mark => mark && mark.marks !== null && mark.marks !== undefined && mark.marks !== "")
+                .map(mark => [Number(mark.student_id), mark.marks])
+        );
         const [year, month] = selectedMonth.split("-").map(Number);
         const daysInMonth = new Date(year, month, 0).getDate();
         const selectedMonthLabel = monthLabel(selectedMonth);
@@ -71,7 +77,8 @@
         const broughtForwardEnd = broughtForwardStart + 1;
         const totalStart = broughtForwardEnd + 1;
         const totalEnd = totalStart + 1;
-        const remarksColumn = totalEnd + 1;
+        const testMarksColumn = totalEnd + 1;
+        const remarksColumn = testMarksColumn + 1;
         const lastColumn = remarksColumn;
         const dataStart = 6;
 
@@ -123,7 +130,10 @@
         rows[5][broughtForwardStart + 1] = "P";
         rows[5][totalStart] = "Total Periods\nAttended\nT";
         rows[5][totalStart + 1] = "P";
-        rows[5][remarksColumn] = "Remarks";
+        rows[4][testMarksColumn] = selectedTest
+            ? String(selectedTest.name || "Test Marks") + " / " + selectedTest.maxMarks
+            : "Test Marks";
+        rows[4][remarksColumn] = "Remarks";
 
         const rawRows = [["Student ID", "Roll Number", "Student Name", "Attendance Date", "Status", "Month"]];
         records
@@ -179,6 +189,9 @@
             row[broughtForwardStart + 1] = "";
             row[totalStart] = numericCell(totalPresent, `${columnName(currentStart)}${excelRow}+${columnName(broughtForwardStart)}${excelRow}`);
             row[totalStart + 1] = "";
+            row[testMarksColumn] = selectedTest
+                ? (testMarksByStudent.has(studentId) ? testMarksByStudent.get(studentId) : "A")
+                : "";
             row[remarksColumn] = "";
             rows.push(row);
         });
@@ -212,6 +225,7 @@
             { s: { r: 4, c: currentStart }, e: { r: 4, c: currentEnd } },
             { s: { r: 4, c: broughtForwardStart }, e: { r: 4, c: broughtForwardEnd } },
             { s: { r: 4, c: totalStart }, e: { r: 4, c: totalEnd } },
+            { s: { r: 4, c: testMarksColumn }, e: { r: 5, c: testMarksColumn } },
             { s: { r: 4, c: remarksColumn }, e: { r: 5, c: remarksColumn } },
             { s: { r: signatureRow - 1, c: 38 }, e: { r: signatureRow - 1, c: lastColumn } }
         ];
@@ -221,7 +235,8 @@
             ...Array.from({ length: 31 }, () => ({ wch: 3.05 })),
             ...Array.from({ length: 6 }, () => ({ wch: 3.05 })),
             ...Array.from({ length: 6 }, () => ({ wch: 5.2 })),
-            { wch: 24 }
+            { wch: 9 },
+            { wch: 12 }
         ];
 
         return {
@@ -243,10 +258,11 @@
             ranges: {
                 rollColumn, dailyStart, dailyEnd, practicalStart, practicalEnd,
                 currentStart, currentEnd, broughtForwardStart, broughtForwardEnd,
-                totalStart, totalEnd, remarksColumn, lastColumn,
+                totalStart, totalEnd, testMarksColumn, remarksColumn, lastColumn,
                 dataStart, dataEnd: dataStart + students.length - 1,
                 signatureRow: signatureRow - 1
             },
+            selectedTest,
             filename: `${String(course.name || "Course").replace(/[^a-z0-9]/gi, "_")}_Attendance_Register_${selectedMonth}.xlsx`
         };
     }

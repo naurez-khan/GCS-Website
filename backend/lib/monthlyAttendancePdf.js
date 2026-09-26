@@ -28,7 +28,16 @@ function monthLabel(monthKey) {
         .format(new Date(Date.UTC(year, month - 1, 1)));
 }
 
-function buildMonthlyAttendancePdfSpec({ course = {}, students = [], records = [], holidays = [], selectedMonth = "", teacherName = "" }) {
+function buildMonthlyAttendancePdfSpec({
+    course = {},
+    students = [],
+    records = [],
+    holidays = [],
+    selectedMonth = "",
+    teacherName = "",
+    selectedTest = null,
+    testMarks = []
+}) {
     if (!/^\d{4}-\d{2}$/.test(selectedMonth)) throw new Error("Select a valid attendance month");
     const [year, month] = selectedMonth.split("-").map(Number);
     if (month < 1 || month > 12) throw new Error("Select a valid attendance month");
@@ -64,6 +73,11 @@ function buildMonthlyAttendancePdfSpec({ course = {}, students = [], records = [
         if (!statusByStudent.has(studentId)) statusByStudent.set(studentId, new Map());
         statusByStudent.get(studentId).set(record.attendance_date, record.status);
     });
+    const testMarksByStudent = new Map(
+        testMarks
+            .filter(mark => mark && mark.marks !== null && mark.marks !== undefined && mark.marks !== "")
+            .map(mark => [Number(mark.student_id), mark.marks])
+    );
 
     const rows = students
         .slice()
@@ -93,6 +107,9 @@ function buildMonthlyAttendancePdfSpec({ course = {}, students = [], records = [
                 periodsAttended: { theory: currentTheoryAttended, practical: "" },
                 periodsBroughtForward: { theory: broughtForwardTheoryAttended, practical: "" },
                 totalPeriods: { theory: currentTheoryAttended + broughtForwardTheoryAttended, practical: "" },
+                testMark: selectedTest
+                    ? (testMarksByStudent.has(Number(student.id)) ? testMarksByStudent.get(Number(student.id)) : "A")
+                    : "",
                 remarks: ""
             };
         });
@@ -113,6 +130,7 @@ function buildMonthlyAttendancePdfSpec({ course = {}, students = [], records = [
         sectionSemester: isIntermediate ? (course.section || "") : (course.semester ? `Semester ${course.semester}` : ""),
         subject: isIntermediate ? (course.name || "Mathematics") : (course.name || ""),
         courseCode: isIntermediate ? "" : (course.course_code || ""),
+        selectedTest,
         rows
     };
 }
@@ -201,7 +219,8 @@ function drawRegister(doc, spec, pageRows, top) {
     const dailyWidth = 12;
     const practicalWidth = 12;
     const summaryWidth = 25;
-    const remarksWidth = tableWidth - rollWidth - (dailyWidth * 31) - (practicalWidth * 6) - (summaryWidth * 6);
+    const testMarksWidth = 44;
+    const remarksWidth = tableWidth - rollWidth - (dailyWidth * 31) - (practicalWidth * 6) - (summaryWidth * 6) - testMarksWidth;
     const groupHeight = 19;
     const headerHeight = 21;
     const rowHeight = 15.7;
@@ -218,7 +237,16 @@ function drawRegister(doc, spec, pageRows, top) {
         drawCell(doc, summaryX + summaryWidth, top + groupHeight, summaryWidth, headerHeight, "P", { bold: true, fontSize: 7, fill: "#F0F0F0" });
         summaryX += summaryWidth * 2;
     });
-    drawCell(doc, summaryX, top, remarksWidth, groupHeight + headerHeight, "Remarks", { bold: true, fontSize: 7.5, fill: "#F0F0F0" });
+    const testLabel = spec.selectedTest
+        ? String(spec.selectedTest.name || "Test Marks") + " / " + spec.selectedTest.maxMarks
+        : "Test Marks";
+    drawCell(doc, summaryX, top, testMarksWidth, groupHeight + headerHeight, testLabel, {
+        bold: true,
+        fontSize: 5.5,
+        fill: "#F0F0F0",
+        lineBreak: true
+    });
+    drawCell(doc, summaryX + testMarksWidth, top, remarksWidth, groupHeight + headerHeight, "Remarks", { bold: true, fontSize: 6.5, fill: "#F0F0F0" });
 
     const excluded = new Set(spec.excludedDays);
     for (let day = 1; day <= 31; day += 1) {
@@ -265,7 +293,8 @@ function drawRegister(doc, spec, pageRows, top) {
             drawCell(doc, summaryX, y, summaryWidth, rowHeight, value, { bold: index === 4, fontSize: 7 });
             summaryX += summaryWidth;
         });
-        drawCell(doc, summaryX, y, remarksWidth, rowHeight, row.remarks, { fontSize: 7 });
+        drawCell(doc, summaryX, y, testMarksWidth, rowHeight, row.testMark, { bold: row.testMark === "A", fontSize: 7 });
+        drawCell(doc, summaryX + testMarksWidth, y, remarksWidth, rowHeight, row.remarks, { fontSize: 7 });
     });
 
     const bottom = top + groupHeight + headerHeight + (pageRows.length * rowHeight);

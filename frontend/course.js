@@ -162,6 +162,8 @@ const downloadMarksExcelBtn =
 
 const attendanceExportMonth =
     document.getElementById("attendanceExportMonth");
+const attendanceExportTest =
+    document.getElementById("attendanceExportTest");
 
 const monthlyExportPanel = document.getElementById("monthlyExportPanel");
 const downloadMonthlyExcelBtn = document.getElementById("downloadMonthlyExcelBtn");
@@ -214,6 +216,9 @@ let currentCourseHolidays = [];
 let editingHolidayId = null;
 const preparedExportFiles = new Map();
 let classExportPreparationStarted = false;
+let attendanceExportTests = [];
+let attendanceExportTestMarks = [];
+let attendanceExportTestsPromise = null;
 
 let pendingStudentImport = [];
 
@@ -3286,6 +3291,17 @@ if (cancelMonthlyExportBtn) {
     cancelMonthlyExportBtn.addEventListener("click", closeMonthlyExportPanel);
 }
 
+if (attendanceExportMonth) {
+    attendanceExportMonth.addEventListener("change", () => {
+        syncAttendanceExportTestToMonth(true);
+        prepareSelectedMonthlyPdf();
+    });
+}
+
+if (attendanceExportTest) {
+    attendanceExportTest.addEventListener("change", prepareSelectedMonthlyPdf);
+}
+
 if (openAbsentExportBtn) {
     openAbsentExportBtn.addEventListener("click", openAbsentExportPanel);
 }
@@ -3994,6 +4010,79 @@ function syncAttendanceExportMonth() {
     }
 }
 
+function selectedAttendanceExportTest() {
+    return attendanceExportTests.find(test => test.key === attendanceExportTest?.value) || null;
+}
+
+function selectedAttendanceExportMarks() {
+    const selectedKey = attendanceExportTest?.value;
+    if (!selectedKey) return [];
+    return attendanceExportTestMarks.filter(mark => mark.testKey === selectedKey);
+}
+
+function syncAttendanceExportTestToMonth(force = false) {
+    if (!attendanceExportTest || !attendanceExportTests.length) return;
+    const selectedMonthNumber = Number(String(attendanceExportMonth?.value || "").slice(5, 7));
+    const matchingMonthlyTest = attendanceExportTests.find(test =>
+        test.type === "monthly" && Number(test.monthNumber) === selectedMonthNumber
+    );
+    if (matchingMonthlyTest && (force || !attendanceExportTest.value)) {
+        attendanceExportTest.value = matchingMonthlyTest.key;
+    } else if (!attendanceExportTest.value) {
+        attendanceExportTest.value = attendanceExportTests[0].key;
+    }
+}
+
+function renderAttendanceExportTests() {
+    if (!attendanceExportTest) return;
+    const previousValue = attendanceExportTest.value;
+    if (!attendanceExportTests.length) {
+        attendanceExportTest.innerHTML = '<option value="">No tests available</option>';
+        attendanceExportTest.disabled = true;
+        return;
+    }
+    attendanceExportTest.disabled = false;
+    attendanceExportTest.innerHTML = attendanceExportTests.map(test =>
+        `<option value="${escapeHtml(test.key)}">${escapeHtml(test.name)} (${escapeHtml(test.maxMarks)} marks)</option>`
+    ).join("");
+    if (attendanceExportTests.some(test => test.key === previousValue)) {
+        attendanceExportTest.value = previousValue;
+    }
+    syncAttendanceExportTestToMonth();
+}
+
+async function loadAttendanceExportTests() {
+    if (attendanceExportTestsPromise) return attendanceExportTestsPromise;
+    attendanceExportTestsPromise = fetch(`/api/courses/${courseId}/export-tests`, {
+        credentials: "include",
+        cache: "no-store"
+    }).then(async response => {
+        const data = await response.json();
+        if (!response.ok || !data.success) throw new Error(data.message || "Could not load class tests");
+        attendanceExportTests = Array.isArray(data.tests) ? data.tests : [];
+        attendanceExportTestMarks = Array.isArray(data.marks) ? data.marks : [];
+        renderAttendanceExportTests();
+        return data;
+    }).catch(error => {
+        attendanceExportTestsPromise = null;
+        throw error;
+    });
+    return attendanceExportTestsPromise;
+}
+
+function monthlyAttendancePdfUrl() {
+    const params = new URLSearchParams({ month: attendanceExportMonth?.value || "" });
+    if (attendanceExportTest?.value) params.set("test", attendanceExportTest.value);
+    return `/api/attendance/course/${courseId}/monthly-register.pdf?${params.toString()}`;
+}
+
+function prepareSelectedMonthlyPdf() {
+    if (!attendanceExportMonth?.value) return;
+    preparedExportRequest(monthlyAttendancePdfUrl()).catch(error => {
+        console.warn("Monthly attendance PDF preparation failed:", error);
+    });
+}
+
 function attendanceRegisterCellValue(value) {
     if (!value || typeof value !== "object" || Array.isArray(value) || value instanceof Date) {
         return value ?? "";
@@ -4131,12 +4220,15 @@ async function downloadMonthlyAttendanceRegister() {
     }
 
     try {
+        await loadAttendanceExportTests();
         const spec = AttendanceRegister.buildMonthlyAttendanceRegister({
             students,
             records: currentAttendanceRecords,
             course: currentCourse,
             teacherName: teacherName?.textContent || "",
-            selectedMonth: attendanceExportMonth?.value
+            selectedMonth: attendanceExportMonth?.value,
+            selectedTest: selectedAttendanceExportTest(),
+            testMarks: selectedAttendanceExportMarks()
         });
         const workbook = new ExcelJS.Workbook();
         workbook.creator = "Department of Mathematics Attendance Portal";
@@ -4267,6 +4359,11 @@ async function prepareClassExports() {
     });
 
     syncAttendanceExportMonth();
+    try {
+        await loadAttendanceExportTests();
+    } catch (error) {
+        console.warn("Attendance export tests could not be preloaded:", error);
+    }
     const dates = savedAttendanceDates();
     const selectedMonth = attendanceExportMonth?.value;
     const monthDates = selectedMonth
@@ -4276,7 +4373,7 @@ async function prepareClassExports() {
     const urls = [];
 
     if (selectedMonth) {
-        urls.push(`/api/attendance/course/${courseId}/monthly-register.pdf?month=${encodeURIComponent(selectedMonth)}`);
+        urls.push(monthlyAttendancePdfUrl());
     }
     if (absentDates.length) {
         const params = new URLSearchParams({
@@ -4318,7 +4415,8 @@ async function downloadMonthlyAttendancePdf() {
     }
 
     try {
-        const requestUrl = `/api/attendance/course/${courseId}/monthly-register.pdf?month=${encodeURIComponent(selectedMonth)}`;
+        await loadAttendanceExportTests();
+        const requestUrl = monthlyAttendancePdfUrl();
         const prepared = await preparedExportRequest(requestUrl);
         const blob = prepared.blob;
         const disposition = prepared.disposition;
@@ -4357,13 +4455,22 @@ function findClassTestMark(testId, studentId) {
     return record ? record.marks : null;
 }
 
-function openMonthlyExportPanel() {
+async function openMonthlyExportPanel() {
     if (!currentAttendanceRecords.length) {
         alert("No attendance records to export yet.");
         return;
     }
 
     syncAttendanceExportMonth();
+    try {
+        await loadAttendanceExportTests();
+    } catch (error) {
+        console.error("Attendance export tests error:", error);
+        if (monthlyExportMessage) {
+            monthlyExportMessage.textContent = error.message || "Could not load test options.";
+            monthlyExportMessage.className = "message error";
+        }
+    }
     SpreadsheetLibraries?.ensureExcelJs().catch(error => {
         console.warn("Excel export preload failed:", error);
     });

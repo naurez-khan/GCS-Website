@@ -865,6 +865,102 @@ const getCourseStudents = async (
 
 };
 
+const getAttendanceExportTests = async (req, res) => {
+    try {
+        const courseId = Number(req.params.courseId);
+        if (!Number.isInteger(courseId) || courseId < 1) {
+            return res.status(400).json({ success: false, message: "Invalid course" });
+        }
+
+        const courseResult = await pool.query(
+            "SELECT id, class_type FROM courses WHERE id = $1 AND teacher_id = $2",
+            [courseId, req.user.id]
+        );
+        if (!courseResult.rows.length) {
+            return res.status(404).json({ success: false, message: "Course not found or access denied" });
+        }
+
+        const [testRows, decemberRows] = await Promise.all([
+            pool.query(
+                `SELECT a.id, a.assessment_type, a.month_number, a.name, a.max_marks,
+                        am.student_id, am.marks
+                 FROM assignments a
+                 LEFT JOIN assignment_marks am ON am.assignment_id = a.id
+                   AND EXISTS (
+                       SELECT 1 FROM students s
+                       WHERE s.id = am.student_id AND s.deleted_at IS NULL
+                   )
+                 WHERE a.course_id = $1
+                   AND a.assessment_type IN ('monthly_test', 'class_test')
+                 ORDER BY
+                   CASE WHEN a.assessment_type = 'monthly_test' THEN 0 ELSE 2 END,
+                   a.month_number NULLS LAST,
+                   a.assignment_number,
+                   am.student_id`,
+                [courseId]
+            ),
+            pool.query(
+                `SELECT id AS student_id, december_test_marks AS marks
+                 FROM students
+                 WHERE course_id = $1 AND deleted_at IS NULL
+                 ORDER BY roll_number::INTEGER`,
+                [courseId]
+            )
+        ]);
+
+        const testsByKey = new Map();
+        const marks = [];
+        testRows.rows.forEach(row => {
+            const type = row.assessment_type === "monthly_test" ? "monthly" : "class";
+            const key = `${type}:${row.id}`;
+            if (!testsByKey.has(key)) {
+                testsByKey.set(key, {
+                    key,
+                    type,
+                    id: Number(row.id),
+                    name: row.name,
+                    maxMarks: Number(row.max_marks),
+                    monthNumber: row.month_number === null ? null : Number(row.month_number)
+                });
+            }
+            if (row.student_id !== null) {
+                marks.push({
+                    testKey: key,
+                    student_id: Number(row.student_id),
+                    marks: row.marks
+                });
+            }
+        });
+
+        const tests = [...testsByKey.values()];
+        if (courseResult.rows[0].class_type === "intermediate") {
+            const decemberIndex = tests.findIndex(test => test.type === "class");
+            const decemberTest = {
+                key: "december",
+                type: "december",
+                id: null,
+                name: "December Test",
+                maxMarks: 100,
+                monthNumber: 12
+            };
+            tests.splice(decemberIndex < 0 ? tests.length : decemberIndex, 0, decemberTest);
+            decemberRows.rows.forEach(row => {
+                if (row.marks === null || row.marks === undefined) return;
+                marks.push({
+                    testKey: "december",
+                    student_id: Number(row.student_id),
+                    marks: row.marks
+                });
+            });
+        }
+
+        return res.json({ success: true, tests, marks });
+    } catch (error) {
+        console.error("Attendance export tests error:", error);
+        return res.status(500).json({ success: false, message: "Could not load attendance export tests" });
+    }
+};
+
 
 // =========================
 // GET COURSE ASSIGNMENTS
@@ -2968,6 +3064,7 @@ module.exports = {
     getMyCourses,
 
     getCourseStudents,
+    getAttendanceExportTests,
 
     updateStudent,
 

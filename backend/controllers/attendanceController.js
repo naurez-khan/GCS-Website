@@ -533,8 +533,12 @@ const downloadMonthlyAttendancePdf = async (req, res) => {
     try {
         const courseId = Number(req.params.courseId);
         const selectedMonth = String(req.query.month || "").trim();
+        const selectedTestKey = String(req.query.test || "").trim();
         if (!Number.isInteger(courseId) || courseId < 1 || !/^\d{4}-\d{2}$/.test(selectedMonth)) {
             return res.status(400).json({ success: false, message: "A valid attendance month is required" });
+        }
+        if (selectedTestKey && selectedTestKey !== "december" && !/^(monthly|class):[0-9]+$/.test(selectedTestKey)) {
+            return res.status(400).json({ success: false, message: "A valid test selection is required" });
         }
         const [year, month] = selectedMonth.split("-").map(Number);
         if (month < 1 || month > 12) {
@@ -542,8 +546,30 @@ const downloadMonthlyAttendancePdf = async (req, res) => {
         }
         const fromDate = `${selectedMonth}-01`;
         const toDate = new Date(Date.UTC(year, month, 0)).toISOString().slice(0, 10);
+        const selectedTestParts = selectedTestKey.split(":");
+        const selectedAssessmentType = selectedTestParts[0] === "monthly"
+            ? "monthly_test"
+            : selectedTestParts[0] === "class"
+                ? "class_test"
+                : null;
+        const selectedTestId = selectedAssessmentType ? Number(selectedTestParts[1]) : null;
+        const selectedTestQuery = selectedAssessmentType
+            ? pool.query(
+                `SELECT a.id, a.name, a.max_marks, a.assessment_type, a.month_number,
+                        am.student_id, am.marks
+                 FROM assignments a
+                 LEFT JOIN assignment_marks am ON am.assignment_id = a.id
+                   AND EXISTS (
+                       SELECT 1 FROM students s
+                       WHERE s.id = am.student_id AND s.deleted_at IS NULL
+                   )
+                 WHERE a.course_id = $1 AND a.id = $2 AND a.assessment_type = $3
+                 ORDER BY am.student_id`,
+                [courseId, selectedTestId, selectedAssessmentType]
+            )
+            : Promise.resolve({ rows: [] });
 
-        const [courseResult, studentsResult, attendanceResult, holidaysResult] = await Promise.all([
+        const [courseResult, studentsResult, attendanceResult, holidaysResult, selectedTestResult] = await Promise.all([
             pool.query(
                 `SELECT c.id, c.name, c.course_code, c.class_type, c.intermediate_year,
                         c.class_shift, c.program, c.semester, c.section,
@@ -554,7 +580,7 @@ const downloadMonthlyAttendancePdf = async (req, res) => {
                 [courseId, req.user.id]
             ),
             pool.query(
-                `SELECT id, roll_number, name
+                `SELECT id, roll_number, name, december_test_marks
                  FROM students
                  WHERE course_id = $1 AND deleted_at IS NULL
                  ORDER BY roll_number::INTEGER`,
@@ -575,7 +601,8 @@ const downloadMonthlyAttendancePdf = async (req, res) => {
                  WHERE course_id = $1 AND holiday_date BETWEEN $2::date AND $3::date
                  ORDER BY holiday_date`,
                 [courseId, fromDate, toDate]
-            )
+            ),
+            selectedTestQuery
         ]);
 
         if (!courseResult.rows.length) {
@@ -583,13 +610,49 @@ const downloadMonthlyAttendancePdf = async (req, res) => {
         }
 
         const course = courseResult.rows[0];
+        let selectedTest = null;
+        let testMarks = [];
+        if (selectedTestKey === "december") {
+            if (String(course.class_type || "").toLowerCase() !== "intermediate") {
+                return res.status(400).json({ success: false, message: "December Test is only available for intermediate classes" });
+            }
+            selectedTest = {
+                key: "december",
+                type: "december",
+                id: null,
+                name: "December Test",
+                maxMarks: 100,
+                monthNumber: 12
+            };
+            testMarks = studentsResult.rows
+                .filter(student => student.december_test_marks !== null && student.december_test_marks !== undefined)
+                .map(student => ({ student_id: Number(student.id), marks: student.december_test_marks }));
+        } else if (selectedAssessmentType) {
+            if (!selectedTestResult.rows.length) {
+                return res.status(400).json({ success: false, message: "The selected test was not found for this class" });
+            }
+            const test = selectedTestResult.rows[0];
+            selectedTest = {
+                key: selectedTestKey,
+                type: selectedTestParts[0],
+                id: Number(test.id),
+                name: test.name,
+                maxMarks: Number(test.max_marks),
+                monthNumber: test.month_number === null ? null : Number(test.month_number)
+            };
+            testMarks = selectedTestResult.rows
+                .filter(mark => mark.student_id !== null && mark.marks !== null && mark.marks !== undefined)
+                .map(mark => ({ student_id: Number(mark.student_id), marks: mark.marks }));
+        }
         const spec = buildMonthlyAttendancePdfSpec({
             course,
             students: studentsResult.rows,
             records: attendanceResult.rows,
             holidays: holidaysResult.rows,
             selectedMonth,
-            teacherName: course.teacher_name
+            teacherName: course.teacher_name,
+            selectedTest,
+            testMarks
         });
         const pdfBuffer = await createMonthlyAttendancePdf(spec);
         const safeName = String(course.course_code || course.name || "course")

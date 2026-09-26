@@ -4,6 +4,7 @@ const {
     createCourse,
     getMyCourses,
     getCourseStudents,
+    getAttendanceExportTests,
     updateStudent,
     updateCourseRollNumbers,
     getDeletedStudents,
@@ -67,6 +68,8 @@ router.get(
     "/:courseId/students",
     getCourseStudents
 );
+
+router.get("/:courseId/export-tests", getAttendanceExportTests);
 
 router.put("/:courseId/students/roll-numbers", updateCourseRollNumbers);
 router.get("/:courseId/students/deleted", getDeletedStudents);
