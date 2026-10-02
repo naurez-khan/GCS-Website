@@ -49,7 +49,7 @@
                     ...student,
                     selected_test_marks: selectedMark,
                     test_percentage: selectedMark !== null && Number.isFinite(selectedMark) && testMaximum > 0
-                        ? Number(((selectedMark / testMaximum) * 100).toFixed(1))
+                        ? selectedMark / testMaximum
                         : null
                 };
             })
@@ -192,8 +192,8 @@
             }
             if (row > 6) worksheet.getRow(row).height = 18;
         }
-        worksheet.getColumn(4).numFmt = '0.0"%"';
-        worksheet.getColumn(9).numFmt = '0.0"%"';
+        worksheet.getColumn(4).numFmt = "0.0%";
+        worksheet.getColumn(9).numFmt = "0.0%";
         for (const address of ["A32", "C32", "F32", "H32"]) {
             worksheet.getCell(address).font = { name: "Arial", size: 9, bold: true };
         }
