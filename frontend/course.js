@@ -3426,19 +3426,6 @@ function closeIntermediateAwardExport() {
     }
 }
 
-async function loadIntermediateAwardAttendance() {
-    const response = await fetch(`/api/attendance/course/${courseId}`, {
-        method: "GET",
-        credentials: "include",
-        cache: "no-store"
-    });
-    const data = await response.json();
-    if (!response.ok || !data.success) {
-        throw new Error(data.message || "Could not load attendance for the award list");
-    }
-    return data.attendance || [];
-}
-
 async function downloadIntermediateAwardList() {
     const selectedTest = intermediateAwardTests().find(test => test.key === intermediateAwardTest?.value);
     if (!selectedTest) {
@@ -3460,13 +3447,11 @@ async function downloadIntermediateAwardList() {
         if (typeof ExcelJS === "undefined" || typeof AwardList === "undefined") {
             throw new Error("Excel export library failed to load. Refresh the page and try again.");
         }
-        const attendanceRecords = await loadIntermediateAwardAttendance();
         const spec = AwardList.buildAwardListSpec({
             students,
             course: currentCourse || {},
             teacherName: teacherName?.textContent || "",
-            selectedTest,
-            attendanceRecords
+            selectedTest
         });
         const workbook = AwardList.createWorkbook(ExcelJS, spec);
         const buffer = await workbook.xlsx.writeBuffer();

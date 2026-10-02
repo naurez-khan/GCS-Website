@@ -17,7 +17,7 @@
         "Sr. No.",
         "College Roll No.",
         "Selected Test Obt. Marks",
-        "Attendance Percentage"
+        "Percentage"
     ]);
 
     const numericRollSort = (first, second) => String(first.roll_number).localeCompare(
@@ -32,36 +32,27 @@
         students = [],
         course = {},
         teacherName = "",
-        selectedTest = null,
-        attendanceRecords = []
+        selectedTest = null
     }) {
         const isIntermediate = String(course.class_type || "").toLowerCase() === "intermediate";
-        const lectureDates = new Set(attendanceRecords
-            .filter(record => ["present", "absent"].includes(String(record.status || "").toLowerCase()))
-            .map(record => String(record.attendance_date || "").slice(0, 10))
-            .filter(Boolean));
-        const attendedDatesByStudent = new Map();
-        attendanceRecords.forEach(record => {
-            const status = String(record.status || "").toLowerCase();
-            const date = String(record.attendance_date || "").slice(0, 10);
-            const studentId = Number(record.student_id);
-            if (!lectureDates.has(date) || !["present", "leave"].includes(status)) return;
-            if (!attendedDatesByStudent.has(studentId)) attendedDatesByStudent.set(studentId, new Set());
-            attendedDatesByStudent.get(studentId).add(date);
-        });
+        const testMaximum = Number(selectedTest?.maxMarks) || 0;
         const selectedMarks = new Map((selectedTest?.marks || [])
             .filter(mark => mark && mark.marks !== null && mark.marks !== undefined && mark.marks !== "")
-            .map(mark => [Number(mark.student_id), mark.marks]));
+            .map(mark => [Number(mark.student_id), Number(mark.marks)])
+            .filter(([, marks]) => Number.isFinite(marks)));
         const sortedStudents = students
-            .map(student => ({
-                ...student,
-                selected_test_marks: selectedMarks.has(Number(student.id))
+            .map(student => {
+                const selectedMark = selectedMarks.has(Number(student.id))
                     ? selectedMarks.get(Number(student.id))
-                    : null,
-                attendance_percentage: lectureDates.size
-                    ? Number((((attendedDatesByStudent.get(Number(student.id))?.size || 0) / lectureDates.size) * 100).toFixed(1))
-                    : null
-            }))
+                    : null;
+                return {
+                    ...student,
+                    selected_test_marks: selectedMark,
+                    test_percentage: selectedMark !== null && Number.isFinite(selectedMark) && testMaximum > 0
+                        ? Number(((selectedMark / testMaximum) * 100).toFixed(1))
+                        : null
+                };
+            })
             .sort(numericRollSort);
         const pages = [];
         for (let index = 0; index < Math.max(1, sortedStudents.length); index += 50) {
@@ -71,7 +62,7 @@
             title: "Govt.Graduate College Civil Lines Sheikhupura",
             reportTitle: "Award List",
             headers: isIntermediate
-                ? ["Sr. No.", "College Roll No.", `${selectedTest?.name || "Selected Test"} Obt. Marks`, "Attendance Percentage"]
+                ? ["Sr. No.", "College Roll No.", `${selectedTest?.name || "Selected Test"} Obt. Marks`, "Percentage"]
                 : [...HEADERS],
             isIntermediate,
             rollNumberType: normalizeRollNumberType(course.roll_number_type),
@@ -87,7 +78,7 @@
             midtermMaximum: Number(course.midterm_max_marks) || 25,
             sessionalMaximum: 15,
             selectedTest,
-            testMaximum: Number(selectedTest?.maxMarks) || 0,
+            testMaximum,
             pages,
             filename: `${String(course.name || "Course").replace(/[^a-z0-9]/gi, "_")}_Award_List.xlsx`
         };
@@ -100,7 +91,7 @@
                 serial,
                 roll,
                 student ? (student.selected_test_marks ?? "A") : null,
-                student?.attendance_percentage ?? null
+                student ? (student.test_percentage ?? "A") : null
             ];
         }
         return [
@@ -151,7 +142,7 @@
         worksheet.mergeCells("C5:D5");
         worksheet.getCell("C5").value = spec.subject;
         worksheet.mergeCells("F5:I5");
-        worksheet.getCell("F5").value = `${spec.examinationFor} /${spec.testMaximum} & Attendance %`;
+        worksheet.getCell("F5").value = `${spec.examinationFor} /${spec.testMaximum} & Percentage`;
 
         spec.headers.forEach((header, index) => {
             worksheet.getCell(6, index + 1).value = header;

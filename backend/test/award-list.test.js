@@ -10,10 +10,10 @@ const students = [
 
 test("uses the award-list column names from the supplied register", () => {
     assert.deepEqual(HEADERS, ["Sr. No.", "PU Roll No.", "College Roll No.", "Mid Obt. Marks", "Sessional Obt. Marks"]);
-    assert.deepEqual(INTERMEDIATE_HEADERS, ["Sr. No.", "College Roll No.", "Selected Test Obt. Marks", "Attendance Percentage"]);
+    assert.deepEqual(INTERMEDIATE_HEADERS, ["Sr. No.", "College Roll No.", "Selected Test Obt. Marks", "Percentage"]);
 });
 
-test("creates the Intermediate award list with selected-test marks and attendance percentage", async () => {
+test("creates the Intermediate award list with selected-test marks and test percentage", async () => {
     const intermediateStudents = [
         { id: 1, roll_number: "302" },
         { id: 2, roll_number: "301" }
@@ -33,19 +33,13 @@ test("creates the Intermediate award list with selected-test marks and attendanc
             name: "Class Test 1",
             maxMarks: 20,
             marks: [{ student_id: 1, marks: 16 }]
-        },
-        attendanceRecords: [
-            { student_id: 1, attendance_date: "2026-09-01", status: "present" },
-            { student_id: 2, attendance_date: "2026-09-01", status: "absent" },
-            { student_id: 1, attendance_date: "2026-09-02", status: "leave" },
-            { student_id: 2, attendance_date: "2026-09-02", status: "present" }
-        ]
+        }
     });
 
     assert.equal(spec.isIntermediate, true);
-    assert.deepEqual(spec.headers, ["Sr. No.", "College Roll No.", "Class Test 1 Obt. Marks", "Attendance Percentage"]);
-    assert.deepEqual(studentRow(spec.pages[0][0], 1, "pu", { intermediate: true }), [1, "301", "A", 50]);
-    assert.deepEqual(studentRow(spec.pages[0][1], 2, "pu", { intermediate: true }), [2, "302", 16, 100]);
+    assert.deepEqual(spec.headers, ["Sr. No.", "College Roll No.", "Class Test 1 Obt. Marks", "Percentage"]);
+    assert.deepEqual(studentRow(spec.pages[0][0], 1, "pu", { intermediate: true }), [1, "301", "A", "A"]);
+    assert.deepEqual(studentRow(spec.pages[0][1], 2, "pu", { intermediate: true }), [2, "302", 16, 80]);
 
     const workbook = createWorkbook(ExcelJS, spec);
     const reopened = new ExcelJS.Workbook();
@@ -53,10 +47,11 @@ test("creates the Intermediate award list with selected-test marks and attendanc
     const sheet = reopened.getWorksheet("Award List");
     assert.equal(sheet.getCell("B6").value, "College Roll No.");
     assert.equal(sheet.getCell("C6").value, "Class Test 1 Obt. Marks");
-    assert.equal(sheet.getCell("D6").value, "Attendance Percentage");
+    assert.equal(sheet.getCell("D6").value, "Percentage");
     assert.equal(sheet.getCell("B7").value, "301");
     assert.equal(sheet.getCell("C7").value, "A");
-    assert.equal(sheet.getCell("D7").value, 50);
+    assert.equal(sheet.getCell("D7").value, "A");
+    assert.equal(sheet.getCell("D8").value, 80);
     assert.equal(sheet.getCell("G6").value, "College Roll No.");
     assert.equal(sheet.pageSetup.printArea, "A1:I32");
 });
