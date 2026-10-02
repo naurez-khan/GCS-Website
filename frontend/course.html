@@ -16,7 +16,7 @@
 
     <link
         rel="stylesheet"
-        href="/course.css?v=20260926-1"
+        href="/course.css?v=20261002-1"
     >
     <link rel="stylesheet" href="/brand.css?v=20260824-33">
     <script defer src="/ui-icons.js?v=20260920-1"></script>
@@ -396,6 +396,34 @@
 
             </div>
 
+            <div id="intermediateAwardExportPanel" class="attendance-editor export-panel hidden">
+                <div class="export-panel-heading">
+                    <h3>Intermediate Award List</h3>
+                    <p>Select the test to include. The award list will show College Roll No., the selected test marks, and attendance percentage.</p>
+                </div>
+
+                <div class="intermediate-award-export-options">
+                    <label class="attendance-export-test">
+                        Test
+                        <select id="intermediateAwardTest" required>
+                            <option value="">Select a test</option>
+                        </select>
+                    </label>
+                </div>
+
+                <div class="panel-actions export-panel-actions intermediate-award-export-actions">
+                    <button id="downloadIntermediateAwardBtn" class="primary-btn excel-btn" type="button">
+                        <svg class="excel-icon" viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M4 3h10a2 2 0 0 1 2 2v2h4v14H8v-3H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z" fill="currentColor"/>
+                            <path d="M16 9v3h2V9h-2Zm0 5v3h2v-3h-2Zm-6-5 1.45 2.5L13 9h2l-2.45 4L15 17h-2l-1.55-2.55L10 17H8l2.4-4L8 9h2Z" fill="#217346"/>
+                        </svg>
+                        <span>Download Award List</span>
+                    </button>
+                    <button id="cancelIntermediateAwardBtn" class="secondary-btn" type="button">Cancel</button>
+                </div>
+                <div id="intermediateAwardMessage" class="message" role="status" aria-live="polite"></div>
+            </div>
+
 
             <div
                 id="marksLoading"
@@ -649,7 +677,7 @@
     ========================= -->
 
     <script src="/spreadsheet-libs.js?v=20260917-1"></script>
-    <script src="/award-list.js?v=20260909-2"></script>
+    <script src="/award-list.js?v=20261002-1"></script>
     <script src="/attendance-register.js?v=20260926-2"></script>
     <script src="/absent-register.js?v=20260909-1"></script>
 
@@ -658,7 +686,7 @@
          COURSE JAVASCRIPT
     ========================= -->
 
-    <script src="/course.js?v=20260926-2"></script>
+    <script src="/course.js?v=20261002-1"></script>
 
 </body>
 

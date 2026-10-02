@@ -744,6 +744,29 @@ body {
     gap: 16px;
 }
 
+.intermediate-award-export-options {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+}
+
+.intermediate-award-export-actions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: stretch;
+}
+
+.intermediate-award-export-actions button {
+    min-width: 0;
+    justify-content: center;
+}
+
+@media (max-width: 700px) {
+    .intermediate-award-export-actions {
+        grid-template-columns: 1fr;
+    }
+}
+
 .attendance-export-test {
     display: grid;
     gap: 8px;

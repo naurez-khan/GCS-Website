@@ -159,6 +159,11 @@ const downloadExcelBtn =
 
 const downloadMarksExcelBtn =
     document.getElementById("downloadMarksExcelBtn");
+const intermediateAwardExportPanel = document.getElementById("intermediateAwardExportPanel");
+const intermediateAwardTest = document.getElementById("intermediateAwardTest");
+const downloadIntermediateAwardBtn = document.getElementById("downloadIntermediateAwardBtn");
+const cancelIntermediateAwardBtn = document.getElementById("cancelIntermediateAwardBtn");
+const intermediateAwardMessage = document.getElementById("intermediateAwardMessage");
 
 const attendanceExportMonth =
     document.getElementById("attendanceExportMonth");
@@ -566,9 +571,7 @@ function applyMarksSetting(course) {
 
     const marksExportLabel = downloadMarksExcelBtn?.querySelector("span");
     if (marksExportLabel) {
-        marksExportLabel.textContent = course.class_type === "intermediate"
-            ? "Download Excel"
-            : "Download Award List";
+        marksExportLabel.textContent = "Download Award List";
     }
 
 
@@ -3344,36 +3347,175 @@ if (downloadMarksExcelBtn) {
 
 }
 
+if (downloadIntermediateAwardBtn) {
+    downloadIntermediateAwardBtn.addEventListener("click", downloadIntermediateAwardList);
+}
+
+if (cancelIntermediateAwardBtn) {
+    cancelIntermediateAwardBtn.addEventListener("click", closeIntermediateAwardExport);
+}
+
+function intermediateAwardTests() {
+    const classTests = courseClassTests.map(test => ({
+        key: `class:${test.id}`,
+        name: test.name || "Class Test",
+        maxMarks: Number(test.max_marks) || 0,
+        marks: classTestMarks
+            .filter(mark => Number(mark.class_test_id) === Number(test.id))
+            .map(mark => ({
+                student_id: Number(mark.student_id),
+                marks: mark.marks === null || mark.marks === undefined || mark.marks === "" ? null : Number(mark.marks)
+            }))
+    }));
+    const monthlyTests = courseMonthlyTests.map(test => ({
+        key: `monthly:${test.id}`,
+        name: test.name || "Monthly Test",
+        maxMarks: Number(test.max_marks) || 0,
+        marks: monthlyTestMarks
+            .filter(mark => Number(mark.monthly_test_id) === Number(test.id))
+            .map(mark => ({
+                student_id: Number(mark.student_id),
+                marks: mark.marks === null || mark.marks === undefined || mark.marks === "" ? null : Number(mark.marks)
+            }))
+    }));
+    return [
+        ...classTests,
+        ...monthlyTests,
+        {
+            key: "december",
+            name: "December Test",
+            maxMarks: 100,
+            marks: students.map(student => ({
+                student_id: Number(student.id),
+                marks: student.december_test_marks === null || student.december_test_marks === undefined || student.december_test_marks === ""
+                    ? null
+                    : Number(student.december_test_marks)
+            }))
+        },
+        {
+            key: "preboard",
+            name: "Preboard",
+            maxMarks: 100,
+            marks: students.map(student => ({
+                student_id: Number(student.id),
+                marks: student.preboard_marks === null || student.preboard_marks === undefined || student.preboard_marks === ""
+                    ? null
+                    : Number(student.preboard_marks)
+            }))
+        }
+    ];
+}
+
+function openIntermediateAwardExport() {
+    const tests = intermediateAwardTests();
+    if (!intermediateAwardTest || !intermediateAwardExportPanel) return;
+    intermediateAwardTest.innerHTML = tests.map(test =>
+        `<option value="${escapeHtml(test.key)}">${escapeHtml(test.name)} (${escapeHtml(test.maxMarks)} marks)</option>`
+    ).join("");
+    intermediateAwardExportPanel.classList.remove("hidden");
+    intermediateAwardMessage.textContent = "";
+    intermediateAwardMessage.className = "message";
+    intermediateAwardTest.focus();
+}
+
+function closeIntermediateAwardExport() {
+    intermediateAwardExportPanel?.classList.add("hidden");
+    if (intermediateAwardMessage) {
+        intermediateAwardMessage.textContent = "";
+        intermediateAwardMessage.className = "message";
+    }
+}
+
+async function loadIntermediateAwardAttendance() {
+    const response = await fetch(`/api/attendance/course/${courseId}`, {
+        method: "GET",
+        credentials: "include",
+        cache: "no-store"
+    });
+    const data = await response.json();
+    if (!response.ok || !data.success) {
+        throw new Error(data.message || "Could not load attendance for the award list");
+    }
+    return data.attendance || [];
+}
+
+async function downloadIntermediateAwardList() {
+    const selectedTest = intermediateAwardTests().find(test => test.key === intermediateAwardTest?.value);
+    if (!selectedTest) {
+        intermediateAwardTest?.focus();
+        return;
+    }
+
+    const buttonLabel = downloadIntermediateAwardBtn?.querySelector("span");
+    const originalLabel = buttonLabel?.textContent;
+    if (downloadIntermediateAwardBtn) downloadIntermediateAwardBtn.disabled = true;
+    if (buttonLabel) buttonLabel.textContent = "Preparing Award List…";
+    if (intermediateAwardMessage) {
+        intermediateAwardMessage.textContent = "";
+        intermediateAwardMessage.className = "message";
+    }
+
+    try {
+        await SpreadsheetLibraries.ensureExcelJs();
+        if (typeof ExcelJS === "undefined" || typeof AwardList === "undefined") {
+            throw new Error("Excel export library failed to load. Refresh the page and try again.");
+        }
+        const attendanceRecords = await loadIntermediateAwardAttendance();
+        const spec = AwardList.buildAwardListSpec({
+            students,
+            course: currentCourse || {},
+            teacherName: teacherName?.textContent || "",
+            selectedTest,
+            attendanceRecords
+        });
+        const workbook = AwardList.createWorkbook(ExcelJS, spec);
+        const buffer = await workbook.xlsx.writeBuffer();
+        const blob = new Blob([buffer], {
+            type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = spec.filename;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        if (intermediateAwardMessage) {
+            intermediateAwardMessage.textContent = "Intermediate award list downloaded.";
+            intermediateAwardMessage.className = "message success";
+        }
+    } catch (error) {
+        console.error("Intermediate award-list export error:", error);
+        if (intermediateAwardMessage) {
+            intermediateAwardMessage.textContent = error.message || "Could not create the award list.";
+            intermediateAwardMessage.className = "message error";
+        }
+    } finally {
+        if (downloadIntermediateAwardBtn) downloadIntermediateAwardBtn.disabled = false;
+        if (buttonLabel) buttonLabel.textContent = originalLabel;
+    }
+}
+
 
 async function downloadMarksExcel() {
 
     const isIntermediate = currentCourse?.class_type === "intermediate";
 
+    if (!students.length) {
+        alert("No students found for this course.");
+        return;
+    }
+
+    if (isIntermediate) {
+        openIntermediateAwardExport();
+        return;
+    }
+
     try {
-        if (isIntermediate) await SpreadsheetLibraries.ensureXlsx();
-        else await SpreadsheetLibraries.ensureExcelJs();
+        await SpreadsheetLibraries.ensureExcelJs();
     } catch (error) {
         console.error("Excel export library error:", error);
-    }
-
-    if (isIntermediate && typeof XLSX === "undefined") {
-
-        alert(
-            "Excel export library failed to load. Check your internet connection."
-        );
-
-        return;
-
-    }
-
-    if (!students.length) {
-
-        alert(
-            "No students found for this course."
-        );
-
-        return;
-
     }
 
     if (!isIntermediate) {
