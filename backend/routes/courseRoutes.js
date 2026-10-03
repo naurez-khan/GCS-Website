@@ -15,6 +15,7 @@ const {
     getCourseQuizzes,
     updateQuiz,
     getCourseMarks,
+    downloadIntermediateAwardListPdf,
     updateCourseMarks,
     updateCourseSettings,
     importStudents,
@@ -133,6 +134,11 @@ router.put(
 router.get(
     "/:courseId/marks",
     getCourseMarks
+);
+
+router.get(
+    "/:courseId/award-list.pdf",
+    downloadIntermediateAwardListPdf
 );
 
 

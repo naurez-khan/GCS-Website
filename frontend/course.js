@@ -162,6 +162,7 @@ const downloadMarksExcelBtn =
 const intermediateAwardExportPanel = document.getElementById("intermediateAwardExportPanel");
 const intermediateAwardTest = document.getElementById("intermediateAwardTest");
 const downloadIntermediateAwardBtn = document.getElementById("downloadIntermediateAwardBtn");
+const downloadIntermediateAwardPdfBtn = document.getElementById("downloadIntermediateAwardPdfBtn");
 const cancelIntermediateAwardBtn = document.getElementById("cancelIntermediateAwardBtn");
 const intermediateAwardMessage = document.getElementById("intermediateAwardMessage");
 
@@ -3351,6 +3352,10 @@ if (downloadIntermediateAwardBtn) {
     downloadIntermediateAwardBtn.addEventListener("click", downloadIntermediateAwardList);
 }
 
+if (downloadIntermediateAwardPdfBtn) {
+    downloadIntermediateAwardPdfBtn.addEventListener("click", downloadIntermediateAwardListPdf);
+}
+
 if (cancelIntermediateAwardBtn) {
     cancelIntermediateAwardBtn.addEventListener("click", closeIntermediateAwardExport);
 }
@@ -3379,8 +3384,8 @@ function intermediateAwardTests() {
             }))
     }));
     return [
-        ...classTests,
         ...monthlyTests,
+        ...classTests,
         {
             key: "december",
             name: "December Test",
@@ -3413,6 +3418,7 @@ function openIntermediateAwardExport() {
         `<option value="${escapeHtml(test.key)}">${escapeHtml(test.name)} (${escapeHtml(test.maxMarks)} marks)</option>`
     ).join("");
     intermediateAwardExportPanel.classList.remove("hidden");
+    downloadMarksExcelBtn?.setAttribute("aria-expanded", "true");
     intermediateAwardMessage.textContent = "";
     intermediateAwardMessage.className = "message";
     intermediateAwardTest.focus();
@@ -3420,9 +3426,63 @@ function openIntermediateAwardExport() {
 
 function closeIntermediateAwardExport() {
     intermediateAwardExportPanel?.classList.add("hidden");
+    downloadMarksExcelBtn?.setAttribute("aria-expanded", "false");
     if (intermediateAwardMessage) {
         intermediateAwardMessage.textContent = "";
         intermediateAwardMessage.className = "message";
+    }
+}
+
+async function downloadIntermediateAwardListPdf() {
+    const selectedTest = intermediateAwardTests().find(test => test.key === intermediateAwardTest?.value);
+    if (!selectedTest) {
+        intermediateAwardTest?.focus();
+        return;
+    }
+
+    const buttonLabel = downloadIntermediateAwardPdfBtn?.querySelector("span");
+    const originalLabel = buttonLabel?.textContent;
+    if (downloadIntermediateAwardPdfBtn) downloadIntermediateAwardPdfBtn.disabled = true;
+    if (buttonLabel) buttonLabel.textContent = "Preparing PDF…";
+    if (intermediateAwardMessage) {
+        intermediateAwardMessage.textContent = "";
+        intermediateAwardMessage.className = "message";
+    }
+
+    try {
+        const response = await fetch(
+            `/api/courses/${encodeURIComponent(courseId)}/award-list.pdf?test=${encodeURIComponent(selectedTest.key)}`,
+            { credentials: "include", cache: "no-store" }
+        );
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.message || "Could not create the award-list PDF");
+        }
+        const blob = await response.blob();
+        const disposition = response.headers.get("Content-Disposition") || "";
+        const filename = disposition.match(/filename="([^"]+)"/)?.[1]
+            || `${String(currentCourse?.name || "Intermediate").replace(/[^a-z0-9_-]+/gi, "-")}-Award-List.pdf`;
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        if (intermediateAwardMessage) {
+            intermediateAwardMessage.textContent = "Intermediate award-list PDF downloaded.";
+            intermediateAwardMessage.className = "message success";
+        }
+    } catch (error) {
+        console.error("Intermediate award-list PDF error:", error);
+        if (intermediateAwardMessage) {
+            intermediateAwardMessage.textContent = error.message || "Could not create the award-list PDF.";
+            intermediateAwardMessage.className = "message error";
+        }
+    } finally {
+        if (downloadIntermediateAwardPdfBtn) downloadIntermediateAwardPdfBtn.disabled = false;
+        if (buttonLabel) buttonLabel.textContent = originalLabel;
     }
 }
 

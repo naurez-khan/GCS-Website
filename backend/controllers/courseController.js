@@ -1,6 +1,7 @@
 const pool = require("../config/db");
 const crypto = require("node:crypto");
 const { backfillStudentAbsences } = require("../services/attendanceBackfill");
+const { buildAwardListPdfSpec, createAwardListPdf } = require("../lib/awardListPdf");
 
 
 // =========================
@@ -3057,6 +3058,102 @@ const importStudents = async (req, res) => {
 // EXPORTS
 // =========================
 
+const downloadIntermediateAwardListPdf = async (req, res) => {
+    try {
+        const courseId = Number(req.params.courseId);
+        const selectedTestKey = String(req.query.test || "").trim();
+        if (!Number.isInteger(courseId) || courseId < 1) {
+            return res.status(400).json({ success: false, message: "A valid class is required" });
+        }
+        if (!/^(monthly|class):[0-9]+$/.test(selectedTestKey) && !["december", "preboard"].includes(selectedTestKey)) {
+            return res.status(400).json({ success: false, message: "A valid month or test is required" });
+        }
+
+        const [courseResult, studentsResult] = await Promise.all([
+            pool.query(
+                `SELECT c.id, c.name, c.course_code, c.class_type, c.intermediate_year,
+                        c.class_shift, c.program, c.semester, c.section, c.roll_number_type,
+                        u.name AS teacher_name
+                 FROM courses c
+                 JOIN users u ON u.id = c.teacher_id
+                 WHERE c.id = $1 AND c.teacher_id = $2`,
+                [courseId, req.user.id]
+            ),
+            pool.query(
+                `SELECT id, roll_number, name, december_test_marks, preboard_marks
+                 FROM students
+                 WHERE course_id = $1 AND deleted_at IS NULL
+                 ORDER BY roll_number::INTEGER`,
+                [courseId]
+            )
+        ]);
+
+        if (!courseResult.rows.length) {
+            return res.status(404).json({ success: false, message: "Class not found or access denied" });
+        }
+        const course = courseResult.rows[0];
+        if (String(course.class_type || "").toLowerCase() !== "intermediate") {
+            return res.status(400).json({ success: false, message: "Award-list PDF is only available for Intermediate classes" });
+        }
+
+        let selectedTest;
+        if (["december", "preboard"].includes(selectedTestKey)) {
+            const isDecember = selectedTestKey === "december";
+            const marksColumn = isDecember ? "december_test_marks" : "preboard_marks";
+            selectedTest = {
+                key: selectedTestKey,
+                name: isDecember ? "December Test" : "Preboard",
+                maxMarks: 100,
+                marks: studentsResult.rows
+                    .filter(student => student[marksColumn] !== null && student[marksColumn] !== undefined)
+                    .map(student => ({ student_id: Number(student.id), marks: Number(student[marksColumn]) }))
+            };
+        } else {
+            const [type, rawId] = selectedTestKey.split(":");
+            const assessmentType = type === "monthly" ? "monthly_test" : "class_test";
+            const testId = Number(rawId);
+            const testResult = await pool.query(
+                `SELECT a.id, a.name, a.max_marks, a.month_number, am.student_id, am.marks
+                 FROM assignments a
+                 LEFT JOIN assignment_marks am ON am.assignment_id = a.id
+                 WHERE a.course_id = $1 AND a.id = $2 AND a.assessment_type = $3
+                 ORDER BY am.student_id`,
+                [courseId, testId, assessmentType]
+            );
+            if (!testResult.rows.length) {
+                return res.status(400).json({ success: false, message: "The selected month or test was not found" });
+            }
+            const test = testResult.rows[0];
+            selectedTest = {
+                key: selectedTestKey,
+                name: test.name,
+                maxMarks: Number(test.max_marks),
+                marks: testResult.rows
+                    .filter(mark => mark.student_id !== null && mark.marks !== null && mark.marks !== undefined)
+                    .map(mark => ({ student_id: Number(mark.student_id), marks: Number(mark.marks) }))
+            };
+        }
+
+        const spec = buildAwardListPdfSpec({
+            students: studentsResult.rows,
+            course,
+            teacherName: course.teacher_name,
+            selectedTest
+        });
+        const pdfBuffer = await createAwardListPdf(spec);
+        const safeName = String(course.name || "Intermediate")
+            .replace(/[^a-z0-9_-]+/gi, "-")
+            .replace(/^-+|-+$/g, "") || "Intermediate";
+        res.setHeader("Content-Type", "application/pdf");
+        res.setHeader("Content-Disposition", `attachment; filename="${safeName}-Award-List.pdf"`);
+        res.setHeader("Content-Length", pdfBuffer.length);
+        return res.send(pdfBuffer);
+    } catch (error) {
+        console.error("Intermediate award-list PDF error:", error);
+        return res.status(500).json({ success: false, message: "Could not create the award-list PDF" });
+    }
+};
+
 module.exports = {
 
     createCourse,
@@ -3085,6 +3182,8 @@ module.exports = {
     updateQuiz,
 
     getCourseMarks,
+
+    downloadIntermediateAwardListPdf,
 
     updateCourseMarks,
 

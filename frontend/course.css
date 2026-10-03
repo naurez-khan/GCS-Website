@@ -738,6 +738,30 @@ body {
     font-weight: 700;
 }
 
+.award-list-open-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border-color: rgba(142, 9, 20, .35);
+    background: #fff;
+    color: #7e0d16;
+    box-shadow: 0 7px 18px rgba(65, 2, 8, .08);
+    white-space: nowrap;
+}
+
+.award-list-open-btn:hover,
+.award-list-open-btn:focus-visible {
+    border-color: #8e0914;
+    background: #fff7f6;
+}
+
+.award-list-download-icon {
+    width: 20px;
+    height: 20px;
+    flex: 0 0 auto;
+}
+
 .monthly-export-options {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
@@ -752,7 +776,7 @@ body {
 
 .intermediate-award-export-actions {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
     align-items: stretch;
 }
 
@@ -762,6 +786,10 @@ body {
 }
 
 @media (max-width: 700px) {
+    .award-list-open-btn {
+        width: 100%;
+    }
+
     .intermediate-award-export-actions {
         grid-template-columns: 1fr;
     }

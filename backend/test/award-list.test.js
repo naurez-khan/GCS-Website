@@ -2,6 +2,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const ExcelJS = require("exceljs");
 const { HEADERS, INTERMEDIATE_HEADERS, buildAwardListSpec, createWorkbook, studentRow } = require("../../frontend/award-list");
+const { buildAwardListPdfSpec, createAwardListPdf } = require("../lib/awardListPdf");
 
 const students = [
     { roll_number: "102", midterm_marks: 18, final_marks: 12 },
@@ -55,6 +56,39 @@ test("creates the Intermediate award list with selected-test marks and test perc
     assert.equal(sheet.getCell("D8").numFmt, "0.0%");
     assert.equal(sheet.getCell("G6").value, "College Roll No.");
     assert.equal(sheet.pageSetup.printArea, "A1:I32");
+});
+
+test("creates a printable Intermediate award-list PDF with 50 students per page", async () => {
+    const intermediateStudents = Array.from({ length: 51 }, (_, index) => ({
+        id: index + 1,
+        roll_number: String(500 + index)
+    }));
+    const spec = buildAwardListPdfSpec({
+        students: intermediateStudents,
+        course: {
+            name: "Calculus II",
+            class_type: "intermediate",
+            intermediate_year: "1st Year",
+            section: "C2",
+            class_shift: "morning"
+        },
+        teacherName: "Naurez",
+        selectedTest: {
+            key: "monthly:8",
+            name: "August Monthly Test",
+            maxMarks: 25,
+            marks: [{ student_id: 1, marks: 12 }]
+        }
+    });
+    assert.equal(spec.pages.length, 2);
+    assert.equal(spec.pages[0][0].test_percentage, 0.48);
+    assert.equal(spec.pages[0][1].selected_test_marks, null);
+
+    const buffer = await createAwardListPdf(spec);
+    assert.equal(buffer.subarray(0, 4).toString(), "%PDF");
+    assert.ok(buffer.length > 5000);
+    assert.match(buffer.toString("latin1"), /\/Count 2/);
+    assert.match(buffer.toString("latin1"), /\/MediaBox \[0 0 595\.28 841\.89\]/);
 });
 
 test("places each roll number in only the selected roll-number column", () => {
