@@ -175,9 +175,40 @@ body {
 
 
 .welcome h1 {
-    font-size: 32px;
+    font-size: 29px;
 
     margin-bottom: 8px;
+
+    line-height: 1.14;
+
+    text-align: center;
+}
+
+
+#welcomeName {
+    display: block;
+
+    margin-top: 2px;
+
+    font-size: 1.14em;
+
+    overflow-wrap: anywhere;
+}
+
+
+.welcome-label {
+    display: block;
+
+    font-size: .72em;
+
+    font-weight: 400;
+}
+
+
+.teacher-dashboard-page .welcome h1::after {
+    margin-right: auto;
+
+    margin-left: auto;
 }
 
 
@@ -1288,7 +1319,7 @@ input[type="number"]::-webkit-outer-spin-button {
 
 
     .welcome h1 {
-        font-size: 25px;
+        font-size: 23px;
     }
 
 
