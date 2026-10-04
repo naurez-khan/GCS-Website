@@ -3,6 +3,7 @@ const express = require("express");
 const {
     addTeacher,
     getTeachers,
+    updateTeacherName,
     addAdmin,
     getAdmins,
     viewTeacherDashboard,
@@ -50,6 +51,7 @@ router.get("/admins", authenticate, adminOnly, getAdmins);
 router.post("/teachers/:teacherId/view", authenticate, adminOnly, viewTeacherDashboard);
 router.post("/stop-viewing-teacher", authenticate, adminOnly, stopViewingTeacher);
 router.delete("/teachers/:teacherId", authenticate, adminOnly, deleteTeacher);
+router.patch("/teachers/:teacherId/name", authenticate, adminOnly, updateTeacherName);
 router.patch("/teachers/:teacherId/admin-access", authenticate, adminOnly, setTeacherAdminAccess);
 router.patch("/admins/:adminId/status", authenticate, adminOnly, setAdminStatus);
 router.get("/courses", authenticate, adminOnly, getTransferableCourses);

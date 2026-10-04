@@ -275,14 +275,6 @@ function displayCourses(courses) {
             </div>
         `);
 
-        infoItems.push(`
-            <div>
-                <strong>Shift:</strong>
-                ${course.class_shift === "evening" ? "Evening" : "Morning"}
-            </div>
-        `);
-
-
         // =========================
         // PROGRAM
         // =========================
@@ -345,6 +337,13 @@ function displayCourses(courses) {
             `);
 
         }
+
+        infoItems.push(`
+            <div>
+                <strong>Shift:</strong>
+                ${course.class_shift === "evening" ? "Evening" : "Morning"}
+            </div>
+        `);
 
 
         // =========================

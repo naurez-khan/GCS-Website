@@ -94,8 +94,28 @@
                 <div><h2>Teachers</h2><p class="muted">Current department accounts. Grant administrator access without creating another account.</p></div>
                 <div class="teacher-list-actions">
                     <button id="refreshBtn">Refresh</button>
+                    <button id="editTeacherNameBtn" type="button">Change Name</button>
                     <button id="removeTeacherBtn" class="danger">Delete Teacher</button>
                 </div>
+            </div>
+            <div id="teacherNamePanel" class="account-manager hidden">
+                <h3>Change Teacher Name</h3>
+                <p class="muted">Update the name shown across the teacher panel, classes, exports, and administration records.</p>
+                <form id="teacherNameForm" autocomplete="off">
+                    <label>
+                        Teacher
+                        <select id="teacherNameSelect" required></select>
+                    </label>
+                    <label>
+                        New name
+                        <input id="teacherNameInput" minlength="2" maxlength="100" required>
+                    </label>
+                    <div class="account-manager-actions">
+                        <button id="saveTeacherNameBtn" class="primary" type="submit">Save Name</button>
+                        <button id="cancelTeacherNameBtn" type="button">Cancel</button>
+                    </div>
+                    <div id="teacherNameMessage" class="notice hidden" role="status" aria-live="polite"></div>
+                </form>
             </div>
             <div id="teacherAccountPanel" class="account-manager hidden">
                 <h3 id="teacherAccountTitle">Permanently Delete Teacher</h3>
@@ -108,6 +128,7 @@
                     <button id="confirmTeacherAccountBtn" class="danger" type="button">Delete Permanently</button>
                     <button id="cancelTeacherAccountBtn" type="button">Cancel</button>
                 </div>
+                <div id="teacherAccountMessage" class="notice hidden" role="status" aria-live="polite"></div>
             </div>
             <div class="table-wrap">
                 <table>
@@ -118,6 +139,6 @@
         </section>
 
     </main>
-    <script src="/admin.js?v=20260917-1"></script>
+    <script src="/admin.js?v=20261004-2"></script>
 </body>
 </html>

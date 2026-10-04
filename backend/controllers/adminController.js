@@ -130,16 +130,20 @@ const getTeachers = async (req, res) => {
         const result = await pool.query(
             `
             SELECT
-                id,
-                name,
-                email,
-                role,
-                can_admin,
-                is_active,
-                created_at
-            FROM users
-            WHERE role = 'teacher'
-            ORDER BY name
+                u.id,
+                u.name,
+                u.email,
+                u.role,
+                u.can_admin,
+                u.is_active,
+                u.created_at,
+                COUNT(c.id)::integer AS course_count
+            FROM users u
+            LEFT JOIN courses c ON c.teacher_id = u.id
+            WHERE u.role = 'teacher'
+              AND u.is_active = TRUE
+            GROUP BY u.id
+            ORDER BY u.name
             `
         );
 
@@ -161,6 +165,41 @@ const getTeachers = async (req, res) => {
 
     }
 
+};
+
+const updateTeacherName = async (req, res) => {
+    try {
+        const teacherId = Number(req.params.teacherId);
+        const cleanName = String(req.body.name || "").trim().replace(/\s+/g, " ");
+
+        if (!Number.isInteger(teacherId) || teacherId < 1) {
+            return res.status(400).json({ success: false, message: "Choose a valid teacher" });
+        }
+        if (cleanName.length < 2 || cleanName.length > 100) {
+            return res.status(400).json({ success: false, message: "Teacher name must be between 2 and 100 characters" });
+        }
+
+        const result = await pool.query(
+            `UPDATE users
+             SET name = $1, updated_at = CURRENT_TIMESTAMP
+             WHERE id = $2 AND role = 'teacher' AND is_active = TRUE
+             RETURNING id, name, email, role, can_admin, is_active, created_at`,
+            [cleanName, teacherId]
+        );
+
+        if (!result.rows.length) {
+            return res.status(404).json({ success: false, message: "Active teacher not found" });
+        }
+
+        res.json({
+            success: true,
+            message: `Teacher name changed to ${cleanName}.`,
+            teacher: result.rows[0]
+        });
+    } catch (error) {
+        console.error("Update teacher name error:", error);
+        res.status(500).json({ success: false, message: "Server error" });
+    }
 };
 
 const getTransferableCourses = async (req, res) => {
@@ -754,6 +793,7 @@ const restoreClassBackup = async (req, res) => {
 module.exports = {
     addTeacher,
     getTeachers,
+    updateTeacherName,
     addAdmin,
     getAdmins,
     viewTeacherDashboard,

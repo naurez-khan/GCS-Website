@@ -20,6 +20,13 @@ const resetPasswordMessage = document.getElementById("resetPasswordMessage");
 const teacherAccountPanel = document.getElementById("teacherAccountPanel");
 const teacherAccountSelect = document.getElementById("teacherAccountSelect");
 const confirmTeacherAccountBtn = document.getElementById("confirmTeacherAccountBtn");
+const teacherAccountMessage = document.getElementById("teacherAccountMessage");
+const teacherNamePanel = document.getElementById("teacherNamePanel");
+const teacherNameForm = document.getElementById("teacherNameForm");
+const teacherNameSelect = document.getElementById("teacherNameSelect");
+const teacherNameInput = document.getElementById("teacherNameInput");
+const teacherNameMessage = document.getElementById("teacherNameMessage");
+const saveTeacherNameBtn = document.getElementById("saveTeacherNameBtn");
 const approvalRows = document.getElementById("approvalRows");
 const approvalMessage = document.getElementById("approvalMessage");
 let currentTeachers = [];
@@ -66,6 +73,8 @@ async function loadTeachers() {
                 </button></td>
             </tr>`).join("") : '<tr><td colspan="6">No teachers have been added.</td></tr>';
         document.getElementById("removeTeacherBtn").disabled = currentTeachers.length === 0;
+        document.getElementById("editTeacherNameBtn").disabled = currentTeachers.length === 0;
+        updateTeacherNameChoices();
         updateRestoreTeacherChoices();
     } catch (error) {
         teacherRows.innerHTML = `<tr><td colspan="6">${escapeHtml(error.message)}</td></tr>`;
@@ -345,26 +354,115 @@ teacherRows.addEventListener("click", async event => {
 function openTeacherAccountPanel() {
     const candidates = currentTeachers;
 
+    teacherNamePanel.classList.add("hidden");
     document.getElementById("teacherAccountTitle").textContent = "Permanently Delete Teacher";
-    document.getElementById("teacherAccountHelp").textContent = "This cannot be undone. Transfer or permanently delete all of the teacher's classes first.";
     confirmTeacherAccountBtn.textContent = "Delete Permanently";
     confirmTeacherAccountBtn.classList.add("danger");
     teacherAccountSelect.innerHTML = candidates.map(teacher =>
         `<option value="${Number(teacher.id)}">${escapeHtml(teacher.name)} — ${escapeHtml(teacher.email)}</option>`
     ).join("");
-    confirmTeacherAccountBtn.disabled = candidates.length === 0;
+    teacherAccountMessage.className = "notice hidden";
+    updateTeacherDeletionState();
     teacherAccountPanel.classList.remove("hidden");
     teacherAccountPanel.scrollIntoView({ behavior: "smooth", block: "nearest" });
 }
 
+function updateTeacherDeletionState() {
+    const teacher = currentTeachers.find(item => Number(item.id) === Number(teacherAccountSelect.value));
+    const courseCount = Number(teacher?.course_count || 0);
+    const help = document.getElementById("teacherAccountHelp");
+    if (!teacher) {
+        help.textContent = "No active teacher account is available to delete.";
+        confirmTeacherAccountBtn.disabled = true;
+        return;
+    }
+    if (courseCount > 0) {
+        help.textContent = `${teacher.name} still owns ${courseCount} class${courseCount === 1 ? "" : "es"}. Transfer or permanently delete those classes before deleting this account.`;
+        confirmTeacherAccountBtn.disabled = true;
+        return;
+    }
+    help.textContent = "This cannot be undone. This teacher has no remaining classes and can be permanently deleted.";
+    confirmTeacherAccountBtn.disabled = false;
+}
+
+function selectedTeacherForNameChange() {
+    return currentTeachers.find(teacher => Number(teacher.id) === Number(teacherNameSelect.value));
+}
+
+function updateTeacherNameInput() {
+    const teacher = selectedTeacherForNameChange();
+    teacherNameInput.value = teacher?.name || "";
+}
+
+function updateTeacherNameChoices() {
+    const previousTeacherId = Number(teacherNameSelect.value);
+    teacherNameSelect.innerHTML = currentTeachers.length
+        ? currentTeachers.map(teacher => `<option value="${Number(teacher.id)}">${escapeHtml(teacher.name)} — ${escapeHtml(teacher.email)}</option>`).join("")
+        : '<option value="">No active teachers available</option>';
+    if (currentTeachers.some(teacher => Number(teacher.id) === previousTeacherId)) {
+        teacherNameSelect.value = String(previousTeacherId);
+    }
+    saveTeacherNameBtn.disabled = currentTeachers.length === 0;
+    updateTeacherNameInput();
+}
+
+function openTeacherNamePanel() {
+    teacherAccountPanel.classList.add("hidden");
+    updateTeacherNameChoices();
+    teacherNameMessage.className = "notice hidden";
+    teacherNamePanel.classList.remove("hidden");
+    teacherNamePanel.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    teacherNameInput.focus();
+    teacherNameInput.select();
+}
+
+document.getElementById("editTeacherNameBtn").addEventListener("click", openTeacherNamePanel);
+document.getElementById("cancelTeacherNameBtn").addEventListener("click", () => teacherNamePanel.classList.add("hidden"));
+teacherNameSelect.addEventListener("change", updateTeacherNameInput);
+
+teacherNameForm.addEventListener("submit", async event => {
+    event.preventDefault();
+    const teacher = selectedTeacherForNameChange();
+    const name = teacherNameInput.value.trim().replace(/\s+/g, " ");
+    if (!teacher) return showMessage(teacherNameMessage, "Choose a teacher first.", "error");
+    if (name.length < 2 || name.length > 100) {
+        return showMessage(teacherNameMessage, "Teacher name must be between 2 and 100 characters.", "error");
+    }
+
+    saveTeacherNameBtn.disabled = true;
+    try {
+        const data = await api(`/api/admin/teachers/${teacher.id}/name`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name })
+        });
+        await Promise.all([loadTeachers(), loadAdmins(), loadTransferableCourses()]);
+        if (Number(teacher.id) === Number(currentAdmin?.id)) {
+            currentAdmin = { ...currentAdmin, name: data.teacher.name };
+            localStorage.setItem("teacher", JSON.stringify(currentAdmin));
+            document.getElementById("adminName").textContent = currentAdmin.name;
+        }
+        updateResetPasswordAccounts();
+        showMessage(teacherNameMessage, data.message, "success");
+    } catch (error) {
+        showMessage(teacherNameMessage, error.message, "error");
+    } finally {
+        saveTeacherNameBtn.disabled = false;
+    }
+});
+
 document.getElementById("removeTeacherBtn").addEventListener("click", openTeacherAccountPanel);
 document.getElementById("cancelTeacherAccountBtn").addEventListener("click", () => teacherAccountPanel.classList.add("hidden"));
+teacherAccountSelect.addEventListener("change", () => {
+    teacherAccountMessage.className = "notice hidden";
+    updateTeacherDeletionState();
+});
 
 confirmTeacherAccountBtn.addEventListener("click", async () => {
     const teacherId = Number(teacherAccountSelect.value);
     const teacher = currentTeachers.find(item => Number(item.id) === teacherId);
     if (!teacher) {
-        showMessage(message, "Choose a teacher first.", "error");
+        showMessage(teacherAccountMessage, "Choose a teacher first.", "error");
         return;
     }
     if (!window.confirm(`Permanently delete ${teacher.name}? This account cannot be restored. Make sure all of their classes have already been transferred or deleted.`)) {
@@ -378,8 +476,8 @@ confirmTeacherAccountBtn.addEventListener("click", async () => {
         teacherAccountPanel.classList.add("hidden");
         await loadTeachers();
     } catch (error) {
-        showMessage(message, error.message, "error");
-        confirmTeacherAccountBtn.disabled = false;
+        showMessage(teacherAccountMessage, error.message, "error");
+        updateTeacherDeletionState();
     }
 });
 
