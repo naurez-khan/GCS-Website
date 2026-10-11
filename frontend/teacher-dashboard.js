@@ -43,6 +43,17 @@ const addCourseBtn =
 const deleteCourseBtn =
     document.getElementById("deleteCourseBtn");
 
+const periodTimetableBtn = document.getElementById("periodTimetableBtn");
+const periodTimetablePanel = document.getElementById("periodTimetablePanel");
+const closePeriodTimetableBtn = document.getElementById("closePeriodTimetableBtn");
+const periodEffectiveDate = document.getElementById("periodEffectiveDate");
+const periodAssignmentGrid = document.getElementById("periodAssignmentGrid");
+const savePeriodTimetableBtn = document.getElementById("savePeriodTimetableBtn");
+const periodTimetableMessage = document.getElementById("periodTimetableMessage");
+const monthlyLectureRecordMonth = document.getElementById("monthlyLectureRecordMonth");
+const downloadMonthlyLectureRecordBtn = document.getElementById("downloadMonthlyLectureRecordBtn");
+const monthlyLectureRecordMessage = document.getElementById("monthlyLectureRecordMessage");
+
 
 // =========================
 // GLOBAL DATA
@@ -50,6 +61,7 @@ const deleteCourseBtn =
 
 let loadedCourses = [];
 let importedCreationRoster = [];
+let selectedTimetableShift = "morning";
 
 async function loadPendingApprovalCount() {
     if (!switchAdminBtn || switchAdminBtn.hidden) return;
@@ -2714,6 +2726,188 @@ async function createCourse() {
     }
 
 }
+
+
+// =========================
+// PERIOD TIMETABLE + MONTHLY RECORD
+// =========================
+
+function localDateKey(date = new Date()) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+}
+
+function setPeriodMessage(element, message = "", type = "") {
+    if (!element) return;
+    element.textContent = message;
+    element.className = `period-message${type ? ` ${type}` : ""}`;
+}
+
+function timetableCourseLabel(course) {
+    const details = course.class_type === "intermediate"
+        ? [course.intermediate_year === "2nd_year" ? "2nd Year" : "1st Year", course.section]
+        : [course.program, course.semester, course.section];
+    return [course.name, ...details.filter(Boolean)].join(" - ");
+}
+
+function renderPeriodAssignments(courses, assignments) {
+    if (!periodAssignmentGrid) return;
+    const assignedByPeriod = new Map((assignments || []).map(item => [Number(item.period_number), String(item.course_id)]));
+    periodAssignmentGrid.innerHTML = "";
+
+    for (let period = 1; period <= 7; period += 1) {
+        const card = document.createElement("label");
+        card.className = "period-assignment-card";
+        const title = document.createElement("strong");
+        title.textContent = `Period ${period}`;
+        const select = document.createElement("select");
+        select.dataset.periodNumber = String(period);
+        select.setAttribute("aria-label", `Class assigned to period ${period}`);
+        const empty = document.createElement("option");
+        empty.value = "";
+        empty.textContent = "No class assigned";
+        select.appendChild(empty);
+        (courses || []).forEach(course => {
+            const option = document.createElement("option");
+            option.value = String(course.id);
+            option.textContent = timetableCourseLabel(course);
+            option.selected = assignedByPeriod.get(period) === option.value;
+            select.appendChild(option);
+        });
+        card.append(title, select);
+        periodAssignmentGrid.appendChild(card);
+    }
+}
+
+async function loadPeriodTimetable(useFirstSetupDate = false) {
+    if (!periodAssignmentGrid || !periodEffectiveDate?.value) return;
+    periodAssignmentGrid.innerHTML = '<p class="loading">Loading period assignments...</p>';
+    setPeriodMessage(periodTimetableMessage);
+    try {
+        const query = new URLSearchParams({ shift: selectedTimetableShift, on: periodEffectiveDate.value });
+        const response = await fetch(`/api/timetable?${query}`, { credentials: "include", cache: "no-store" });
+        const data = await response.json();
+        if (!response.ok || !data.success) throw new Error(data.message || "Could not load the period timetable");
+        if (useFirstSetupDate && !data.has_history) {
+            const firstOfMonth = `${localDateKey().slice(0, 7)}-01`;
+            if (periodEffectiveDate.value !== firstOfMonth) {
+                periodEffectiveDate.value = firstOfMonth;
+                await loadPeriodTimetable(false);
+                return;
+            }
+        }
+        renderPeriodAssignments(data.courses, data.assignments);
+        if (!data.courses.length) setPeriodMessage(periodTimetableMessage, `No approved ${selectedTimetableShift} classes are available.`, "error");
+    } catch (error) {
+        periodAssignmentGrid.innerHTML = "";
+        setPeriodMessage(periodTimetableMessage, error.message || "Could not load the period timetable", "error");
+    }
+}
+
+function selectTimetableShift(shift) {
+    selectedTimetableShift = shift === "evening" ? "evening" : "morning";
+    document.querySelectorAll(".period-shift-tab").forEach(button => {
+        const active = button.dataset.shift === selectedTimetableShift;
+        button.classList.toggle("active", active);
+        button.setAttribute("aria-selected", String(active));
+    });
+    loadPeriodTimetable(true);
+}
+
+periodTimetableBtn?.addEventListener("click", () => {
+    const willOpen = periodTimetablePanel.hidden;
+    periodTimetablePanel.hidden = !willOpen;
+    periodTimetableBtn.setAttribute("aria-expanded", String(willOpen));
+    if (willOpen) {
+        periodEffectiveDate.value ||= localDateKey();
+        monthlyLectureRecordMonth.value ||= localDateKey().slice(0, 7);
+        loadPeriodTimetable(true);
+        periodTimetablePanel.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+});
+
+closePeriodTimetableBtn?.addEventListener("click", () => {
+    periodTimetablePanel.hidden = true;
+    periodTimetableBtn?.setAttribute("aria-expanded", "false");
+});
+
+document.querySelectorAll(".period-shift-tab").forEach(button => {
+    button.addEventListener("click", () => selectTimetableShift(button.dataset.shift));
+});
+
+periodEffectiveDate?.addEventListener("change", () => loadPeriodTimetable(false));
+
+savePeriodTimetableBtn?.addEventListener("click", async () => {
+    const effectiveFrom = periodEffectiveDate.value;
+    if (!effectiveFrom) {
+        setPeriodMessage(periodTimetableMessage, "Choose the date when this timetable starts.", "error");
+        return;
+    }
+    const assignments = [...periodAssignmentGrid.querySelectorAll("select")]
+        .filter(select => select.value)
+        .map(select => ({ period_number: Number(select.dataset.periodNumber), course_id: Number(select.value) }));
+    if (new Set(assignments.map(item => item.course_id)).size !== assignments.length) {
+        setPeriodMessage(periodTimetableMessage, "A class can only be assigned to one period in the same shift.", "error");
+        return;
+    }
+
+    savePeriodTimetableBtn.disabled = true;
+    savePeriodTimetableBtn.textContent = "Saving...";
+    setPeriodMessage(periodTimetableMessage);
+    try {
+        const response = await fetch("/api/timetable", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({ shift: selectedTimetableShift, effective_from: effectiveFrom, assignments })
+        });
+        const data = await response.json();
+        if (!response.ok || !data.success) throw new Error(data.message || "Could not save the period timetable");
+        await loadPeriodTimetable();
+        setPeriodMessage(periodTimetableMessage, data.message, "success");
+    } catch (error) {
+        setPeriodMessage(periodTimetableMessage, error.message || "Could not save the period timetable", "error");
+    } finally {
+        savePeriodTimetableBtn.disabled = false;
+        savePeriodTimetableBtn.textContent = "Save Periods";
+    }
+});
+
+downloadMonthlyLectureRecordBtn?.addEventListener("click", async () => {
+    const month = monthlyLectureRecordMonth.value;
+    if (!month) {
+        setPeriodMessage(monthlyLectureRecordMessage, "Choose the record month.", "error");
+        return;
+    }
+    downloadMonthlyLectureRecordBtn.disabled = true;
+    downloadMonthlyLectureRecordBtn.textContent = "Preparing PDF...";
+    setPeriodMessage(monthlyLectureRecordMessage);
+    try {
+        const query = new URLSearchParams({ month, shift: selectedTimetableShift });
+        const response = await fetch(`/api/timetable/monthly-record.pdf?${query}`, { credentials: "include", cache: "no-store" });
+        if (!response.ok) {
+            const data = await response.json().catch(() => ({}));
+            throw new Error(data.message || "Could not create the monthly lecture record PDF");
+        }
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `Monthly_Lecture_Record_${month}_${selectedTimetableShift}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        setPeriodMessage(monthlyLectureRecordMessage, "Monthly lecture record PDF downloaded.", "success");
+    } catch (error) {
+        setPeriodMessage(monthlyLectureRecordMessage, error.message || "Could not create the monthly lecture record PDF", "error");
+    } finally {
+        downloadMonthlyLectureRecordBtn.disabled = false;
+        downloadMonthlyLectureRecordBtn.textContent = "Download PDF";
+    }
+});
 
 
 // =========================

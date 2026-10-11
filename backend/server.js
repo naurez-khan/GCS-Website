@@ -1,10 +1,10 @@
-require("dotenv").config();
+const path = require("path");
+require("dotenv").config({ path: path.resolve(__dirname, ".env"), quiet: true });
 
 const express = require("express");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
 const compression = require("compression");
-const path = require("path");
 
 const pool = require("./config/db");
 
@@ -13,6 +13,7 @@ const adminRoutes = require("./routes/adminRoutes");
 const courseRoutes = require("./routes/courseRoutes");
 const attendanceRoutes = require("./routes/attendanceRoutes");
 const resultRoutes = require("./routes/resultRoutes");
+const timetableRoutes = require("./routes/timetableRoutes");
 
 const app = express();
 
@@ -116,6 +117,7 @@ app.use("/api/admin", adminRoutes);
 app.use("/api/courses", courseRoutes);
 
 app.use("/api/attendance", attendanceRoutes);
+app.use("/api/timetable", timetableRoutes);
 app.use("/api/results", resultRoutes);
 
 

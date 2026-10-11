@@ -16,7 +16,7 @@
 
     <link
         rel="stylesheet"
-        href="teacher-dashboard.css?v=20261004-4"
+        href="teacher-dashboard.css?v=20261011-2"
     >
     <link rel="stylesheet" href="/brand.css?v=20260911-36">
     <script defer src="/ui-icons.js?v=20260824-3"></script>
@@ -138,6 +138,58 @@
 
             </div>
 
+            <button
+                id="periodTimetableBtn"
+                class="period-timetable-open-btn"
+                type="button"
+                aria-expanded="false"
+                aria-controls="periodTimetablePanel"
+            >
+                Manage Periods &amp; Monthly Record
+            </button>
+
+            <section id="periodTimetablePanel" class="period-timetable-panel" hidden>
+                <div class="period-panel-heading">
+                    <div>
+                        <p class="period-panel-kicker">Teacher timetable</p>
+                        <h3>Periods &amp; Monthly Lecture Record</h3>
+                        <p>Assign approved classes to periods. A new effective date preserves every earlier monthly record.</p>
+                    </div>
+                    <button id="closePeriodTimetableBtn" class="period-close-btn" type="button" aria-label="Close period timetable">&times;</button>
+                </div>
+
+                <div class="period-shift-tabs" role="tablist" aria-label="Class shift">
+                    <button class="period-shift-tab active" type="button" data-shift="morning" role="tab" aria-selected="true">Morning</button>
+                    <button class="period-shift-tab" type="button" data-shift="evening" role="tab" aria-selected="false">Evening</button>
+                </div>
+
+                <label class="period-effective-date">
+                    Effective from
+                    <input id="periodEffectiveDate" type="date" required>
+                    <small>Changes from this date onward; earlier assignments remain unchanged.</small>
+                </label>
+
+                <div id="periodAssignmentGrid" class="period-assignment-grid" aria-live="polite"></div>
+
+                <div class="period-panel-actions">
+                    <button id="savePeriodTimetableBtn" class="period-save-btn" type="button">Save Periods</button>
+                    <div id="periodTimetableMessage" class="period-message" role="status" aria-live="polite"></div>
+                </div>
+
+                <div class="monthly-record-section">
+                    <div>
+                        <h4>Download Monthly Lecture Record</h4>
+                        <p>The PDF uses saved attendance dates and the period assignment that applied on each date.</p>
+                    </div>
+                    <label>
+                        Record month
+                        <input id="monthlyLectureRecordMonth" type="month" required>
+                    </label>
+                    <button id="downloadMonthlyLectureRecordBtn" class="monthly-record-download-btn" type="button">Download PDF</button>
+                    <div id="monthlyLectureRecordMessage" class="period-message" role="status" aria-live="polite"></div>
+                </div>
+            </section>
+
 
 
             <!-- COURSES WILL APPEAR HERE -->
@@ -161,7 +213,7 @@
     <!-- JAVASCRIPT -->
 
     <script src="/spreadsheet-libs.js?v=20260917-1"></script>
-    <script src="teacher-dashboard.js?v=20261004-1"></script>
+    <script src="teacher-dashboard.js?v=20261011-2"></script>
 
 </body>
 
