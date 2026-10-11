@@ -1607,7 +1607,8 @@ input[type="number"]::-webkit-outer-spin-button {
     }
 
     .period-timetable-open-btn {
-        width: 100%;
+        width: calc(100% - 40px);
+        margin: -16px 20px 22px;
         padding: 14px 12px;
         font-size: 14px;
     }
