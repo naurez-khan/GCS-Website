@@ -1542,6 +1542,10 @@ input[type="number"]::-webkit-outer-spin-button {
 .period-panel-actions { display: flex; align-items: center; gap: 14px; margin-top: 18px; }
 .period-save-btn,
 .monthly-record-download-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
     min-height: 48px;
     padding: 12px 20px;
     border: 0;
@@ -1552,6 +1556,15 @@ input[type="number"]::-webkit-outer-spin-button {
     font-weight: 800;
     cursor: pointer;
     box-shadow: 0 10px 22px rgba(151, 13, 23, .2);
+}
+
+.monthly-record-download-btn .pdf-icon {
+    display: block;
+    flex: 0 0 24px;
+    width: 24px !important;
+    height: 24px !important;
+    min-width: 24px;
+    max-width: 24px;
 }
 
 .period-save-btn:disabled,
