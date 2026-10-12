@@ -81,7 +81,7 @@ const markAttendance = async (req, res) => {
 
         const courseResult = await client.query(
             `
-            SELECT id
+            SELECT id, TO_CHAR(class_start_date, 'YYYY-MM-DD') AS class_start_date
             FROM courses
             WHERE id = $1
             AND teacher_id = $2
@@ -170,16 +170,7 @@ const markAttendance = async (req, res) => {
 
 
         const today = getPakistanDate();
-        const attendanceWindow = await client.query(
-            `SELECT TO_CHAR(
-                 MIN(attendance_date) FILTER (WHERE status <> 'leave'),
-                 'YYYY-MM-DD'
-             ) AS first_attendance_date
-             FROM attendance
-             WHERE course_id = $1`,
-            [courseId]
-        );
-        const firstAttendanceDate = attendanceWindow.rows[0]?.first_attendance_date || null;
+        const classStartDate = courseResult.rows[0].class_start_date;
         if (date > today) {
             await client.query("ROLLBACK");
             return res.status(400).json({
@@ -187,13 +178,11 @@ const markAttendance = async (req, res) => {
                 message: "Future attendance dates are not allowed"
             });
         }
-        if ((!firstAttendanceDate && date !== today) || (firstAttendanceDate && date < firstAttendanceDate)) {
+        if (date < classStartDate) {
             await client.query("ROLLBACK");
             return res.status(400).json({
                 success: false,
-                message: firstAttendanceDate
-                    ? `Attendance cannot be marked before ${firstAttendanceDate}`
-                    : "The first attendance must be marked for today"
+                message: `Attendance cannot be marked before the class start date (${classStartDate})`
             });
         }
 

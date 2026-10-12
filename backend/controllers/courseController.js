@@ -661,6 +661,8 @@ const getMyCourses = async (req, res) => {
                     class_test_count,
                     result_code,
 
+                    TO_CHAR(class_start_date, 'YYYY-MM-DD') AS class_start_date,
+
                     created_at
 
                 FROM courses
@@ -773,7 +775,8 @@ const getCourseStudents = async (
                     class_test_count,
                     result_code,
                     midterm_max_marks,
-                    final_max_marks
+                    final_max_marks,
+                    TO_CHAR(class_start_date, 'YYYY-MM-DD') AS class_start_date
 
                 FROM courses
 
@@ -2742,6 +2745,7 @@ const updateCourseSettings = async (req, res) => {
         const cleanCourseCode = classType === "intermediate" ? null : requestedCourseCode;
         const intermediateYear = classType === "intermediate" ? String(req.body.intermediate_year || "").trim() : null;
         const classShift = String(req.body.class_shift || "morning").trim().toLowerCase();
+        const classStartDate = String(req.body.class_start_date || "").trim();
         const rollNumberType = classType === "bachelors" && req.body.roll_number_type === "government_college"
             ? "government_college"
             : "pu";
@@ -2779,6 +2783,15 @@ const updateCourseSettings = async (req, res) => {
         if (!["morning", "evening"].includes(classShift)) {
             return res.status(400).json({ success: false, message: "Choose Morning or Evening shift" });
         }
+        const today = new Intl.DateTimeFormat("en-CA", {
+            timeZone: "Asia/Karachi",
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit"
+        }).format(new Date());
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(classStartDate) || Number.isNaN(Date.parse(`${classStartDate}T00:00:00Z`)) || classStartDate > today) {
+            return res.status(400).json({ success: false, message: "Choose a valid class start date that is not in the future" });
+        }
         if (!/^[a-z0-9-]{4,24}$/.test(resultCode)) {
             return res.status(400).json({ success: false, message: "Result code must be 4-24 letters, numbers, or hyphens" });
         }
@@ -2808,6 +2821,18 @@ const updateCourseSettings = async (req, res) => {
             return res.status(404).json({ success: false, message: "Course not found or access denied" });
         }
         const existingCourse = courseResult.rows[0];
+        const earliestAttendanceResult = await client.query(
+            "SELECT TO_CHAR(MIN(attendance_date), 'YYYY-MM-DD') AS earliest_date FROM attendance WHERE course_id = $1 AND status <> 'leave'",
+            [courseId]
+        );
+        const earliestAttendanceDate = earliestAttendanceResult.rows[0]?.earliest_date || null;
+        if (earliestAttendanceDate && classStartDate > earliestAttendanceDate) {
+            await client.query("ROLLBACK");
+            return res.status(409).json({
+                success: false,
+                message: `Class start date cannot be after saved attendance on ${earliestAttendanceDate}`
+            });
+        }
         const programEnabledForUpdate = classType === "intermediate" ? true : existingCourse.program_enabled;
         const semesterEnabledForUpdate = classType === "intermediate" ? true : existingCourse.semester_enabled;
 
@@ -2941,13 +2966,13 @@ const updateCourseSettings = async (req, res) => {
                     class_type=$14, intermediate_year=$15, program=$16, semester=$17,
                     program_enabled=$18, semester_enabled=$19, monthly_tests_enabled=$20, class_shift=$21,
                     roll_number_type=$22, class_tests_enabled=$23, class_test_count=$24,
-                    updated_at=CURRENT_TIMESTAMP
-             WHERE id=$25 RETURNING *`,
+                    class_start_date=$25, updated_at=CURRENT_TIMESTAMP
+             WHERE id=$26 RETURNING *`,
             [cleanName, cleanCourseCode, cleanSection, assignmentsEnabled, assignmentCount, quizzesEnabled, quizCount,
              midtermEnabled, finalEnabled, resultsEnabled, midtermMax, finalMax, resultCode,
              classType, intermediateYear, cleanProgram, cleanSemester,
              programEnabledForUpdate, semesterEnabledForUpdate, monthlyTestsEnabled, classShift, rollNumberType,
-             classTestsEnabled, classTestCount, courseId]
+             classTestsEnabled, classTestCount, classStartDate, courseId]
         );
         await client.query(
             "UPDATE students SET program=$1, semester=$2, updated_at=CURRENT_TIMESTAMP WHERE course_id=$3 AND deleted_at IS NULL",

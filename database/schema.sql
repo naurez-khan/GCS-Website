@@ -56,6 +56,7 @@ CREATE TABLE IF NOT EXISTS courses (
     midterm_max_marks NUMERIC(8,2) CHECK (midterm_max_marks IS NULL OR midterm_max_marks > 0),
     final_max_marks NUMERIC(8,2) CHECK (final_max_marks IS NULL OR final_max_marks > 0),
     result_code VARCHAR(24) NOT NULL DEFAULT SUBSTRING(MD5(RANDOM()::TEXT || CLOCK_TIMESTAMP()::TEXT), 1, 24),
+    class_start_date DATE NOT NULL DEFAULT CURRENT_DATE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CHECK (roll_start <= roll_end)

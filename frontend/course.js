@@ -1249,12 +1249,13 @@ function getMissingPastAttendanceDates() {
             .filter(record => record.status !== "leave")
             .map(record => attendanceDateKey(record.attendance_date))
     );
-    if (!completedDates.size) return [];
-
-    const firstRecordedDate = [...completedDates].sort()[0];
+    const classStartDate = attendanceDateKey(currentCourse?.class_start_date);
+    const firstRecordedDate = completedDates.size ? [...completedDates].sort()[0] : "";
+    const rangeStart = classStartDate || firstRecordedDate;
+    if (!rangeStart) return [];
     const yesterday = new Date(`${getTodayDate()}T00:00:00Z`);
     yesterday.setUTCDate(yesterday.getUTCDate() - 1);
-    const cursor = new Date(`${firstRecordedDate}T00:00:00Z`);
+    const cursor = new Date(`${rangeStart}T00:00:00Z`);
     const missingDates = [];
 
     while (cursor <= yesterday) {
@@ -1296,7 +1297,7 @@ function updateMissedAttendanceControls() {
                 ${formatDateForDisplay(date)}
             </button>
         `).join("")
-        : '<p class="missed-attendance-empty">No previous dates are available yet. Mark today’s attendance first.</p>';
+        : '<p class="missed-attendance-empty">No previous attendance dates are available.</p>';
 }
 
 openMissedAttendanceBtn?.addEventListener("click", () => {
@@ -5079,6 +5080,7 @@ async function openClassSettings() {
     document.getElementById("settingsClassType").value = currentCourse.class_type || "bachelors";
     document.getElementById("settingsIntermediateYear").value = currentCourse.intermediate_year || "1st_year";
     document.getElementById("settingsClassShift").value = currentCourse.class_shift || "morning";
+    document.getElementById("settingsClassStartDate").value = attendanceDateKey(currentCourse.class_start_date) || getTodayDate();
     const selectedRollNumberType = currentCourse.roll_number_type === "government_college" ? "government_college" : "pu";
     const rollNumberTypeInput = document.querySelector(`input[name="settingsRollNumberType"][value="${selectedRollNumberType}"]`);
     if (rollNumberTypeInput) rollNumberTypeInput.checked = true;
@@ -5199,6 +5201,7 @@ document.getElementById("saveClassSettingsBtn")?.addEventListener("click", async
         course_code: value("settingsClassType") === "intermediate" ? "" : value("settingsCourseCode").trim(),
         class_type: value("settingsClassType"),
         class_shift: value("settingsClassShift"),
+        class_start_date: value("settingsClassStartDate"),
         roll_number_type: value("settingsClassType") === "intermediate"
             ? "pu"
             : (document.querySelector('input[name="settingsRollNumberType"]:checked')?.value || "pu"),
@@ -5224,6 +5227,10 @@ document.getElementById("saveClassSettingsBtn")?.addEventListener("click", async
         final_enabled: checked("settingsFinalEnabled"),
         final_max_marks: 15
     };
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(payload.class_start_date) || payload.class_start_date > getTodayDate()) {
+        setPanelMessage("classSettingsMessage", "Choose a valid class start date that is not in the future.", "error");
+        return;
+    }
     if (payload.monthly_tests_enabled && (
         !payload.monthly_tests.length ||
         payload.monthly_tests.some(test => !Number.isInteger(test.month) || test.month < 1 || test.month > 11 || !Number.isFinite(test.max_marks) || test.max_marks <= 0) ||
