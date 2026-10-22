@@ -90,6 +90,37 @@
         </section>
 
         <section class="panel">
+            <h2>Consolidated Attendance (BS Mathematics)</h2>
+            <p class="muted">Generate and download a semester-wide consolidated attendance sheet matching roll numbers across all courses and teachers.</p>
+            <form id="bsMathConsolidatedForm">
+                <label>Semester
+                    <select id="consolidatedSemester" required>
+                        <option value="">Loading semesters…</option>
+                    </select>
+                </label>
+                <label>Section (optional)
+                    <select id="consolidatedSection">
+                        <option value="">All sections</option>
+                    </select>
+                </label>
+                <label>Shift (optional)
+                    <select id="consolidatedShift">
+                        <option value="">All shifts</option>
+                        <option value="morning">Morning</option>
+                        <option value="evening">Evening</option>
+                    </select>
+                </label>
+                <label>Month (optional)
+                    <input id="consolidatedMonth" type="month">
+                </label>
+                <div class="account-manager-actions">
+                    <button id="downloadConsolidatedPdfBtn" type="submit" class="primary">Download PDF</button>
+                </div>
+            </form>
+            <div id="consolidatedMessage" class="notice hidden" role="status" aria-live="polite"></div>
+        </section>
+
+        <section class="panel">
             <div class="panel-heading">
                 <div><h2>Teachers</h2><p class="muted">Current department accounts. Grant administrator access without creating another account.</p></div>
                 <div class="teacher-list-actions">

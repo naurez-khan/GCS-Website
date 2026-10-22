@@ -3,6 +3,7 @@ node_modules/
 backend/.env
 backend/.env.neon
 outputs/
+output/
 tmp/
 *.log
 .DS_Store

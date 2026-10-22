@@ -29,6 +29,14 @@ const teacherNameMessage = document.getElementById("teacherNameMessage");
 const saveTeacherNameBtn = document.getElementById("saveTeacherNameBtn");
 const approvalRows = document.getElementById("approvalRows");
 const approvalMessage = document.getElementById("approvalMessage");
+const bsMathConsolidatedForm = document.getElementById("bsMathConsolidatedForm");
+const consolidatedSemester = document.getElementById("consolidatedSemester");
+const consolidatedSection = document.getElementById("consolidatedSection");
+const consolidatedShift = document.getElementById("consolidatedShift");
+const consolidatedMonth = document.getElementById("consolidatedMonth");
+const downloadConsolidatedPdfBtn = document.getElementById("downloadConsolidatedPdfBtn");
+const consolidatedMessage = document.getElementById("consolidatedMessage");
+let bsMathSemestersData = [];
 let currentTeachers = [];
 let currentAdmins = [];
 let transferableCourses = [];
@@ -530,6 +538,96 @@ document.getElementById("switchTeacherBtn").addEventListener("click", async () =
     }
 });
 
+async function loadBsMathSemesters() {
+    if (!consolidatedSemester) return;
+    try {
+        const data = await api("/api/admin/attendance/bs-math/semesters");
+        bsMathSemestersData = data.semesters || [];
+        if (!bsMathSemestersData.length) {
+            consolidatedSemester.innerHTML = '<option value="">No BS Math classes found</option>';
+            return;
+        }
+        consolidatedSemester.innerHTML = [
+            '<option value="">Select Semester...</option>',
+            ...bsMathSemestersData.map(item => `<option value="${escapeHtml(item.semester)}">${escapeHtml(item.semester)} Semester (${item.courseCount} ${item.courseCount === 1 ? 'class' : 'classes'})</option>`)
+        ].join("");
+        updateConsolidatedSectionChoices();
+    } catch (error) {
+        consolidatedSemester.innerHTML = '<option value="">Failed to load semesters</option>';
+    }
+}
+
+function updateConsolidatedSectionChoices() {
+    if (!consolidatedSection || !consolidatedSemester) return;
+    const selectedSem = consolidatedSemester.value;
+    const matched = bsMathSemestersData.find(s => s.semester === selectedSem);
+    if (!matched || !matched.sections.length) {
+        consolidatedSection.innerHTML = '<option value="">All sections</option>';
+        return;
+    }
+    consolidatedSection.innerHTML = [
+        '<option value="">All sections</option>',
+        ...matched.sections.map(sec => `<option value="${escapeHtml(sec)}">Section ${escapeHtml(sec)}</option>`)
+    ].join("");
+}
+
+consolidatedSemester?.addEventListener("change", updateConsolidatedSectionChoices);
+
+bsMathConsolidatedForm?.addEventListener("submit", async event => {
+    event.preventDefault();
+    const semester = consolidatedSemester.value;
+    if (!semester) {
+        showMessage(consolidatedMessage, "Please select a semester.", "error");
+        return;
+    }
+    const section = consolidatedSection.value;
+    const shift = consolidatedShift.value;
+    const month = consolidatedMonth.value;
+
+    const originalText = downloadConsolidatedPdfBtn.textContent;
+    downloadConsolidatedPdfBtn.disabled = true;
+    downloadConsolidatedPdfBtn.textContent = "Preparing PDF…";
+    consolidatedMessage.classList.add("hidden");
+
+    try {
+        const params = new URLSearchParams({ semester });
+        if (section) params.set("section", section);
+        if (shift) params.set("shift", shift);
+        if (month) params.set("month", month);
+
+        const response = await fetch(`/api/admin/attendance/bs-math/consolidated-pdf?${params.toString()}`, {
+            credentials: "include",
+            cache: "no-store"
+        });
+
+        if (!response.ok) {
+            const err = await response.json().catch(() => ({}));
+            throw new Error(err.message || "Failed to generate consolidated PDF");
+        }
+
+        const blob = await response.blob();
+        const disposition = response.headers.get("content-disposition") || "";
+        const match = disposition.match(/filename="?([^";]+)"?/i);
+        const filename = match ? match[1] : `BS-Math-Consolidated-Attendance-${semester}.pdf`;
+
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(url);
+
+        showMessage(consolidatedMessage, "Consolidated attendance PDF downloaded successfully.", "success");
+    } catch (error) {
+        showMessage(consolidatedMessage, error.message || "Could not download consolidated PDF.", "error");
+    } finally {
+        downloadConsolidatedPdfBtn.disabled = false;
+        downloadConsolidatedPdfBtn.textContent = originalText;
+    }
+});
+
 async function initializeAdminPage() {
     try {
         if (localStorage.getItem("adminSession")) {
@@ -545,7 +643,7 @@ async function initializeAdminPage() {
         localStorage.removeItem("adminSession");
         document.getElementById("adminName").textContent = currentAdmin.name || "Administrator";
         document.getElementById("switchTeacherBtn").hidden = !currentAdmin.roles?.includes("teacher");
-        await Promise.all([loadTeachers(), loadAdmins(), loadCourseApprovals()]);
+        await Promise.all([loadTeachers(), loadAdmins(), loadCourseApprovals(), loadBsMathSemesters()]);
         updateResetPasswordAccounts();
         await loadTransferableCourses();
     } catch (error) {

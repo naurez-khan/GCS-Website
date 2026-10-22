@@ -1,6 +1,11 @@
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const pool = require("../config/db");
+const {
+    getAvailableBsMathSemesters,
+    getBsMathConsolidatedReport,
+    createBsMathConsolidatedAttendancePdf
+} = require("../services/bsMathConsolidatedAttendance");
 
 const setSessionCookie = (res, payload) => {
     const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: "8h" });
@@ -790,6 +795,46 @@ const restoreClassBackup = async (req, res) => {
     }
 };
 
+const getBsMathSemestersList = async (req, res) => {
+    try {
+        const semesters = await getAvailableBsMathSemesters();
+        res.json({ success: true, semesters });
+    } catch (error) {
+        console.error("Get BS Math semesters error:", error);
+        res.status(500).json({ success: false, message: "Could not retrieve BS Mathematics semesters" });
+    }
+};
+
+const getBsMathConsolidatedAttendance = async (req, res) => {
+    try {
+        const { semester, section, shift, month, from, to } = req.query;
+        const report = await getBsMathConsolidatedReport({ semester, section, shift, month, from, to });
+        res.json({ success: true, report });
+    } catch (error) {
+        console.error("Get BS Math consolidated attendance error:", error);
+        res.status(400).json({ success: false, message: error.message || "Could not retrieve consolidated attendance" });
+    }
+};
+
+const downloadBsMathConsolidatedPdf = async (req, res) => {
+    try {
+        const { semester, section, shift, month, from, to } = req.query;
+        const report = await getBsMathConsolidatedReport({ semester, section, shift, month, from, to });
+        const pdfBuffer = await createBsMathConsolidatedAttendancePdf(report);
+
+        const safeSemester = String(semester || "semester").replace(/[^a-z0-9_-]+/gi, "-");
+        const filename = `BS-Math-Consolidated-Attendance-Semester-${safeSemester}${month ? `-${month}` : ""}.pdf`;
+
+        res.setHeader("Content-Type", "application/pdf");
+        res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+        res.setHeader("Content-Length", pdfBuffer.length);
+        return res.send(pdfBuffer);
+    } catch (error) {
+        console.error("Download BS Math consolidated PDF error:", error);
+        res.status(400).json({ success: false, message: error.message || "Could not generate consolidated PDF" });
+    }
+};
+
 module.exports = {
     addTeacher,
     getTeachers,
@@ -806,5 +851,8 @@ module.exports = {
     setCourseApprovalStatus,
     transferCourse,
     resetUserPassword,
-    restoreClassBackup
+    restoreClassBackup,
+    getBsMathSemestersList,
+    getBsMathConsolidatedAttendance,
+    downloadBsMathConsolidatedPdf
 };

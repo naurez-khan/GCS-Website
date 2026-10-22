@@ -16,7 +16,10 @@ const {
     setCourseApprovalStatus,
     transferCourse,
     resetUserPassword,
-    restoreClassBackup
+    restoreClassBackup,
+    getBsMathSemestersList,
+    getBsMathConsolidatedAttendance,
+    downloadBsMathConsolidatedPdf
 } = require("../controllers/adminController");
 
 const {
@@ -60,6 +63,9 @@ router.patch("/courses/:courseId/approval", authenticate, adminOnly, setCourseAp
 router.patch("/courses/:courseId/transfer", authenticate, adminOnly, transferCourse);
 router.patch("/users/:userId/password", authenticate, adminOnly, resetUserPassword);
 router.post("/backups/restore", authenticate, adminOnly, restoreClassBackup);
+router.get("/attendance/bs-math/semesters", authenticate, adminOnly, getBsMathSemestersList);
+router.get("/attendance/bs-math/consolidated", authenticate, adminOnly, getBsMathConsolidatedAttendance);
+router.get("/attendance/bs-math/consolidated-pdf", authenticate, adminOnly, downloadBsMathConsolidatedPdf);
 
 
 module.exports = router;
