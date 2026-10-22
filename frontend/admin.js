@@ -32,7 +32,7 @@ const approvalMessage = document.getElementById("approvalMessage");
 const bsMathConsolidatedForm = document.getElementById("bsMathConsolidatedForm");
 const consolidatedSemester = document.getElementById("consolidatedSemester");
 const consolidatedShift = document.getElementById("consolidatedShift");
-const consolidatedMonth = document.getElementById("consolidatedMonth");
+const consolidatedToDate = document.getElementById("consolidatedToDate");
 const downloadConsolidatedPdfBtn = document.getElementById("downloadConsolidatedPdfBtn");
 const consolidatedMessage = document.getElementById("consolidatedMessage");
 let bsMathSemestersData = [];
@@ -537,7 +537,22 @@ document.getElementById("switchTeacherBtn").addEventListener("click", async () =
     }
 });
 
+function getLocalTodayDate() {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+}
+
+if (consolidatedToDate && !consolidatedToDate.value) {
+    consolidatedToDate.value = getLocalTodayDate();
+}
+
 async function loadBsMathSemesters() {
+    if (consolidatedToDate && !consolidatedToDate.value) {
+        consolidatedToDate.value = getLocalTodayDate();
+    }
     if (!consolidatedSemester) return;
     try {
         const data = await api("/api/admin/attendance/bs-math/semesters");
@@ -561,7 +576,7 @@ bsMathConsolidatedForm?.addEventListener("submit", async event => {
         return;
     }
     const shift = consolidatedShift ? consolidatedShift.value : "";
-    const month = consolidatedMonth ? consolidatedMonth.value : "";
+    const toDate = consolidatedToDate?.value || getLocalTodayDate();
 
     const originalText = downloadConsolidatedPdfBtn.textContent;
     downloadConsolidatedPdfBtn.disabled = true;
@@ -571,7 +586,7 @@ bsMathConsolidatedForm?.addEventListener("submit", async event => {
     try {
         const params = new URLSearchParams({ semester });
         if (shift) params.set("shift", shift);
-        if (month) params.set("month", month);
+        if (toDate) params.set("to", toDate);
 
         const response = await fetch(`/api/admin/attendance/bs-math/consolidated-pdf?${params.toString()}`, {
             credentials: "include",
@@ -586,7 +601,7 @@ bsMathConsolidatedForm?.addEventListener("submit", async event => {
         const blob = await response.blob();
         const disposition = response.headers.get("content-disposition") || "";
         const match = disposition.match(/filename="?([^";]+)"?/i);
-        const filename = match ? match[1] : `BS-Math-Consolidated-Attendance-${semester}.pdf`;
+        const filename = match ? match[1] : `BS-Math-Consolidated-Attendance-${semester}-${toDate}.pdf`;
 
         const url = URL.createObjectURL(blob);
         const link = document.createElement("a");

@@ -823,7 +823,8 @@ const downloadBsMathConsolidatedPdf = async (req, res) => {
         const pdfBuffer = await createBsMathConsolidatedAttendancePdf(report);
 
         const safeSemester = String(semester || "semester").replace(/[^a-z0-9_-]+/gi, "-");
-        const filename = `BS-Math-Consolidated-Attendance-Semester-${safeSemester}${month ? `-${month}` : ""}.pdf`;
+        const dateTag = report.endDate ? `-${report.endDate}` : (to ? `-${to}` : (month ? `-${month}` : ""));
+        const filename = `BS-Math-Consolidated-Attendance-Semester-${safeSemester}${dateTag}.pdf`;
 
         res.setHeader("Content-Type", "application/pdf");
         res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);

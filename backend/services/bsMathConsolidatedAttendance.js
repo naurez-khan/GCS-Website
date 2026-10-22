@@ -46,6 +46,23 @@ async function getAvailableBsMathSemesters() {
     }));
 }
 
+function formatDisplayDate(dateStr) {
+    if (!dateStr) return "";
+    const [year, month, day] = String(dateStr).slice(0, 10).split("-");
+    return year && month && day ? `${day}-${month}-${year}` : dateStr;
+}
+
+function getPakistanTodayDate() {
+    const parts = new Intl.DateTimeFormat("en-CA", {
+        timeZone: "Asia/Karachi",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit"
+    }).formatToParts(new Date());
+    const values = Object.fromEntries(parts.map(part => [part.type, part.value]));
+    return `${values.year}-${values.month}-${values.day}`;
+}
+
 async function getBsMathConsolidatedReport({ semester, section = "", shift = "", month = "", from = "", to = "" }) {
     if (!semester) {
         throw new Error("Semester is required to generate consolidated attendance");
@@ -63,7 +80,12 @@ async function getBsMathConsolidatedReport({ semester, section = "", shift = "",
         periodLabel = new Intl.DateTimeFormat("en-GB", { month: "long", year: "numeric", timeZone: "UTC" })
             .format(new Date(Date.UTC(year, monthNum - 1, 1)));
     } else if (startDate && endDate) {
-        periodLabel = `${startDate} to ${endDate}`;
+        periodLabel = `${formatDisplayDate(startDate)} to ${formatDisplayDate(endDate)}`;
+    } else {
+        if (!endDate) {
+            endDate = getPakistanTodayDate();
+        }
+        periodLabel = `Up to ${formatDisplayDate(endDate)}`;
     }
 
     // 1. Fetch matching courses
@@ -215,6 +237,7 @@ async function getBsMathConsolidatedReport({ semester, section = "", shift = "",
         section: section || null,
         shift: shift ? (shift === "evening" ? "Evening" : "Morning") : null,
         periodLabel: periodLabel || "Full Semester",
+        endDate: endDate || null,
         courses,
         students
     };
