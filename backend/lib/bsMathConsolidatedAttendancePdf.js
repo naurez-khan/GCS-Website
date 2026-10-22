@@ -187,7 +187,7 @@ function createBsMathConsolidatedAttendancePdf(spec) {
             pageStudents.forEach((st, idx) => {
                 const isEven = idx % 2 === 0;
                 const rowFill = isEven ? "#ffffff" : "#f9fafb";
-                const isShortAttendance = (st.overall?.percentage || 0) < 75;
+                const isShortAttendance = (st.overall?.percentage || 0) < 50;
 
                 let colX = contentX;
                 drawCell(doc, colX, rowY, srWidth, rowH, String(startIdx + idx + 1), { fontSize: 6.8, fill: rowFill });
@@ -203,8 +203,8 @@ function createBsMathConsolidatedAttendancePdf(spec) {
                     drawCell(doc, colX, rowY, perCourseWidth, rowH, ptText, {
                         fontSize: 6.8,
                         fill: rowFill,
-                        bold: cStat.pct < 75,
-                        color: cStat.pct < 75 ? "#b91c1c" : "#000000"
+                        bold: cStat.pct < 50,
+                        color: cStat.pct < 50 ? "#b91c1c" : "#000000"
                     });
                     colX += perCourseWidth;
                 });
