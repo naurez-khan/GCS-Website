@@ -87,7 +87,14 @@ async function getBsMathConsolidatedReport({ semester, section = "", shift = "",
         FROM courses c
         JOIN users u ON c.teacher_id = u.id
         WHERE ${BS_MATH_COURSE_FILTER}
-          AND LOWER(TRIM(c.semester)) = LOWER(TRIM($1))
+          AND (
+              LOWER(TRIM(c.semester)) = LOWER(TRIM($1))
+              OR (
+                  NULLIF(REGEXP_REPLACE(c.semester, '[^0-9]', '', 'g'), '') IS NOT NULL
+                  AND NULLIF(REGEXP_REPLACE($1, '[^0-9]', '', 'g'), '') IS NOT NULL
+                  AND NULLIF(REGEXP_REPLACE(c.semester, '[^0-9]', '', 'g'), '')::integer = NULLIF(REGEXP_REPLACE($1, '[^0-9]', '', 'g'), '')::integer
+              )
+          )
           AND ($2::text IS NULL OR $2 = '' OR LOWER(TRIM(COALESCE(c.section, ''))) = LOWER(TRIM($2)))
           AND ($3::text IS NULL OR $3 = '' OR LOWER(TRIM(c.class_shift)) = LOWER(TRIM($3)))
         ORDER BY c.course_code NULLS LAST, c.name

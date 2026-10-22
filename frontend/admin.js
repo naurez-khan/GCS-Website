@@ -31,7 +31,6 @@ const approvalRows = document.getElementById("approvalRows");
 const approvalMessage = document.getElementById("approvalMessage");
 const bsMathConsolidatedForm = document.getElementById("bsMathConsolidatedForm");
 const consolidatedSemester = document.getElementById("consolidatedSemester");
-const consolidatedSection = document.getElementById("consolidatedSection");
 const consolidatedShift = document.getElementById("consolidatedShift");
 const consolidatedMonth = document.getElementById("consolidatedMonth");
 const downloadConsolidatedPdfBtn = document.getElementById("downloadConsolidatedPdfBtn");
@@ -543,35 +542,16 @@ async function loadBsMathSemesters() {
     try {
         const data = await api("/api/admin/attendance/bs-math/semesters");
         bsMathSemestersData = data.semesters || [];
-        if (!bsMathSemestersData.length) {
-            consolidatedSemester.innerHTML = '<option value="">No BS Math classes found</option>';
-            return;
+        if (bsMathSemestersData.length) {
+            consolidatedSemester.innerHTML = [
+                '<option value="">Select Semester...</option>',
+                ...bsMathSemestersData.map(item => `<option value="${escapeHtml(item.semester)}">${escapeHtml(item.semester)} Semester (${item.courseCount} ${item.courseCount === 1 ? 'class' : 'classes'})</option>`)
+            ].join("");
         }
-        consolidatedSemester.innerHTML = [
-            '<option value="">Select Semester...</option>',
-            ...bsMathSemestersData.map(item => `<option value="${escapeHtml(item.semester)}">${escapeHtml(item.semester)} Semester (${item.courseCount} ${item.courseCount === 1 ? 'class' : 'classes'})</option>`)
-        ].join("");
-        updateConsolidatedSectionChoices();
     } catch (error) {
-        consolidatedSemester.innerHTML = '<option value="">Failed to load semesters</option>';
+        // Keeps the default semester options in the HTML
     }
 }
-
-function updateConsolidatedSectionChoices() {
-    if (!consolidatedSection || !consolidatedSemester) return;
-    const selectedSem = consolidatedSemester.value;
-    const matched = bsMathSemestersData.find(s => s.semester === selectedSem);
-    if (!matched || !matched.sections.length) {
-        consolidatedSection.innerHTML = '<option value="">All sections</option>';
-        return;
-    }
-    consolidatedSection.innerHTML = [
-        '<option value="">All sections</option>',
-        ...matched.sections.map(sec => `<option value="${escapeHtml(sec)}">Section ${escapeHtml(sec)}</option>`)
-    ].join("");
-}
-
-consolidatedSemester?.addEventListener("change", updateConsolidatedSectionChoices);
 
 bsMathConsolidatedForm?.addEventListener("submit", async event => {
     event.preventDefault();
@@ -580,9 +560,8 @@ bsMathConsolidatedForm?.addEventListener("submit", async event => {
         showMessage(consolidatedMessage, "Please select a semester.", "error");
         return;
     }
-    const section = consolidatedSection.value;
-    const shift = consolidatedShift.value;
-    const month = consolidatedMonth.value;
+    const shift = consolidatedShift ? consolidatedShift.value : "";
+    const month = consolidatedMonth ? consolidatedMonth.value : "";
 
     const originalText = downloadConsolidatedPdfBtn.textContent;
     downloadConsolidatedPdfBtn.disabled = true;
@@ -591,7 +570,6 @@ bsMathConsolidatedForm?.addEventListener("submit", async event => {
 
     try {
         const params = new URLSearchParams({ semester });
-        if (section) params.set("section", section);
         if (shift) params.set("shift", shift);
         if (month) params.set("month", month);
 
