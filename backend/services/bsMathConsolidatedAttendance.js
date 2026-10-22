@@ -2,21 +2,7 @@ const pool = require("../config/db");
 const { createBsMathConsolidatedAttendancePdf, compareRollNumbers } = require("../lib/bsMathConsolidatedAttendancePdf");
 
 const BS_MATH_COURSE_FILTER = `
-    (
-        c.program ILIKE '%math%'
-        OR (c.class_type = 'bachelors' AND (c.program IS NULL OR TRIM(c.program) = ''))
-    )
-    AND (
-        c.program IS NULL
-        OR (
-            c.program NOT ILIKE '%cs%'
-            AND c.program NOT ILIKE '%computer%'
-            AND c.program NOT ILIKE '%it%'
-            AND c.program NOT ILIKE '%chem%'
-            AND c.program NOT ILIKE '%phy%'
-            AND c.program NOT ILIKE '%econ%'
-        )
-    )
+    (c.program ILIKE '%math%')
 `;
 
 function normalizeSemester(sem) {
