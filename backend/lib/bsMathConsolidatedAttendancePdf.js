@@ -84,19 +84,16 @@ function renderHeader(doc, spec, pageNumber, totalPages) {
 function createBsMathConsolidatedAttendancePdf(spec) {
     return new Promise((resolve, reject) => {
         const doc = new PDFDocument({
+            autoFirstPage: false,
             size: "A4",
             layout: "landscape",
             margins: 0,
+            font: REGULAR_FONT_PATH,
             info: { Title: `BS Mathematics - Consolidated Attendance - Semester ${spec.semester}` }
         });
 
-        if (fs.existsSync(REGULAR_FONT_PATH) && fs.existsSync(BOLD_FONT_PATH)) {
-            doc.registerFont(REGULAR_FONT, REGULAR_FONT_PATH);
-            doc.registerFont(BOLD_FONT, BOLD_FONT_PATH);
-        } else {
-            doc.registerFont(REGULAR_FONT, "Helvetica");
-            doc.registerFont(BOLD_FONT, "Helvetica-Bold");
-        }
+        doc.registerFont(REGULAR_FONT, REGULAR_FONT_PATH);
+        doc.registerFont(BOLD_FONT, BOLD_FONT_PATH);
 
         const chunks = [];
         doc.on("data", chunk => chunks.push(chunk));
@@ -130,7 +127,7 @@ function createBsMathConsolidatedAttendancePdf(spec) {
         const rowH = 18;
 
         for (let page = 1; page <= totalPages; page += 1) {
-            if (page > 1) doc.addPage({ size: "A4", layout: "landscape", margins: 0 });
+            doc.addPage({ size: "A4", layout: "landscape", margins: 0 });
 
             renderHeader(doc, spec, page, totalPages);
 
