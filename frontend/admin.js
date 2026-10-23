@@ -69,12 +69,12 @@ async function loadTeachers() {
         currentTeachers = data.teachers;
         teacherRows.innerHTML = data.teachers.length ? data.teachers.map(teacher => `
             <tr>
-                <td><button class="teacher-name-button" data-teacher-id="${Number(teacher.id)}" ${teacher.is_active ? "" : "disabled"}>${escapeHtml(teacher.name)}</button></td>
-                <td>${escapeHtml(teacher.email)}</td>
-                <td><span class="status ${teacher.is_active ? "active" : "inactive"}">${teacher.is_active ? "Active" : "Inactive"}</span></td>
-                <td><span class="status ${teacher.can_admin ? "active" : "inactive"}">${teacher.can_admin ? "Granted" : "Not granted"}</span></td>
-                <td>${escapeHtml(new Date(teacher.created_at).toLocaleDateString())}</td>
-                <td><button class="account-action ${teacher.can_admin ? "" : "restore"}" data-admin-access="${Number(teacher.id)}" data-grant="${teacher.can_admin ? "false" : "true"}"
+                <td data-label="Teacher"><button class="teacher-name-button" data-teacher-id="${Number(teacher.id)}" ${teacher.is_active ? "" : "disabled"}>${escapeHtml(teacher.name)}</button></td>
+                <td data-label="Email">${escapeHtml(teacher.email)}</td>
+                <td data-label="Status"><span class="status ${teacher.is_active ? "active" : "inactive"}">${teacher.is_active ? "Active" : "Inactive"}</span></td>
+                <td data-label="Admin Access"><span class="status ${teacher.can_admin ? "active" : "inactive"}">${teacher.can_admin ? "Granted" : "Not granted"}</span></td>
+                <td data-label="Created">${escapeHtml(new Date(teacher.created_at).toLocaleDateString())}</td>
+                <td data-label="Action"><button class="account-action ${teacher.can_admin ? "" : "restore"}" data-admin-access="${Number(teacher.id)}" data-grant="${teacher.can_admin ? "false" : "true"}"
                     ${!teacher.is_active || (teacher.can_admin && Number(teacher.id) === Number(currentAdmin?.id)) ? "disabled" : ""}>
                     ${teacher.can_admin ? "Revoke Admin" : "Make Admin"}
                 </button></td>
@@ -172,17 +172,23 @@ function courseLabel(course) {
 async function loadCourseApprovals() {
     try {
         const data = await api("/api/admin/course-approvals");
-        approvalRows.innerHTML = data.courses.length ? data.courses.map(course => {
+        const count = data.courses.length;
+        const approvalsBadge = document.getElementById("approvalsBadge");
+        if (approvalsBadge) {
+            approvalsBadge.textContent = count;
+            approvalsBadge.hidden = count === 0;
+        }
+        approvalRows.innerHTML = count ? data.courses.map(course => {
             const level = course.class_type === "intermediate" ? "Intermediate" : "Bachelors";
             const details = [level, course.program, course.semester, course.section, course.class_shift]
                 .filter(Boolean).join(" · ");
             return `<tr>
-                <td><span class="approval-class"><strong>${escapeHtml(course.name)}</strong><small>${escapeHtml(course.course_code || "No course code")}</small></span></td>
-                <td>${escapeHtml(course.teacher_name)}<br><span class="approval-details">${escapeHtml(course.teacher_email)}</span></td>
-                <td><span class="approval-details">${escapeHtml(details)}</span></td>
-                <td>${Number(course.student_count)}</td>
-                <td>${escapeHtml(new Date(course.created_at).toLocaleDateString())}</td>
-                <td><div class="approval-actions">
+                <td data-label="Class"><span class="approval-class"><strong>${escapeHtml(course.name)}</strong><small>${escapeHtml(course.course_code || "No course code")}</small></span></td>
+                <td data-label="Teacher">${escapeHtml(course.teacher_name)}<br><span class="approval-details">${escapeHtml(course.teacher_email)}</span></td>
+                <td data-label="Details"><span class="approval-details">${escapeHtml(details)}</span></td>
+                <td data-label="Students">${Number(course.student_count)}</td>
+                <td data-label="Created">${escapeHtml(new Date(course.created_at).toLocaleDateString())}</td>
+                <td data-label="Decision"><div class="approval-actions">
                     <button type="button" class="approve" data-course-approval="${Number(course.id)}" data-status="approved">Approve</button>
                     <button type="button" class="danger" data-course-approval="${Number(course.id)}" data-status="rejected">Reject</button>
                 </div></td>
@@ -620,6 +626,67 @@ bsMathConsolidatedForm?.addEventListener("submit", async event => {
         downloadConsolidatedPdfBtn.textContent = originalText;
     }
 });
+
+function initAdminTabs() {
+    const tabs = document.querySelectorAll(".admin-tab-btn");
+    const panels = document.querySelectorAll(".admin-tab-panel");
+
+    function switchTab(targetTabId, updateHash = true) {
+        if (!targetTabId) targetTabId = "approvals";
+        if (targetTabId === "approvalRequests") targetTabId = "approvals";
+        targetTabId = targetTabId.replace(/^#/, "");
+
+        const validTabs = ["approvals", "faculty", "reports", "operations"];
+        if (!validTabs.includes(targetTabId)) targetTabId = "approvals";
+
+        tabs.forEach(tab => {
+            const isActive = tab.dataset.tab === targetTabId;
+            tab.classList.toggle("active", isActive);
+            tab.setAttribute("aria-selected", isActive ? "true" : "false");
+        });
+
+        panels.forEach(panel => {
+            const isActive = panel.id === `tab-${targetTabId}`;
+            panel.classList.toggle("active", isActive);
+            panel.hidden = !isActive;
+        });
+
+        if (updateHash) {
+            history.replaceState(null, "", `#${targetTabId}`);
+        }
+    }
+
+    tabs.forEach(tab => {
+        tab.addEventListener("click", () => {
+            switchTab(tab.dataset.tab, true);
+        });
+    });
+
+    window.addEventListener("hashchange", () => {
+        const hash = window.location.hash.replace(/^#/, "");
+        if (hash) switchTab(hash, false);
+    });
+
+    const initialHash = window.location.hash.replace(/^#/, "");
+    if (initialHash) {
+        switchTab(initialHash, false);
+    } else {
+        switchTab("approvals", false);
+    }
+
+    const toggleAddTeacherBtn = document.getElementById("toggleAddTeacherBtn");
+    if (toggleAddTeacherBtn) {
+        toggleAddTeacherBtn.addEventListener("click", () => {
+            const addPanel = document.getElementById("addTeacherPanel");
+            if (addPanel) {
+                addPanel.scrollIntoView({ behavior: "smooth", block: "start" });
+                document.getElementById("name")?.focus();
+            }
+        });
+    }
+}
+
+initAdminTabs();
 
 async function initializeAdminPage() {
     try {

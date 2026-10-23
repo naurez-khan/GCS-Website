@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Department Administration</title>
     <link rel="icon" type="image/webp" href="/assets/department-logo.webp">
-    <link rel="stylesheet" href="/portal.css?v=20260910-1">
+    <link rel="stylesheet" href="/portal.css?v=20261023-1">
     <link rel="stylesheet" href="/brand.css?v=20260824-33">
     <script defer src="/ui-icons.js?v=20260824-3"></script>
 </head>
@@ -22,157 +22,211 @@
         </div>
     </header>
 
-    <main class="portal-main two-column">
-        <section id="approvalRequests" class="panel approval-panel">
-            <div class="panel-heading">
-                <div>
-                    <h1>Class Approval Requests</h1>
-                    <p class="muted">Review new classes before teachers can use attendance, marks, exports, or results.</p>
-                </div>
-                <button id="refreshApprovalsBtn" type="button">Refresh</button>
-            </div>
-            <div id="approvalMessage" class="notice hidden" role="status" aria-live="polite"></div>
-            <div class="table-wrap">
-                <table>
-                    <thead><tr><th>Class</th><th>Teacher</th><th>Details</th><th>Students</th><th>Created</th><th>Decision</th></tr></thead>
-                    <tbody id="approvalRows"><tr><td colspan="6">Loading…</td></tr></tbody>
-                </table>
-            </div>
-        </section>
-        <section class="panel">
-            <h1>Add a teacher</h1>
-            <p class="muted">Create an account that can manage classes, attendance, and marks.</p>
-            <form id="teacherForm" autocomplete="off">
-                <label>Name<input id="name" maxlength="100" autocomplete="off" required></label>
-                <label>Email<input id="email" type="email" maxlength="150" autocomplete="off" required></label>
-                <label>Temporary password<input id="password" type="password" minlength="8" autocomplete="new-password" required></label>
-                <button type="submit" class="primary">Create teacher</button>
-            </form>
-            <div id="message" class="notice hidden" role="status"></div>
-        </section>
+    <main class="portal-main admin-main">
+        <!-- Modern Mobile-First Admin Tab Navigation Bar -->
+        <nav class="admin-nav-bar" role="tablist" aria-label="Administration Sections">
+            <button class="admin-tab-btn active" role="tab" aria-selected="true" data-tab="approvals" id="tabBtnApprovals">
+                <span class="admin-tab-icon">📋</span>
+                <span class="admin-tab-label">Approvals</span>
+                <span id="approvalsBadge" class="tab-badge" hidden>0</span>
+            </button>
+            <button class="admin-tab-btn" role="tab" aria-selected="false" data-tab="faculty" id="tabBtnFaculty">
+                <span class="admin-tab-icon">👥</span>
+                <span class="admin-tab-label">Faculty</span>
+            </button>
+            <button class="admin-tab-btn" role="tab" aria-selected="false" data-tab="reports" id="tabBtnReports">
+                <span class="admin-tab-icon">📊</span>
+                <span class="admin-tab-label">Reports</span>
+            </button>
+            <button class="admin-tab-btn" role="tab" aria-selected="false" data-tab="operations" id="tabBtnOperations">
+                <span class="admin-tab-icon">⚙️</span>
+                <span class="admin-tab-label">Operations</span>
+            </button>
+        </nav>
 
-        <section class="panel">
-            <h2>Reset an account password</h2>
-            <p class="muted">Set a temporary password for a teacher or administrator. Their old password will immediately stop working.</p>
-            <form id="resetPasswordForm" autocomplete="off">
-                <label>Account<select id="resetPasswordAccount" required></select></label>
-                <label>Temporary password<input id="resetTemporaryPassword" type="password" minlength="8" maxlength="128" autocomplete="new-password" required></label>
-                <label>Confirm temporary password<input id="resetTemporaryPasswordConfirm" type="password" minlength="8" maxlength="128" autocomplete="new-password" required></label>
-                <div class="account-manager-actions">
-                    <button id="resetPasswordBtn" class="primary" type="submit">Reset Password</button>
-                    <div id="resetPasswordMessage" class="notice hidden" role="status" aria-live="polite"></div>
-                </div>
-            </form>
-        </section>
-
-        <section class="panel">
-            <h2>Transfer a class</h2>
-            <p class="muted">Move a complete class to another teacher. Students, attendance, marks, settings, and results remain unchanged.</p>
-            <div id="transferMessage" class="notice hidden" role="status" aria-live="polite"></div>
-            <form id="transferClassForm">
-                <label>Current teacher<select id="transferFromTeacher" required></select></label>
-                <label>Class<select id="transferCourse" required></select></label>
-                <label>Receiving teacher<select id="transferToTeacher" required></select></label>
-                <button id="transferClassBtn" type="submit" class="primary">Transfer Class</button>
-            </form>
-        </section>
-
-        <section class="panel">
-            <h2>Restore a class backup</h2>
-            <p class="muted">Upload a class backup JSON file. A separate new class will be created, so no existing class is overwritten.</p>
-            <form id="restoreBackupForm">
-                <label>Class backup file<input id="restoreBackupFile" type="file" accept="application/json,.json" required></label>
-                <div id="restoreBackupPreview" class="backup-preview hidden" aria-live="polite"></div>
-                <label>Receiving teacher<select id="restoreBackupTeacher" required></select></label>
-                <button id="restoreBackupBtn" type="submit" class="primary" disabled>Restore as New Class</button>
-            </form>
-            <div id="restoreBackupMessage" class="notice hidden" role="status" aria-live="polite"></div>
-        </section>
-
-        <section class="panel">
-            <h2>Consolidated Attendance (BS Mathematics)</h2>
-            <p class="muted">Generate and download a semester-wide consolidated attendance sheet matching roll numbers across all courses and teachers.</p>
-            <form id="bsMathConsolidatedForm">
-                <label>Semester
-                    <select id="consolidatedSemester" required>
-                        <option value="">Select Semester...</option>
-                        <option value="1st">1st Semester</option>
-                        <option value="2nd">2nd Semester</option>
-                        <option value="3rd">3rd Semester</option>
-                        <option value="4th">4th Semester</option>
-                        <option value="5th">5th Semester</option>
-                        <option value="6th">6th Semester</option>
-                        <option value="7th">7th Semester</option>
-                        <option value="8th">8th Semester</option>
-                    </select>
-                </label>
-                <label>Shift (optional)
-                    <select id="consolidatedShift">
-                        <option value="">All shifts</option>
-                        <option value="morning">Morning</option>
-                        <option value="evening">Evening</option>
-                    </select>
-                </label>
-                <label>Up to Date
-                    <input id="consolidatedToDate" type="date" required>
-                </label>
-                <div class="account-manager-actions">
-                    <button id="downloadConsolidatedPdfBtn" type="submit" class="primary">Download PDF</button>
-                </div>
-            </form>
-            <div id="consolidatedMessage" class="notice hidden" role="status" aria-live="polite"></div>
-        </section>
-
-        <section class="panel">
-            <div class="panel-heading">
-                <div><h2>Teachers</h2><p class="muted">Current department accounts. Grant administrator access without creating another account.</p></div>
-                <div class="teacher-list-actions">
-                    <button id="refreshBtn">Refresh</button>
-                    <button id="editTeacherNameBtn" type="button">Change Name</button>
-                    <button id="removeTeacherBtn" class="danger">Delete Teacher</button>
-                </div>
-            </div>
-            <div id="teacherNamePanel" class="account-manager hidden">
-                <h3>Change Teacher Name</h3>
-                <p class="muted">Update the name shown across the teacher panel, classes, exports, and administration records.</p>
-                <form id="teacherNameForm" autocomplete="off">
-                    <label>
-                        Teacher
-                        <select id="teacherNameSelect" required></select>
-                    </label>
-                    <label>
-                        New name
-                        <input id="teacherNameInput" minlength="2" maxlength="100" required>
-                    </label>
-                    <div class="account-manager-actions">
-                        <button id="saveTeacherNameBtn" class="primary" type="submit">Save Name</button>
-                        <button id="cancelTeacherNameBtn" type="button">Cancel</button>
+        <!-- Tab 1: Approvals -->
+        <div id="tab-approvals" class="admin-tab-panel active" role="tabpanel" aria-labelledby="tabBtnApprovals">
+            <section id="approvalRequests" class="panel approval-panel">
+                <div class="panel-heading">
+                    <div>
+                        <h1>Class Approval Requests</h1>
+                        <p class="muted">Review new classes before teachers can use attendance, marks, exports, or results.</p>
                     </div>
-                    <div id="teacherNameMessage" class="notice hidden" role="status" aria-live="polite"></div>
-                </form>
-            </div>
-            <div id="teacherAccountPanel" class="account-manager hidden">
-                <h3 id="teacherAccountTitle">Permanently Delete Teacher</h3>
-                <p id="teacherAccountHelp" class="muted">The account cannot be restored. Transfer or delete all of the teacher's classes first.</p>
-                <label>
-                    Teacher
-                    <select id="teacherAccountSelect"></select>
-                </label>
-                <div class="account-manager-actions">
-                    <button id="confirmTeacherAccountBtn" class="danger" type="button">Delete Permanently</button>
-                    <button id="cancelTeacherAccountBtn" type="button">Cancel</button>
+                    <button id="refreshApprovalsBtn" type="button">Refresh</button>
                 </div>
-                <div id="teacherAccountMessage" class="notice hidden" role="status" aria-live="polite"></div>
+                <div id="approvalMessage" class="notice hidden" role="status" aria-live="polite"></div>
+                <div class="table-wrap">
+                    <table class="admin-card-table">
+                        <thead><tr><th>Class</th><th>Teacher</th><th>Details</th><th>Students</th><th>Created</th><th>Decision</th></tr></thead>
+                        <tbody id="approvalRows"><tr><td colspan="6">Loading…</td></tr></tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+
+        <!-- Tab 2: Faculty -->
+        <div id="tab-faculty" class="admin-tab-panel" role="tabpanel" aria-labelledby="tabBtnFaculty" hidden>
+            <div class="admin-faculty-grid">
+                <section class="panel teacher-directory-panel">
+                    <div class="panel-heading">
+                        <div><h2>Teachers &amp; Staff</h2><p class="muted">Current department accounts. Manage names, permissions, and administrator access.</p></div>
+                        <div class="teacher-list-actions">
+                            <button id="refreshBtn" type="button">Refresh</button>
+                            <button id="toggleAddTeacherBtn" type="button" class="primary">+ Add Teacher</button>
+                            <button id="editTeacherNameBtn" type="button">Change Name</button>
+                            <button id="removeTeacherBtn" class="danger">Delete Teacher</button>
+                        </div>
+                    </div>
+                    <div id="teacherNamePanel" class="account-manager hidden">
+                        <h3>Change Teacher Name</h3>
+                        <p class="muted">Update the name shown across the teacher panel, classes, exports, and administration records.</p>
+                        <form id="teacherNameForm" autocomplete="off">
+                            <label>
+                                Teacher
+                                <select id="teacherNameSelect" required></select>
+                            </label>
+                            <label>
+                                New name
+                                <input id="teacherNameInput" minlength="2" maxlength="100" required>
+                            </label>
+                            <div class="account-manager-actions">
+                                <button id="saveTeacherNameBtn" class="primary" type="submit">Save Name</button>
+                                <button id="cancelTeacherNameBtn" type="button">Cancel</button>
+                            </div>
+                            <div id="teacherNameMessage" class="notice hidden" role="status" aria-live="polite"></div>
+                        </form>
+                    </div>
+                    <div id="teacherAccountPanel" class="account-manager hidden">
+                        <h3 id="teacherAccountTitle">Permanently Delete Teacher</h3>
+                        <p id="teacherAccountHelp" class="muted">The account cannot be restored. Transfer or delete all of the teacher's classes first.</p>
+                        <label>
+                            Teacher
+                            <select id="teacherAccountSelect"></select>
+                        </label>
+                        <div class="account-manager-actions">
+                            <button id="confirmTeacherAccountBtn" class="danger" type="button">Delete Permanently</button>
+                            <button id="cancelTeacherAccountBtn" type="button">Cancel</button>
+                        </div>
+                        <div id="teacherAccountMessage" class="notice hidden" role="status" aria-live="polite"></div>
+                    </div>
+                    <div class="table-wrap">
+                        <table class="admin-card-table">
+                            <thead><tr><th>Name</th><th>Email</th><th>Status</th><th>Admin access</th><th>Created</th><th>Action</th></tr></thead>
+                            <tbody id="teacherRows"><tr><td colspan="6">Loading…</td></tr></tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <section id="addTeacherPanel" class="panel">
+                    <h2>Add a teacher</h2>
+                    <p class="muted">Create an account that can manage classes, attendance, and marks.</p>
+                    <form id="teacherForm" autocomplete="off">
+                        <label>Name<input id="name" maxlength="100" autocomplete="off" required></label>
+                        <label>Email<input id="email" type="email" maxlength="150" autocomplete="off" required></label>
+                        <label>Temporary password<input id="password" type="password" minlength="8" autocomplete="new-password" required></label>
+                        <button type="submit" class="primary">Create teacher</button>
+                    </form>
+                    <div id="message" class="notice hidden" role="status"></div>
+                </section>
             </div>
-            <div class="table-wrap">
-                <table>
-                    <thead><tr><th>Name</th><th>Email</th><th>Status</th><th>Admin access</th><th>Created</th><th>Action</th></tr></thead>
-                    <tbody id="teacherRows"><tr><td colspan="6">Loading…</td></tr></tbody>
-                </table>
+        </div>
+
+        <!-- Tab 3: Reports -->
+        <div id="tab-reports" class="admin-tab-panel" role="tabpanel" aria-labelledby="tabBtnReports" hidden>
+            <div class="admin-reports-grid">
+                <section class="panel">
+                    <div class="panel-heading">
+                        <div>
+                            <h2>Consolidated Attendance (BS Mathematics)</h2>
+                            <p class="muted">Generate and download a semester-wide consolidated attendance sheet matching roll numbers across all courses and teachers.</p>
+                        </div>
+                    </div>
+                    <form id="bsMathConsolidatedForm">
+                        <label>Semester
+                            <select id="consolidatedSemester" required>
+                                <option value="">Select Semester...</option>
+                                <option value="1st">1st Semester</option>
+                                <option value="2nd">2nd Semester</option>
+                                <option value="3rd">3rd Semester</option>
+                                <option value="4th">4th Semester</option>
+                                <option value="5th">5th Semester</option>
+                                <option value="6th">6th Semester</option>
+                                <option value="7th">7th Semester</option>
+                                <option value="8th">8th Semester</option>
+                            </select>
+                        </label>
+                        <label>Shift (optional)
+                            <select id="consolidatedShift">
+                                <option value="">All shifts</option>
+                                <option value="morning">Morning</option>
+                                <option value="evening">Evening</option>
+                            </select>
+                        </label>
+                        <label>Up to Date
+                            <input id="consolidatedToDate" type="date" required>
+                        </label>
+                        <div class="account-manager-actions">
+                            <button id="downloadConsolidatedPdfBtn" type="submit" class="primary">Download PDF</button>
+                        </div>
+                    </form>
+                    <div id="consolidatedMessage" class="notice hidden" role="status" aria-live="polite"></div>
+                </section>
+
+                <section class="panel info-panel">
+                    <h3>Report Highlights</h3>
+                    <ul class="feature-bullets">
+                        <li><strong>Automated Roll Synchronization:</strong> Roll numbers from every teacher's course in the semester are merged into a unified alphabetical and numerical register.</li>
+                        <li><strong>Dynamic Period Cutoff:</strong> The consolidated attendance counts all lectures up to the selected date.</li>
+                        <li><strong>Attendance Risk Flag:</strong> Any student with attendance below 50% is marked in red for immediate intervention.</li>
+                    </ul>
+                </section>
             </div>
-        </section>
+        </div>
+
+        <!-- Tab 4: Operations -->
+        <div id="tab-operations" class="admin-tab-panel" role="tabpanel" aria-labelledby="tabBtnOperations" hidden>
+            <div class="admin-operations-grid">
+                <section class="panel">
+                    <h2>Reset an account password</h2>
+                    <p class="muted">Set a temporary password for a teacher or administrator. Their old password will immediately stop working.</p>
+                    <form id="resetPasswordForm" autocomplete="off">
+                        <label>Account<select id="resetPasswordAccount" required></select></label>
+                        <label>Temporary password<input id="resetTemporaryPassword" type="password" minlength="8" maxlength="128" autocomplete="new-password" required></label>
+                        <label>Confirm temporary password<input id="resetTemporaryPasswordConfirm" type="password" minlength="8" maxlength="128" autocomplete="new-password" required></label>
+                        <div class="account-manager-actions">
+                            <button id="resetPasswordBtn" class="primary" type="submit">Reset Password</button>
+                            <div id="resetPasswordMessage" class="notice hidden" role="status" aria-live="polite"></div>
+                        </div>
+                    </form>
+                </section>
+
+                <section class="panel">
+                    <h2>Transfer a class</h2>
+                    <p class="muted">Move a complete class to another teacher. Students, attendance, marks, settings, and results remain unchanged.</p>
+                    <div id="transferMessage" class="notice hidden" role="status" aria-live="polite"></div>
+                    <form id="transferClassForm">
+                        <label>Current teacher<select id="transferFromTeacher" required></select></label>
+                        <label>Class<select id="transferCourse" required></select></label>
+                        <label>Receiving teacher<select id="transferToTeacher" required></select></label>
+                        <button id="transferClassBtn" type="submit" class="primary">Transfer Class</button>
+                    </form>
+                </section>
+
+                <section class="panel">
+                    <h2>Restore a class backup</h2>
+                    <p class="muted">Upload a class backup JSON file. A separate new class will be created, so no existing class is overwritten.</p>
+                    <form id="restoreBackupForm">
+                        <label>Class backup file<input id="restoreBackupFile" type="file" accept="application/json,.json" required></label>
+                        <div id="restoreBackupPreview" class="backup-preview hidden" aria-live="polite"></div>
+                        <label>Receiving teacher<select id="restoreBackupTeacher" required></select></label>
+                        <button id="restoreBackupBtn" type="submit" class="primary" disabled>Restore as New Class</button>
+                    </form>
+                    <div id="restoreBackupMessage" class="notice hidden" role="status" aria-live="polite"></div>
+                </section>
+            </div>
+        </div>
 
     </main>
-    <script src="/admin.js?v=20261022-2"></script>
+    <script src="/admin.js?v=20261023-1"></script>
 </body>
 </html>
