@@ -5,9 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Department Administration</title>
     <link rel="icon" type="image/webp" href="/assets/department-logo.webp">
-    <link rel="stylesheet" href="/portal.css?v=20261023-1">
+    <link rel="stylesheet" href="/portal.css?v=20261023-2">
     <link rel="stylesheet" href="/brand.css?v=20260824-33">
-    <script defer src="/ui-icons.js?v=20260824-3"></script>
+    <script defer src="/ui-icons.js?v=20261023-1"></script>
 </head>
 <body>
     <header class="portal-bar">
@@ -25,21 +25,21 @@
     <main class="portal-main admin-main">
         <!-- Modern Mobile-First Admin Tab Navigation Bar -->
         <nav class="admin-nav-bar" role="tablist" aria-label="Administration Sections">
-            <button class="admin-tab-btn active" role="tab" aria-selected="true" data-tab="approvals" id="tabBtnApprovals">
-                <span class="admin-tab-icon">📋</span>
+            <button class="admin-tab-btn active" role="tab" aria-selected="true" data-tab="approvals" id="tabBtnApprovals" data-ui-icon="none">
+                <span class="ui-heroicon" style="--ui-icon-url: url('/assets/heroicons/clipboard-document-check.svg')" aria-hidden="true"></span>
                 <span class="admin-tab-label">Approvals</span>
                 <span id="approvalsBadge" class="tab-badge" hidden>0</span>
             </button>
-            <button class="admin-tab-btn" role="tab" aria-selected="false" data-tab="faculty" id="tabBtnFaculty">
-                <span class="admin-tab-icon">👥</span>
+            <button class="admin-tab-btn" role="tab" aria-selected="false" data-tab="faculty" id="tabBtnFaculty" data-ui-icon="none">
+                <span class="ui-heroicon" style="--ui-icon-url: url('/assets/heroicons/users.svg')" aria-hidden="true"></span>
                 <span class="admin-tab-label">Faculty</span>
             </button>
-            <button class="admin-tab-btn" role="tab" aria-selected="false" data-tab="reports" id="tabBtnReports">
-                <span class="admin-tab-icon">📊</span>
+            <button class="admin-tab-btn" role="tab" aria-selected="false" data-tab="reports" id="tabBtnReports" data-ui-icon="none">
+                <span class="ui-heroicon" style="--ui-icon-url: url('/assets/heroicons/chart-bar.svg')" aria-hidden="true"></span>
                 <span class="admin-tab-label">Reports</span>
             </button>
-            <button class="admin-tab-btn" role="tab" aria-selected="false" data-tab="operations" id="tabBtnOperations">
-                <span class="admin-tab-icon">⚙️</span>
+            <button class="admin-tab-btn" role="tab" aria-selected="false" data-tab="operations" id="tabBtnOperations" data-ui-icon="none">
+                <span class="ui-heroicon" style="--ui-icon-url: url('/assets/heroicons/cog-6-tooth.svg')" aria-hidden="true"></span>
                 <span class="admin-tab-label">Operations</span>
             </button>
         </nav>
@@ -72,7 +72,7 @@
                         <div><h2>Teachers &amp; Staff</h2><p class="muted">Current department accounts. Manage names, permissions, and administrator access.</p></div>
                         <div class="teacher-list-actions">
                             <button id="refreshBtn" type="button">Refresh</button>
-                            <button id="toggleAddTeacherBtn" type="button" class="primary">+ Add Teacher</button>
+                            <button id="toggleAddTeacherBtn" type="button" class="primary">Add Teacher</button>
                             <button id="editTeacherNameBtn" type="button">Change Name</button>
                             <button id="removeTeacherBtn" class="danger">Delete Teacher</button>
                         </div>

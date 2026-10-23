@@ -20,8 +20,10 @@
         if (text.includes("import") || text.includes("upload")) return "arrow-up-tray";
         if (text.includes("excel") || className.includes("excel")) return null;
         if (text.includes("download") || text.includes("export")) return "document-arrow-down";
-        if (text.includes("restore")) return "arrow-path";
+        if (text.includes("restore") || text.includes("refresh") || text.includes("reload")) return "arrow-path";
         if (text.includes("publish")) return "eye";
+        if (text.includes("approve")) return "check";
+        if (text.includes("reject")) return "x-mark";
         if (text.includes("settings")) return "cog-6-tooth";
         if (text.includes("edit")) return "pencil-square";
         if (text.includes("delete") || text.includes("remove")) return "trash";

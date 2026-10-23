@@ -134,9 +134,14 @@ th { font-size:12px; letter-spacing:.035em; text-transform:uppercase; color:#675
     border-color: #7b0913;
     box-shadow: 0 4px 12px rgba(149, 11, 23, 0.22);
 }
-.admin-tab-icon {
-    font-size: 16px;
-    line-height: 1;
+.admin-tab-btn .ui-heroicon {
+    width: 1.25em;
+    height: 1.25em;
+    flex: 0 0 1.25em;
+    color: currentColor;
+}
+.admin-tab-btn.active .ui-heroicon {
+    color: #fff;
 }
 
 .tab-badge {
