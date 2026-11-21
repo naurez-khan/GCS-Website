@@ -11,6 +11,11 @@ const {
     buildAbsentStudentsPdfSpec,
     createAbsentStudentsPdf
 } = require("../lib/absentStudentsPdf");
+const {
+    evaluateSameClassMatch,
+    mapAbsentRollsToTargetCourse,
+    getSiblingCoursesForAttendance
+} = require("../services/sameClassCourses");
 
 function safeMonthlyPdfError(error) {
     const name = String(error?.name || "Error").replace(/[^a-z0-9 _-]/gi, "");
@@ -46,7 +51,8 @@ const markAttendance = async (req, res) => {
         const {
             courseId,
             date,
-            absentStudentIds
+            absentStudentIds,
+            syncCourseIds
         } = req.body;
 
 
@@ -70,6 +76,9 @@ const markAttendance = async (req, res) => {
         const absentIds = Array.isArray(absentStudentIds)
             ? absentStudentIds
             : [];
+        const requestedSyncIds = Array.isArray(syncCourseIds)
+            ? [...new Set(syncCourseIds.map(Number).filter(id => Number.isInteger(id) && id > 0 && id !== Number(courseId)))]
+            : [];
 
 
         // Start transaction
@@ -81,7 +90,20 @@ const markAttendance = async (req, res) => {
 
         const courseResult = await client.query(
             `
-            SELECT id, TO_CHAR(class_start_date, 'YYYY-MM-DD') AS class_start_date
+            SELECT
+                id,
+                name,
+                course_code,
+                class_type,
+                intermediate_year,
+                class_shift,
+                program,
+                semester,
+                section,
+                teacher_id,
+                approval_status,
+                attendance_enabled,
+                TO_CHAR(class_start_date, 'YYYY-MM-DD') AS class_start_date
             FROM courses
             WHERE id = $1
             AND teacher_id = $2
@@ -100,6 +122,8 @@ const markAttendance = async (req, res) => {
             });
 
         }
+
+        const baseCourse = courseResult.rows[0];
 
 
         if (new Date(`${date}T00:00:00Z`).getUTCDay() === 0) {
@@ -122,7 +146,7 @@ const markAttendance = async (req, res) => {
 
         const studentsResult = await client.query(
             `
-            SELECT id
+            SELECT id, roll_number
             FROM students
             WHERE course_id = $1
             AND deleted_at IS NULL
@@ -170,7 +194,7 @@ const markAttendance = async (req, res) => {
 
 
         const today = getPakistanDate();
-        const classStartDate = courseResult.rows[0].class_start_date;
+        const classStartDate = baseCourse.class_start_date;
         if (date > today) {
             await client.query("ROLLBACK");
             return res.status(400).json({
@@ -214,14 +238,15 @@ const markAttendance = async (req, res) => {
         // Insert attendance for every student
 
         const leaveIds = new Set(existingAttendance.rows.filter(record => record.status === "leave").map(record => Number(record.student_id)));
+        const primaryAbsentRollNumbers = [];
 
         for (const student of students) {
 
             if (leaveIds.has(Number(student.id))) continue;
-            const status = absentIds.includes(student.id) ||
-                           absentIds.includes(String(student.id))
-                ? "absent"
-                : "present";
+            const isAbsent = absentIds.includes(student.id) ||
+                             absentIds.includes(String(student.id));
+            const status = isAbsent ? "absent" : "present";
+            if (isAbsent) primaryAbsentRollNumbers.push(student.roll_number);
 
 
             await client.query(
@@ -245,6 +270,157 @@ const markAttendance = async (req, res) => {
 
         }
 
+        // Optionally sync attendance to selected same-class sibling courses
+        const syncedCourses = [];
+        const baseRollNumbers = students.map(s => s.roll_number);
+
+        for (const targetCourseId of requestedSyncIds) {
+            const targetCourseResult = await client.query(
+                `
+                SELECT
+                    id,
+                    name,
+                    course_code,
+                    class_type,
+                    intermediate_year,
+                    class_shift,
+                    program,
+                    semester,
+                    section,
+                    teacher_id,
+                    approval_status,
+                    attendance_enabled,
+                    TO_CHAR(class_start_date, 'YYYY-MM-DD') AS class_start_date
+                FROM courses
+                WHERE id = $1
+                AND teacher_id = $2
+                `,
+                [targetCourseId, teacherId]
+            );
+
+            if (targetCourseResult.rows.length === 0) {
+                await client.query("ROLLBACK");
+                return res.status(403).json({
+                    success: false,
+                    message: "You do not have access to one of the selected linked courses"
+                });
+            }
+
+            const targetCourse = targetCourseResult.rows[0];
+            if (targetCourse.approval_status !== "approved" || targetCourse.attendance_enabled === false) {
+                await client.query("ROLLBACK");
+                return res.status(400).json({
+                    success: false,
+                    message: `"${targetCourse.name}" is not available for attendance syncing`
+                });
+            }
+
+            if (targetCourse.class_start_date && date < targetCourse.class_start_date) {
+                await client.query("ROLLBACK");
+                return res.status(400).json({
+                    success: false,
+                    message: `Attendance for "${targetCourse.name}" cannot be marked before its class start date (${targetCourse.class_start_date})`
+                });
+            }
+
+            const targetHoliday = await client.query(
+                "SELECT name FROM course_holidays WHERE course_id = $1 AND holiday_date = $2",
+                [targetCourseId, date]
+            );
+            if (targetHoliday.rows.length) {
+                await client.query("ROLLBACK");
+                return res.status(400).json({
+                    success: false,
+                    message: `${targetHoliday.rows[0].name} is a public holiday for "${targetCourse.name}"`
+                });
+            }
+
+            const targetStudentsResult = await client.query(
+                `
+                SELECT id, roll_number
+                FROM students
+                WHERE course_id = $1
+                AND deleted_at IS NULL
+                ORDER BY roll_number
+                `,
+                [targetCourseId]
+            );
+            const targetStudents = targetStudentsResult.rows;
+
+            if (targetStudents.length === 0) {
+                await client.query("ROLLBACK");
+                return res.status(400).json({
+                    success: false,
+                    message: `No students found in "${targetCourse.name}"`
+                });
+            }
+
+            const match = evaluateSameClassMatch(
+                baseCourse,
+                baseRollNumbers,
+                targetCourse,
+                targetStudents.map(s => s.roll_number)
+            );
+            if (!match.matched) {
+                await client.query("ROLLBACK");
+                return res.status(400).json({
+                    success: false,
+                    message: `"${targetCourse.name}" does not match this class and cannot be synced automatically`
+                });
+            }
+
+            const targetExistingAttendance = await client.query(
+                `
+                SELECT student_id, status
+                FROM attendance
+                WHERE course_id = $1
+                AND attendance_date = $2
+                `,
+                [targetCourseId, date]
+            );
+            if (targetExistingAttendance.rows.some(record => record.status !== "leave")) {
+                await client.query("ROLLBACK");
+                return res.status(409).json({
+                    success: false,
+                    message: `Attendance has already been marked for "${targetCourse.name}" on this date`
+                });
+            }
+
+            const targetLeaveIds = new Set(
+                targetExistingAttendance.rows
+                    .filter(record => record.status === "leave")
+                    .map(record => Number(record.student_id))
+            );
+            const mapped = mapAbsentRollsToTargetCourse(primaryAbsentRollNumbers, targetStudents, targetLeaveIds);
+
+            for (const entry of mapped.entries) {
+                await client.query(
+                    `
+                    INSERT INTO attendance
+                    (
+                        course_id,
+                        student_id,
+                        attendance_date,
+                        status
+                    )
+                    VALUES ($1, $2, $3, $4)
+                    `,
+                    [targetCourseId, entry.studentId, date, entry.status]
+                );
+            }
+
+            syncedCourses.push({
+                courseId: Number(targetCourse.id),
+                name: targetCourse.name,
+                courseCode: targetCourse.course_code || "",
+                totalStudents: mapped.totalStudents,
+                presentStudents: mapped.presentCount,
+                absentStudents: mapped.absentCount,
+                leaveStudents: mapped.leaveCount,
+                unmatchedAbsentCount: mapped.unmatchedAbsentCount
+            });
+        }
+
 
         // Everything succeeded
 
@@ -252,20 +428,27 @@ const markAttendance = async (req, res) => {
 
 
         const absentCount = students.filter(student =>
-            absentIds.includes(student.id) ||
-            absentIds.includes(String(student.id))
+            !leaveIds.has(Number(student.id)) && (
+                absentIds.includes(student.id) ||
+                absentIds.includes(String(student.id))
+            )
         ).length;
 
         const leaveCount = leaveIds.size;
+        const syncedNames = syncedCourses.map(c => c.name);
+        const successMessage = syncedNames.length
+            ? `Attendance marked successfully for ${baseCourse.name} and ${syncedNames.join(", ")}`
+            : "Attendance marked successfully";
 
         res.status(201).json({
             success: true,
-            message: "Attendance marked successfully",
+            message: successMessage,
             date: date,
             totalStudents: students.length,
             presentStudents: students.length - absentCount - leaveCount,
             absentStudents: absentCount,
-            leaveStudents: leaveCount
+            leaveStudents: leaveCount,
+            syncedCourses
         });
 
 
@@ -287,6 +470,46 @@ const markAttendance = async (req, res) => {
 
     }
 
+};
+
+const getSiblingCourses = async (req, res) => {
+    try {
+        const teacherId = req.user.id;
+        const courseId = Number(req.params.courseId);
+        const date = String(req.query.date || getPakistanDate()).trim();
+
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || Number.isNaN(Date.parse(`${date}T00:00:00Z`))) {
+            return res.status(400).json({
+                success: false,
+                message: "Date must use the YYYY-MM-DD format"
+            });
+        }
+
+        const siblingCourses = await getSiblingCoursesForAttendance(pool, {
+            courseId,
+            teacherId,
+            date
+        });
+
+        if (siblingCourses === null) {
+            return res.status(404).json({
+                success: false,
+                message: "Course not found or access denied"
+            });
+        }
+
+        res.json({
+            success: true,
+            date,
+            siblingCourses
+        });
+    } catch (error) {
+        console.error("Get sibling courses error:", error);
+        res.status(500).json({
+            success: false,
+            message: "Server error"
+        });
+    }
 };
 
 const getAttendance = async (req, res) => {
@@ -898,6 +1121,7 @@ const deleteCourseHoliday = async (req, res) => {
 
 module.exports = {
     markAttendance,
+    getSiblingCourses,
     getAttendance,
     downloadMonthlyAttendancePdf,
     downloadAbsentStudentsPdf,

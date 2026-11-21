@@ -100,6 +100,19 @@ const attendanceList =
 const attendanceMessage =
     document.getElementById("attendanceMessage");
 
+const linkedCoursesSyncBox =
+    document.getElementById("linkedCoursesSyncBox");
+
+const linkedCoursesSyncList =
+    document.getElementById("linkedCoursesSyncList");
+
+const linkedCoursesSyncHint =
+    document.getElementById("linkedCoursesSyncHint");
+
+let siblingCoursesForAttendance = [];
+let selectedSyncCourseIds = new Set();
+let siblingCoursesRequestId = 0;
+
 const saveAttendanceBtn =
     document.getElementById("saveAttendanceBtn");
 
@@ -877,6 +890,7 @@ if (attendanceBtn) {
 
 
             renderAttendanceList();
+            loadSiblingCoursesForAttendance(selectedAttendanceDate);
 
 
             attendanceSection.scrollIntoView({
@@ -1091,6 +1105,11 @@ function applyHolidayAttendanceState() {
     attendanceList?.classList.toggle("hidden", isHoliday);
     attendanceActions?.classList.toggle("hidden", isHoliday);
     leaveControls?.classList.toggle("hidden", isHoliday);
+    if (isHoliday) {
+        linkedCoursesSyncBox?.classList.add("hidden");
+    } else {
+        renderLinkedCoursesSyncBox();
+    }
 
     if (isHoliday) {
         document.getElementById("attendanceSavedSummary")?.classList.add("hidden");
@@ -1281,6 +1300,7 @@ function selectAttendanceDate(date) {
     showAttendanceMessage("", "");
     renderAttendanceList();
     applyHolidayAttendanceState();
+    loadSiblingCoursesForAttendance(date);
 }
 
 function updateMissedAttendanceControls() {
@@ -1323,6 +1343,7 @@ function restoreSelectedAttendance(animateStudentId = null) {
     const todayRecords = currentAttendanceRecords.filter(record => attendanceDateKey(record.attendance_date) === selectedAttendanceDate);
     if (!todayRecords.length) {
         summary.classList.add("hidden");
+        renderLinkedCoursesSyncBox();
         return;
     }
     const statusByStudent = new Map(todayRecords.map(record => [Number(record.student_id), record.status]));
@@ -1334,6 +1355,136 @@ function restoreSelectedAttendance(animateStudentId = null) {
     const absentTotal = todayRecords.filter(record => record.status === "absent").length;
     const leaveTotal = todayRecords.filter(record => record.status === "leave").length;
     displaySavedAttendanceTotals(todayRecords.length - absentTotal - leaveTotal, absentTotal, leaveTotal);
+    renderLinkedCoursesSyncBox();
+}
+
+// =========================
+// SAME-CLASS ATTENDANCE SYNC
+// =========================
+
+function isPrimaryDateAlreadyMarked(date) {
+    return currentAttendanceRecords.some(
+        record => attendanceDateKey(record.attendance_date) === date && record.status !== "leave"
+    );
+}
+
+function updateSaveAttendanceButtonLabel() {
+    if (!saveAttendanceBtn || saveAttendanceBtn.disabled) return;
+    const count = selectedSyncCourseIds.size;
+    saveAttendanceBtn.textContent = count > 0
+        ? `Save Attendance (${count + 1} Courses)`
+        : "Save Attendance";
+}
+
+function renderLinkedCoursesSyncBox() {
+    if (!linkedCoursesSyncBox || !linkedCoursesSyncList) return;
+
+    const activeDate = selectedAttendanceDate || getTodayDate();
+    const isHoliday = Boolean(getHolidayForDate(activeDate));
+
+    if (isHoliday || !siblingCoursesForAttendance.length) {
+        linkedCoursesSyncBox.classList.add("hidden");
+        linkedCoursesSyncList.innerHTML = "";
+        selectedSyncCourseIds.clear();
+        updateSaveAttendanceButtonLabel();
+        return;
+    }
+
+    const primaryMarked = isPrimaryDateAlreadyMarked(activeDate);
+
+    // Prune any selected course that is no longer eligible
+    const eligibleIds = new Set(
+        siblingCoursesForAttendance
+            .filter(item => !primaryMarked && item.canSync)
+            .map(item => Number(item.id))
+    );
+    for (const id of [...selectedSyncCourseIds]) {
+        if (!eligibleIds.has(id)) selectedSyncCourseIds.delete(id);
+    }
+
+    if (linkedCoursesSyncHint) {
+        linkedCoursesSyncHint.textContent = primaryMarked
+            ? "Attendance for this course is already saved on this date."
+            : "Tick any course below to save the same attendance in one tap.";
+    }
+
+    linkedCoursesSyncList.innerHTML = siblingCoursesForAttendance.map(sibling => {
+        const sid = Number(sibling.id);
+        const disabled = primaryMarked || !sibling.canSync;
+        const checked = !disabled && selectedSyncCourseIds.has(sid);
+        const statusText = sibling.disabledReason
+            ? sibling.disabledReason
+            : (primaryMarked ? "Open this course to mark separately" : "Ready to sync");
+        const statusClass = sibling.disabledReason && !sibling.alreadyMarked
+            ? "linked-course-status is-warning"
+            : "linked-course-status";
+
+        return `
+            <label class="linked-course-option ${disabled ? "is-disabled" : ""} ${checked ? "is-selected" : ""}">
+                <input
+                    type="checkbox"
+                    data-sync-course-id="${sid}"
+                    ${checked ? "checked" : ""}
+                    ${disabled ? "disabled" : ""}
+                >
+                <span class="linked-course-copy">
+                    <span class="linked-course-title">
+                        <span>${escapeHtml(sibling.name)}</span>
+                        ${sibling.course_code ? `<span class="linked-course-code">${escapeHtml(sibling.course_code)}</span>` : ""}
+                    </span>
+                    <span class="linked-course-meta">${Number(sibling.matchingStudents)} of ${Number(sibling.totalStudents)} roll numbers match</span>
+                    <span class="${statusClass}">${escapeHtml(statusText)}</span>
+                </span>
+            </label>
+        `;
+    }).join("");
+
+    linkedCoursesSyncBox.classList.remove("hidden");
+    updateSaveAttendanceButtonLabel();
+}
+
+linkedCoursesSyncList?.addEventListener("change", event => {
+    const checkbox = event.target.closest("input[type='checkbox'][data-sync-course-id]");
+    if (!checkbox || checkbox.disabled) return;
+    const targetId = Number(checkbox.dataset.syncCourseId);
+    if (checkbox.checked) {
+        selectedSyncCourseIds.add(targetId);
+    } else {
+        selectedSyncCourseIds.delete(targetId);
+    }
+    checkbox.closest(".linked-course-option")?.classList.toggle("is-selected", checkbox.checked);
+    updateSaveAttendanceButtonLabel();
+});
+
+async function loadSiblingCoursesForAttendance(date = selectedAttendanceDate || getTodayDate()) {
+    if (!courseId || !linkedCoursesSyncBox) return;
+    const requestId = ++siblingCoursesRequestId;
+    selectedSyncCourseIds.clear();
+    updateSaveAttendanceButtonLabel();
+
+    try {
+        const response = await fetch(
+            `/api/attendance/course/${encodeURIComponent(courseId)}/sibling-courses?date=${encodeURIComponent(date)}`,
+            {
+                credentials: "include",
+                cache: "no-store"
+            }
+        );
+        if (requestId !== siblingCoursesRequestId) return;
+        if (!response.ok) {
+            siblingCoursesForAttendance = [];
+            renderLinkedCoursesSyncBox();
+            return;
+        }
+        const data = await response.json();
+        if (requestId !== siblingCoursesRequestId) return;
+        siblingCoursesForAttendance = Array.isArray(data.siblingCourses) ? data.siblingCourses : [];
+        renderLinkedCoursesSyncBox();
+    } catch (error) {
+        if (requestId !== siblingCoursesRequestId) return;
+        siblingCoursesForAttendance = [];
+        renderLinkedCoursesSyncBox();
+    }
 }
 
 
@@ -1400,6 +1551,8 @@ async function saveAttendance() {
             );
 
 
+    const syncCourseIds = [...selectedSyncCourseIds];
+
     const payload = {
 
         courseId:
@@ -1409,7 +1562,9 @@ async function saveAttendance() {
             selectedAttendanceDate || getTodayDate(),
 
         absentStudentIds:
-            absentStudentIds
+            absentStudentIds,
+
+        syncCourseIds
 
     };
 
@@ -1485,7 +1640,12 @@ async function saveAttendance() {
         }
 
 
-        showAttendanceMessage("Attendance saved successfully.", "success");
+        const syncedList = Array.isArray(data.syncedCourses) ? data.syncedCourses : [];
+        const savedText = syncedList.length
+            ? `Attendance saved and synced to ${syncedList.map(c => c.name).join(", ")}.`
+            : "Attendance saved successfully.";
+        showAttendanceMessage(savedText, "success");
+        selectedSyncCourseIds.clear();
 
         const presentTotal = Number(data.presentStudents) || 0;
         const absentTotal = Number(data.absentStudents) || 0;
@@ -1501,6 +1661,8 @@ async function saveAttendance() {
         await loadAttendanceHistory();
         if (savedDate !== getTodayDate()) {
             selectAttendanceDate(getTodayDate());
+        } else {
+            await loadSiblingCoursesForAttendance(savedDate);
         }
 
 
@@ -1522,8 +1684,7 @@ async function saveAttendance() {
         saveAttendanceBtn.disabled =
             false;
 
-        saveAttendanceBtn.textContent =
-            "Save Attendance";
+        updateSaveAttendanceButtonLabel();
 
     }
 
@@ -5593,6 +5754,7 @@ async function initializeCoursePage() {
         selectedAttendanceDate = getTodayDate();
         attendanceDate.textContent = formatDateForDisplay(selectedAttendanceDate);
         renderAttendanceList();
+        loadSiblingCoursesForAttendance(selectedAttendanceDate);
     }
     if (coursePageAction === "marks") {
         marksSection?.classList.remove("hidden");

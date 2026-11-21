@@ -2,6 +2,7 @@ const express = require("express");
 
 const {
     markAttendance,
+    getSiblingCourses,
     getAttendance,
     downloadMonthlyAttendancePdf,
     downloadAbsentStudentsPdf,
@@ -47,6 +48,8 @@ router.get(
     "/course/:courseId",
     getAttendance
 );
+
+router.get("/course/:courseId/sibling-courses", getSiblingCourses);
 
 router.get("/course/:courseId/monthly-register.pdf", downloadMonthlyAttendancePdf);
 router.get("/course/:courseId/absent-students.pdf", downloadAbsentStudentsPdf);

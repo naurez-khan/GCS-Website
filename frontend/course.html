@@ -16,7 +16,7 @@
 
     <link
         rel="stylesheet"
-        href="/course.css?v=20261002-2"
+        href="/course.css?v=20261121-1"
     >
     <link rel="stylesheet" href="/brand.css?v=20260824-33">
     <script defer src="/ui-icons.js?v=20260920-1"></script>
@@ -329,6 +329,17 @@
                     </div>
                     <div id="leaveMessage" class="message" role="status" aria-live="polite"></div>
                 </form>
+            </div>
+
+            <div id="linkedCoursesSyncBox" class="linked-courses-sync hidden" aria-live="polite">
+                <div class="linked-courses-sync-header">
+                    <span class="ui-heroicon linked-courses-sync-icon" style="--ui-icon-url: url('/assets/heroicons/arrows-right-left.svg')" aria-hidden="true"></span>
+                    <div>
+                        <h3>Also mark attendance for same-class course(s)</h3>
+                        <p id="linkedCoursesSyncHint">Tick any course below to save the same attendance in one tap.</p>
+                    </div>
+                </div>
+                <div id="linkedCoursesSyncList" class="linked-courses-sync-list"></div>
             </div>
 
             <div class="attendance-actions">
@@ -695,7 +706,7 @@
          COURSE JAVASCRIPT
     ========================= -->
 
-    <script src="/course.js?v=20261012-1"></script>
+    <script src="/course.js?v=20261121-1"></script>
 
 </body>
 
