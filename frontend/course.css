@@ -2600,3 +2600,176 @@ body {
         min-height: 54px;
     }
 }
+
+/* =========================
+   EDIT EXISTING ROLL NUMBERS
+========================= */
+
+.settings-roll-edit-section {
+    margin: 14px 0 18px;
+}
+
+.settings-roll-edit-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+}
+
+.settings-edited-rolls-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: #fdecec;
+    color: #950b17;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.settings-edited-rolls-badge.hidden,
+.settings-edit-rolls-panel.hidden,
+#resetEditedRollsBtn.hidden {
+    display: none;
+}
+
+.settings-edit-rolls-panel {
+    margin-top: 12px;
+    padding: 14px;
+    border: 1px solid #ead4d6;
+    border-radius: 12px;
+    background: #fffaf9;
+}
+
+.settings-edit-rolls-note {
+    margin: 0 0 10px;
+    font-size: 13px;
+    color: #5f4f51;
+}
+
+.settings-edit-rolls-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.settings-edit-rolls-toolbar input[type="search"] {
+    flex: 1 1 200px;
+    min-height: 42px;
+    padding: 8px 12px;
+    border: 1px solid #d9cdce;
+    border-radius: 10px;
+    font-size: 14px;
+    background: #fff;
+}
+
+.settings-edit-rolls-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+    gap: 10px;
+    max-height: 360px;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+
+.settings-edit-roll-item {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 10px 12px;
+    border: 1.5px solid #eadedf;
+    border-radius: 10px;
+    background: #ffffff;
+    transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.settings-edit-roll-item.is-edited {
+    border-color: #950b17;
+    background: #fff3f2;
+}
+
+.settings-edit-roll-item.hidden {
+    display: none;
+}
+
+.settings-edit-roll-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    font-size: 12px;
+    color: #6b5d5f;
+}
+
+.settings-edit-roll-orig {
+    font-weight: 700;
+    color: #3a2f30;
+}
+
+.settings-edit-roll-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 130px;
+}
+
+.settings-edit-roll-input-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.settings-edit-roll-input {
+    width: 100%;
+    min-height: 40px;
+    padding: 6px 10px;
+    border: 1px solid #d9cdce;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 700;
+    color: #221b1c;
+    background: #fff;
+}
+
+.settings-edit-roll-input:focus {
+    outline: 3px solid rgba(200, 16, 26, 0.12);
+    border-color: #c8101a;
+}
+
+.settings-edit-roll-undo {
+    padding: 6px 9px;
+    min-height: 40px;
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+.settings-edit-roll-status {
+    font-size: 11px;
+    font-weight: 700;
+    color: #950b17;
+}
+
+.settings-edit-rolls-empty {
+    grid-column: 1 / -1;
+    margin: 8px 0;
+    text-align: center;
+    font-size: 13px;
+    color: #6b5d5f;
+}
+
+@media (max-width: 700px) {
+    .settings-edit-rolls-list {
+        grid-template-columns: 1fr;
+        max-height: 320px;
+    }
+
+    .settings-edit-roll-input {
+        font-size: 16px;
+        min-height: 44px;
+    }
+
+    .settings-edit-roll-undo {
+        min-height: 44px;
+    }
+}

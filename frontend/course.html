@@ -16,7 +16,7 @@
 
     <link
         rel="stylesheet"
-        href="/course.css?v=20261121-1"
+        href="/course.css?v=20261121-2"
     >
     <link rel="stylesheet" href="/brand.css?v=20260824-33">
     <script defer src="/ui-icons.js?v=20260920-1"></script>
@@ -202,7 +202,23 @@
             </div>
             <div class="settings-roll-editor">
                 <div class="settings-roll-heading">
-                    <div><h3>Manage Students</h3><p>Add or permanently delete students by entering their roll numbers separated by commas.</p></div>
+                    <div><h3>Manage Students</h3><p>Edit existing roll numbers without losing saved data, or add and permanently delete students.</p></div>
+                </div>
+                <div class="settings-roll-edit-section">
+                    <div class="settings-roll-edit-bar">
+                        <button id="toggleEditRollsBtn" class="secondary-btn settings-edit-rolls-toggle" type="button" data-ui-icon="pencil-square" aria-expanded="false" aria-controls="settingsEditRollsPanel">
+                            Edit Existing Roll Numbers
+                        </button>
+                        <span id="settingsEditedRollsBadge" class="settings-edited-rolls-badge hidden">0 edited</span>
+                    </div>
+                    <div id="settingsEditRollsPanel" class="settings-edit-rolls-panel hidden">
+                        <p class="settings-edit-rolls-note">Changing a roll number keeps all saved attendance, leaves, marks, and results intact.</p>
+                        <div class="settings-edit-rolls-toolbar">
+                            <input id="settingsEditRollsSearch" type="search" placeholder="Search roll number or student name…" autocomplete="off">
+                            <button id="resetEditedRollsBtn" class="secondary-btn hidden" type="button" data-ui-icon="arrow-path">Reset Edits</button>
+                        </div>
+                        <div id="settingsEditRollsList" class="settings-edit-rolls-list"></div>
+                    </div>
                 </div>
                 <div class="settings-roll-bulk-grid">
                     <label>
@@ -706,7 +722,7 @@
          COURSE JAVASCRIPT
     ========================= -->
 
-    <script src="/course.js?v=20261121-1"></script>
+    <script src="/course.js?v=20261121-2"></script>
 
 </body>
 

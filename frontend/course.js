@@ -5087,14 +5087,166 @@ function setPanelMessage(elementId, text, type) {
     element.className = text ? `message ${type}` : "message";
 }
 
+const settingsRollEdits = new Map();
+
+function updateEditedRollsSummary() {
+    const badge = document.getElementById("settingsEditedRollsBadge");
+    const resetBtn = document.getElementById("resetEditedRollsBtn");
+    const count = settingsRollEdits.size;
+    if (badge) {
+        badge.textContent = `${count} edited`;
+        badge.classList.toggle("hidden", count === 0);
+    }
+    if (resetBtn) {
+        resetBtn.classList.toggle("hidden", count === 0);
+    }
+}
+
+function filterSettingsEditRollsList() {
+    const query = String(document.getElementById("settingsEditRollsSearch")?.value || "").trim().toLowerCase();
+    const list = document.getElementById("settingsEditRollsList");
+    if (!list) return;
+    let visibleCount = 0;
+    list.querySelectorAll(".settings-edit-roll-item").forEach(item => {
+        const orig = String(item.dataset.originalRoll || "").toLowerCase();
+        const name = String(item.dataset.studentName || "").toLowerCase();
+        const current = String(item.querySelector(".settings-edit-roll-input")?.value || "").trim().toLowerCase();
+        const matches = !query || orig.includes(query) || current.includes(query) || name.includes(query);
+        item.classList.toggle("hidden", !matches);
+        if (matches) visibleCount += 1;
+    });
+    const emptyNote = list.querySelector(".settings-edit-rolls-empty");
+    if (emptyNote) emptyNote.classList.toggle("hidden", visibleCount > 0);
+}
+
 function renderSettingsRollEditor() {
     const addInput = document.getElementById("settingsAddRolls");
     const removeInput = document.getElementById("settingsRemoveRolls");
+    const searchInput = document.getElementById("settingsEditRollsSearch");
+    const list = document.getElementById("settingsEditRollsList");
     if (addInput) addInput.value = "";
     if (removeInput) removeInput.value = "";
+    if (searchInput) searchInput.value = "";
+    settingsRollEdits.clear();
+    updateEditedRollsSummary();
+
     const count = document.getElementById("settingsRollCount");
     if (count) count.textContent = `${students.length} active student${students.length === 1 ? "" : "s"} in this class`;
+
+    if (list) {
+        const sortedStudents = [...students].sort((a, b) => Number(a.roll_number) - Number(b.roll_number));
+        list.innerHTML = sortedStudents.map(student => {
+            const sid = Number(student.id);
+            const origRoll = String(student.roll_number ?? "").trim();
+            const studentName = String(student.name || "").trim();
+            return `
+                <div class="settings-edit-roll-item" data-student-id="${sid}" data-original-roll="${escapeHtml(origRoll)}" data-student-name="${escapeHtml(studentName)}">
+                    <div class="settings-edit-roll-meta">
+                        <span class="settings-edit-roll-orig">Roll #${escapeHtml(origRoll)}</span>
+                        ${studentName ? `<span class="settings-edit-roll-name" title="${escapeHtml(studentName)}">${escapeHtml(studentName)}</span>` : ""}
+                    </div>
+                    <div class="settings-edit-roll-input-row">
+                        <input
+                            class="settings-edit-roll-input"
+                            type="number"
+                            inputmode="numeric"
+                            min="0"
+                            max="2147483647"
+                            step="1"
+                            value="${escapeHtml(origRoll)}"
+                            aria-label="Roll number for student ${escapeHtml(origRoll)}"
+                            data-student-id="${sid}"
+                        >
+                        <button type="button" class="secondary-btn settings-edit-roll-undo hidden" data-undo-roll-id="${sid}" data-ui-icon="none">Undo</button>
+                    </div>
+                    <span class="settings-edit-roll-status hidden"></span>
+                </div>
+            `;
+        }).join("") + '<p class="settings-edit-rolls-empty hidden">No matching students found.</p>';
+    }
 }
+
+document.getElementById("toggleEditRollsBtn")?.addEventListener("click", () => {
+    const panel = document.getElementById("settingsEditRollsPanel");
+    const btn = document.getElementById("toggleEditRollsBtn");
+    if (!panel || !btn) return;
+    const willOpen = panel.classList.contains("hidden");
+    panel.classList.toggle("hidden", !willOpen);
+    btn.setAttribute("aria-expanded", String(willOpen));
+});
+
+document.getElementById("settingsEditRollsSearch")?.addEventListener("input", filterSettingsEditRollsList);
+
+document.getElementById("resetEditedRollsBtn")?.addEventListener("click", () => {
+    const list = document.getElementById("settingsEditRollsList");
+    if (!list) return;
+    settingsRollEdits.clear();
+    list.querySelectorAll(".settings-edit-roll-item").forEach(item => {
+        const orig = item.dataset.originalRoll || "";
+        const input = item.querySelector(".settings-edit-roll-input");
+        const undoBtn = item.querySelector(".settings-edit-roll-undo");
+        const statusEl = item.querySelector(".settings-edit-roll-status");
+        if (input) input.value = orig;
+        item.classList.remove("is-edited");
+        undoBtn?.classList.add("hidden");
+        if (statusEl) {
+            statusEl.textContent = "";
+            statusEl.classList.add("hidden");
+        }
+    });
+    updateEditedRollsSummary();
+});
+
+document.getElementById("settingsEditRollsList")?.addEventListener("input", event => {
+    const input = event.target.closest(".settings-edit-roll-input");
+    if (!input) return;
+    const item = input.closest(".settings-edit-roll-item");
+    if (!item) return;
+    const sid = Number(item.dataset.studentId);
+    const orig = String(item.dataset.originalRoll || "").trim();
+    const val = String(input.value || "").trim();
+    const undoBtn = item.querySelector(".settings-edit-roll-undo");
+    const statusEl = item.querySelector(".settings-edit-roll-status");
+
+    if (val !== orig) {
+        settingsRollEdits.set(sid, val);
+        item.classList.add("is-edited");
+        undoBtn?.classList.remove("hidden");
+        if (statusEl) {
+            statusEl.textContent = val ? `Will change ${orig} → ${val}` : "Enter a valid roll number";
+            statusEl.classList.remove("hidden");
+        }
+    } else {
+        settingsRollEdits.delete(sid);
+        item.classList.remove("is-edited");
+        undoBtn?.classList.add("hidden");
+        if (statusEl) {
+            statusEl.textContent = "";
+            statusEl.classList.add("hidden");
+        }
+    }
+    updateEditedRollsSummary();
+});
+
+document.getElementById("settingsEditRollsList")?.addEventListener("click", event => {
+    const undoBtn = event.target.closest("[data-undo-roll-id]");
+    if (!undoBtn) return;
+    const item = undoBtn.closest(".settings-edit-roll-item");
+    if (!item) return;
+    const sid = Number(item.dataset.studentId);
+    const orig = String(item.dataset.originalRoll || "").trim();
+    const input = item.querySelector(".settings-edit-roll-input");
+    const statusEl = item.querySelector(".settings-edit-roll-status");
+    if (input) input.value = orig;
+    settingsRollEdits.delete(sid);
+    item.classList.remove("is-edited");
+    undoBtn.classList.add("hidden");
+    if (statusEl) {
+        statusEl.textContent = "";
+        statusEl.classList.add("hidden");
+    }
+    updateEditedRollsSummary();
+});
 
 function parseSettingsRollList(value, action) {
     const text = String(value || "").trim();
@@ -5116,37 +5268,77 @@ function parseSettingsRollList(value, action) {
 function buildSettingsStudentChanges() {
     const addRolls = parseSettingsRollList(document.getElementById("settingsAddRolls")?.value, "Add");
     const removeRolls = parseSettingsRollList(document.getElementById("settingsRemoveRolls")?.value, "Remove");
-    if (!addRolls.length && !removeRolls.length) {
-        throw new Error("Enter at least one roll number to add or remove");
+    const editedCount = settingsRollEdits.size;
+    if (!addRolls.length && !removeRolls.length && !editedCount) {
+        throw new Error("Edit an existing roll number, or enter roll numbers to add or remove");
     }
 
     const activeByRoll = new Map(students.map(student => [Number(student.roll_number), student]));
-    const alreadyActive = addRolls.filter(roll => activeByRoll.has(roll));
-    if (alreadyActive.length) throw new Error(`Already in this class: ${alreadyActive.join(", ")}`);
     const missing = removeRolls.filter(roll => !activeByRoll.has(roll));
     if (missing.length) throw new Error(`Not found in this class: ${missing.join(", ")}`);
     const overlap = addRolls.filter(roll => removeRolls.includes(roll));
     if (overlap.length) throw new Error(`A roll number cannot be added and removed together: ${overlap.join(", ")}`);
 
     const removeSet = new Set(removeRolls);
-    const remainingStudents = students.filter(student => !removeSet.has(Number(student.roll_number)));
+    for (const [sid, rawVal] of settingsRollEdits.entries()) {
+        const originalStudent = students.find(s => Number(s.id) === Number(sid));
+        if (!originalStudent) continue;
+        if (removeSet.has(Number(originalStudent.roll_number))) {
+            throw new Error(`Roll number ${originalStudent.roll_number} cannot be edited and deleted at the same time`);
+        }
+        if (!/^\d+$/.test(rawVal)) {
+            throw new Error(`New roll number for Roll #${originalStudent.roll_number} must be a whole number`);
+        }
+        const parsed = Number(rawVal);
+        if (!Number.isSafeInteger(parsed) || parsed < 0 || parsed > 2147483647) {
+            throw new Error(`New roll number for Roll #${originalStudent.roll_number} must be between 0 and 2147483647`);
+        }
+    }
+
+    const remainingStudents = students
+        .filter(student => !removeSet.has(Number(student.roll_number)))
+        .map(student => {
+            const sid = Number(student.id);
+            const editedVal = settingsRollEdits.has(sid) ? Number(settingsRollEdits.get(sid)) : Number(student.roll_number);
+            return {
+                student_id: sid,
+                roll_number: editedVal,
+                name: student.name || ""
+            };
+        });
+
+    if (!remainingStudents.length && !addRolls.length) {
+        throw new Error("A class must keep at least one active student");
+    }
     if (!remainingStudents.length) throw new Error("A class must keep at least one active student");
     if (remainingStudents.length + addRolls.length > 500) throw new Error("A class cannot contain more than 500 active students");
 
+    const finalStudents = [
+        ...remainingStudents,
+        ...addRolls.map(roll => ({
+            student_id: null,
+            roll_number: roll,
+            name: currentCourse?.student_name_enabled === true ? `Student ${roll}` : ""
+        }))
+    ];
+
+    const seenRolls = new Set();
+    const duplicateRolls = [];
+    for (const item of finalStudents) {
+        if (seenRolls.has(item.roll_number)) {
+            duplicateRolls.push(item.roll_number);
+        } else {
+            seenRolls.add(item.roll_number);
+        }
+    }
+    if (duplicateRolls.length) {
+        throw new Error(`Duplicate roll number${duplicateRolls.length === 1 ? "" : "s"}: ${[...new Set(duplicateRolls)].join(", ")}. Each student must have a unique roll number.`);
+    }
+
     return {
-        students: [
-            ...remainingStudents.map(student => ({
-                student_id: Number(student.id),
-                roll_number: Number(student.roll_number),
-                name: student.name || ""
-            })),
-            ...addRolls.map(roll => ({
-                student_id: null,
-                roll_number: roll,
-                name: currentCourse?.student_name_enabled === true ? `Student ${roll}` : ""
-            }))
-        ],
+        students: finalStudents,
         removedStudentIds: removeRolls.map(roll => Number(activeByRoll.get(roll).id)),
+        editedCount,
         addedCount: addRolls.length,
         removedCount: removeRolls.length
     };
@@ -5341,10 +5533,14 @@ document.getElementById("saveSettingsRollsBtn")?.addEventListener("click", async
         displayCourse(currentCourse);
         displayStudents(students);
         renderSettingsRollEditor();
+        if (typeof loadAttendanceHistory === "function") {
+            loadAttendanceHistory().catch(() => {});
+        }
         const updates = [];
+        if (changes.editedCount) updates.push(`${changes.editedCount} roll number${changes.editedCount === 1 ? "" : "s"} updated`);
         if (changes.addedCount) updates.push(`${changes.addedCount} added`);
         if (changes.removedCount) updates.push(`${changes.removedCount} removed`);
-        setPanelMessage("settingsRollMessage", `Student changes saved: ${updates.join(" and ")}.`, "success");
+        setPanelMessage("settingsRollMessage", `Student changes saved: ${updates.join(", ")}.`, "success");
     } catch (error) {
         setPanelMessage("settingsRollMessage", error.message, "error");
     } finally {
